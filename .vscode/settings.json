@@ -1,0 +1,9 @@
+{
+    "cSpell.words": [
+        "iterrows",
+        "jsonify",
+        "secure_filename",
+        "sqlalchemy",
+        "werkzeug"
+    ]
+}
