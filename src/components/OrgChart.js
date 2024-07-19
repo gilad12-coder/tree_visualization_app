@@ -1,3 +1,4 @@
+// src/components/OrgChart.js
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import {AnimatePresence } from 'framer-motion';
@@ -9,7 +10,6 @@ import Button from './Button';
 import FileUploadModal from './FileUploadModal';
 import TableSelectionModal from './TableSelectionModal';
 import LandingPage from './LandingPage';
-import CreateFolderForm from './CreateFolderForm';
 
 const OrgChart = () => {
   const [orgData, setOrgData] = useState(null);
@@ -26,7 +26,8 @@ const OrgChart = () => {
   const [selectedTableId, setSelectedTableId] = useState(null);
   const [folderStructure, setFolderStructure] = useState(null);
   const [folderError, setFolderError] = useState(null);
-  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
+  const [hasTables, setHasTables] = useState(false);
   const dragRef = useRef(null);
   const chartRef = useRef(null);
 
@@ -44,8 +45,8 @@ const OrgChart = () => {
     try {
       setFolderError(null);
       const response = await axios.get('http://localhost:5000/folder_structure');
-      console.log('Folder structure response:', response.data);
       setFolderStructure(response.data);
+      setHasTables(response.data.length > 0);
     } catch (err) {
       console.error('Error fetching folder structure:', err);
       setFolderError('Failed to fetch folder structure. Please try again later.');
@@ -56,9 +57,9 @@ const OrgChart = () => {
     setLoading(true);
     try {
       const response = await axios.get(`http://localhost:5000/org-data?table_id=${tableId}`);
-      console.log('Org data response:', response.data);
       setOrgData(response.data);
       setLoading(false);
+      setShowLanding(false);
     } catch (err) {
       console.error('Error fetching org data:', err);
       setError('Failed to fetch organizational data');
@@ -87,6 +88,18 @@ const OrgChart = () => {
     setSelectedTableId(tableId);
     setIsTableSelectionOpen(false);
     fetchOrgData(tableId);
+  };
+
+  const handleViewTables = () => {
+    setIsTableSelectionOpen(true);
+  };
+
+  const handleUpload = () => {
+    setIsUploadOpen(true);
+  };
+
+  const handleCreateTable = () => {
+    setIsUploadOpen(true);
   };
 
   const handleNodeClick = (node) => {
@@ -144,17 +157,6 @@ const OrgChart = () => {
     });
   };
 
-  const handleCreateFolder = async (folderName) => {
-    try {
-      await axios.post('http://localhost:5000/create_folder', { name: folderName });
-      setIsCreateFolderOpen(false);
-      fetchFolderStructure();
-    } catch (error) {
-      console.error('Error creating folder:', error);
-      setError('Failed to create folder');
-    }
-  };
-
   useEffect(() => {
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
@@ -182,28 +184,14 @@ const OrgChart = () => {
     return <div className="flex justify-center items-center h-screen text-2xl text-gray-600">Loading folder structure...</div>;
   }
 
-  if (!selectedTableId) {
+  if (showLanding) {
     return (
-      <>
-        <LandingPage
-          folderStructure={folderStructure}
-          onSelectTable={handleTableSelection}
-          onCreateFolder={() => setIsCreateFolderOpen(true)}
-          onUploadFile={() => setIsUploadOpen(true)}
-        />
-        <Modal
-          isOpen={isCreateFolderOpen}
-          onClose={() => setIsCreateFolderOpen(false)}
-          title="Create New Folder"
-          >
-          <CreateFolderForm onSubmit={handleCreateFolder} onCancel={() => setIsCreateFolderOpen(false)} />
-        </Modal>
-        <FileUploadModal
-          isOpen={isUploadOpen}
-          onClose={() => setIsUploadOpen(false)}
-          onUpload={handleFileUpload}
-        />
-      </>
+      <LandingPage
+        hasTables={hasTables}
+        onViewTables={handleViewTables}
+        onUpload={handleUpload}
+        onCreateTable={handleCreateTable}
+      />
     );
   }
 
@@ -213,6 +201,19 @@ const OrgChart = () => {
 
   if (error) {
     return <div className="flex justify-center items-center h-screen text-2xl text-red-600">{error}</div>;
+  }
+
+  if (!selectedTableId) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Button onClick={handleViewTables} icon={List} className="mr-4">
+          Select Table
+        </Button>
+        <Button onClick={handleUpload} icon={Upload}>
+          Upload New Table
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -240,7 +241,7 @@ const OrgChart = () => {
         onMouseDown={handleMouseDown}
         onWheel={handleWheel}
         style={{
-          overflow: 'hidden',
+          overflow: 'hidden'
         }}
       >
         <div
@@ -248,7 +249,7 @@ const OrgChart = () => {
           style={{
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
             transition: isDragging ? 'none' : 'transform 0.3s ease-out',
-            transformOrigin: '0 0',
+            transformOrigin: '0 0'
           }}
         >
           <div className="p-8 pt-20">
@@ -277,13 +278,19 @@ const OrgChart = () => {
       />
       <TableSelectionModal
         isOpen={isTableSelectionOpen}
-        onClose={() => setIsTableSelectionOpen(false)}
+        onClose={() => {
+          setIsTableSelectionOpen(false);
+          if (!selectedTableId) setShowLanding(true);
+        }}
         onSelectTable={handleTableSelection}
         folderStructure={folderStructure}
       />
       <FileUploadModal
         isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
+        onClose={() => {
+          setIsUploadOpen(false);
+          if (!selectedTableId) setShowLanding(true);
+        }}
         onUpload={handleFileUpload}
       />
     </div>

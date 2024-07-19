@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X} from 'react-feather';
-import { extractNamesAndRoles } from '../utils/orgChartUtils';
+import { extractNamesAndRoles } from '../Utilities/orgChartUtils';
 
 const FilterModal = ({ isOpen, onClose, onApplyFilters, activeFilters, orgData }) => {
   const [filterType, setFilterType] = useState('name'); // 'name' or 'role'

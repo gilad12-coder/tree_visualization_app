@@ -1,31 +1,51 @@
+# utils.py
+
 import pandas as pd
+import logging
+import re
+
+logging.basicConfig(level=logging.DEBUG)
 
 def parse_org_data(df):
-    def add_node(structure, name, role):
-        parts = structure.split('/')
-        current = org_structure
-        for part in parts[1:]:
-            if part not in current:
-                current[part] = {}
-            current = current[part]
-        current['name'] = name
-        current['role'] = role
+    logging.debug(f"Received DataFrame with {len(df)} rows")
 
-    org_structure = {}
+    # Sort the DataFrame by Hierarchical_Structure to ensure parents are processed before children
     df = df.sort_values('Hierarchical_Structure')
+
+    # Initialize a dictionary to store all nodes
+    nodes = {}
+
+    def split_structure(structure):
+        # Use regex to split the structure, preserving escaped forward slashes
+        return re.findall(r'/(?:\\\/|[^/])+', structure)
+
     for _, row in df.iterrows():
-        add_node(row['Hierarchical_Structure'], row['Name'], row['Role'])
+        structure = row.get('Hierarchical_Structure', '')
+        name = row.get('Name', '')
+        role = row.get('Role', '')
 
-    def build_tree(structure):
-        result = []
-        for key, value in structure.items():
-            if key != 'name' and key != 'role':
-                node = {'name': value.get('name', f"Department {key}"),
-                        'role': value.get('role', 'Department')}
-                children = build_tree(value)
-                if children:
-                    node['children'] = children
-                result.append(node)
-        return result
+        if not structure:
+            logging.warning(f"Skipping row due to missing Hierarchical_Structure: {row}")
+            continue
 
-    return {'name': 'Company', 'role': 'Organization', 'children': build_tree(org_structure)}
+        # Create the new node
+        new_node = {"name": name, "role": role, "children": []}
+        nodes[structure] = new_node
+
+        # Split the structure into parts
+        parts = split_structure(structure)
+
+        # If not the root node, add this node as a child to its parent
+        if len(parts) > 1:
+            parent_structure = ''.join(parts[:-1])
+            parent = nodes.get(parent_structure)
+            if parent:
+                parent["children"].append(new_node)
+            else:
+                logging.warning(f"Parent not found for node: {structure}")
+
+    # The root is the node with structure '/1'
+    root = nodes.get('/1', {})
+
+    logging.debug(f"Returning root node: {root}")
+    return root

@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Briefcase, User, Mail, X } from 'react-feather';
 import Button from './Button';
-import getAllReports from '../utils/getAllReports';
+import getAllReports from '../Utilities/getAllReports';
 
 const Modal = ({ node, onClose }) => {
   const allReports = getAllReports(node);

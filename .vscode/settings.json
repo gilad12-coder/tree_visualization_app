@@ -1,0 +1,12 @@
+{
+    "cSpell.words": [
+        "iterrows",
+        "joinedload",
+        "jsonify",
+        "secure_filename",
+        "sessionmaker",
+        "sqlalchemy",
+        "subfolders",
+        "werkzeug"
+    ]
+}
