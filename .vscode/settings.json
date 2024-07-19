@@ -1,12 +1,18 @@
 {
     "cSpell.words": [
         "iterrows",
+<<<<<<< HEAD
         "joinedload",
         "jsonify",
         "secure_filename",
         "sessionmaker",
         "sqlalchemy",
         "subfolders",
+=======
+        "jsonify",
+        "secure_filename",
+        "sqlalchemy",
+>>>>>>> master
         "werkzeug"
     ]
 }
