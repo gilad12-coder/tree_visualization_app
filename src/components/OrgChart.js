@@ -3,7 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Filter, Upload, List, Home } from 'react-feather';
 import FilterModal from './FilterModal';
 import TreeNode from './TreeNode';
-import Modal from './Modal';
+import EnhancedNodeCard from './EnhancedNodeCard';
 import Button from './Button';
 import FileUploadModal from './FileUploadModal';
 import TableSelectionModal from './TableSelectionModal';
@@ -40,6 +40,7 @@ const OrgChart = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
+  const [collapseAll, setCollapseAll] = useState(false);
   
   const dragRef = useRef(null);
   const chartRef = useRef(null);
@@ -73,12 +74,27 @@ const OrgChart = () => {
     setIsFilterOpen(false);
   }, [setActiveFilters]);
 
-  const filterOrgData = useMemo(() => (node) => {
-    if (activeFilters.length === 0) return true;
-    return activeFilters.some(filter => 
-      node.name.toLowerCase().includes(filter.toLowerCase()) ||
-      node.role.toLowerCase().includes(filter.toLowerCase())
-    );
+  const filterOrgData = useMemo(() => {
+    const matchesFilter = (node) => {
+      if (activeFilters.length === 0) return true;
+      return activeFilters.some(filter => 
+        node.name.toLowerCase().includes(filter.toLowerCase()) ||
+        node.role.toLowerCase().includes(filter.toLowerCase())
+      );
+    };
+
+    const hasMatchingDescendant = (node) => {
+      if (matchesFilter(node)) return true;
+      if (node.children) {
+        return node.children.some(hasMatchingDescendant);
+      }
+      return false;
+    };
+
+    return (node) => {
+      if (activeFilters.length === 0) return true;
+      return hasMatchingDescendant(node);
+    };
   }, [activeFilters]);
 
   const handleMouseDown = useCallback((e) => {
@@ -136,6 +152,18 @@ const OrgChart = () => {
 
   useKeyboardShortcut('f', true, toggleFilterModal);
 
+  const handleExpandAll = useCallback(() => {
+    setExpandAll(true);
+    setCollapseAll(false);
+  }, [setExpandAll]);
+
+  const handleCollapseAll = useCallback(() => {
+    setExpandAll(false);
+    setCollapseAll(true);
+    // Reset collapseAll after a short delay
+    setTimeout(() => setCollapseAll(false), 100);
+  }, [setExpandAll]);
+
   const renderContent = () => {
     if (error) {
       return (
@@ -168,10 +196,10 @@ const OrgChart = () => {
             <Button onClick={() => setShowLanding(true)} icon={Home}>
               Home
             </Button>
-            <Button onClick={() => setExpandAll(true)} icon={ChevronDown}>
+            <Button onClick={handleExpandAll} icon={ChevronDown}>
               Open All
             </Button>
-            <Button onClick={() => setExpandAll(false)} icon={ChevronUp}>
+            <Button onClick={handleCollapseAll} icon={ChevronUp}>
               Collapse All
             </Button>
             <Button onClick={toggleFilterModal} icon={Filter}>
@@ -204,11 +232,20 @@ const OrgChart = () => {
                   node={orgData} 
                   onNodeClick={handleNodeClick} 
                   expandAll={expandAll}
+                  collapseAll={collapseAll}
                   filterNode={filterOrgData}
                 />
               </div>
             </div>
           </div>
+          <AnimatePresence>
+            {selectedNode && (
+              <EnhancedNodeCard
+                node={selectedNode}
+                onClose={() => setSelectedNode(null)}
+              />
+            )}
+          </AnimatePresence>
         </>
       );
     }
@@ -228,11 +265,6 @@ const OrgChart = () => {
   return (
     <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
       {renderContent()}
-      <AnimatePresence>
-        {selectedNode && (
-          <Modal node={selectedNode} onClose={() => setSelectedNode(null)} />
-        )}
-      </AnimatePresence>
       <FilterModal
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
