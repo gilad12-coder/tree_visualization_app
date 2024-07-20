@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Folder, File, ChevronRight, Search } from 'react-feather';
+import { Folder, File, ChevronRight, Search, X } from 'react-feather';
 
 const MotionPath = motion.path;
 
@@ -158,9 +158,19 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
             onAnimationComplete={() => bgOpacity.set(0.5)}
           >
             <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
-              <div className="flex items-center space-x-4">
-                <AnimatedLogo />
-                <h2 className="text-3xl font-black text-black tracking-tight">Select Table</h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <AnimatedLogo />
+                  <h2 className="text-3xl font-black text-black tracking-tight">Select Table</h2>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={onClose}
+                  className="text-black hover:text-gray-700 transition-colors"
+                >
+                  <X size={24} />
+                </motion.button>
               </div>
             </div>
             <div className="p-8">
