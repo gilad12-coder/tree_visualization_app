@@ -3,11 +3,12 @@ from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import os
 import pandas as pd
-from .models import Session, Folder, Table, DataEntry  # Updated import statement
+from models import Session, Folder, Table, DataEntry  # Updated import statement
 from sqlalchemy.exc import SQLAlchemyError
-from .utils import parse_org_data  # Updated import statement
+from utils import parse_org_data  # Updated import statement
 import logging
 from sqlalchemy.orm import joinedload
+import json
 
 logging.basicConfig(level=logging.DEBUG)
 

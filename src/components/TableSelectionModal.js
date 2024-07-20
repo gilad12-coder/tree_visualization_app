@@ -1,28 +1,138 @@
-// src/components/TableSelectionModal.js
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Folder, File, ChevronRight, ChevronLeft } from 'react-feather';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { Folder, File, ChevronRight, Search } from 'react-feather';
+
+const MotionPath = motion.path;
+
+const AnimatedLogo = () => (
+  <svg width="40" height="40" viewBox="0 0 50 50">
+    <MotionPath
+      d="M25,10 L40,40 L10,40 Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      initial={{ pathLength: 0 }}
+      animate={{ pathLength: 1 }}
+      transition={{ duration: 2, ease: "easeInOut" }}
+    />
+  </svg>
+);
+
+const FolderCard = ({ folder, onClick, isExpanded }) => {
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02, y: -5 }}
+      whileTap={{ scale: 0.98 }}
+      className="bg-blue-500 bg-opacity-20 rounded-xl border border-blue-200 shadow-sm transition-all duration-300 ease-out p-4 w-full cursor-pointer backdrop-filter backdrop-blur-sm"
+      onClick={onClick}
+    >
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-3">
+          <Folder size={20} className="text-black" />
+          <span className="text-base font-medium text-black">{folder.name}</span>
+        </div>
+        <motion.div
+          animate={{ rotate: isExpanded ? 90 : 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 15 }}
+        >
+          <ChevronRight size={20} className="text-black" />
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+};
+
+const TableCard = ({ table, onClick }) => {
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02, y: -5 }}
+      whileTap={{ scale: 0.98 }}
+      className="bg-blue-500 bg-opacity-20 rounded-xl border border-blue-200 shadow-sm transition-all duration-300 ease-out p-4 w-full cursor-pointer backdrop-filter backdrop-blur-sm"
+      onClick={onClick}
+    >
+      <div className="flex items-center space-x-3">
+        <File size={20} className="text-black" />
+        <span className="text-base font-medium text-black">{table.name}</span>
+      </div>
+    </motion.div>
+  );
+};
 
 const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }) => {
-  const [currentPath, setCurrentPath] = useState([]);
+  const [currentPath] = useState([]);
+  const [currentFolder, setCurrentFolder] = useState(null);
+  const [expandedFolders, setExpandedFolders] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const getCurrentFolder = () => {
-    let current = { subfolders: folderStructure, tables: [] };
-    for (let folderId of currentPath) {
-      current = current.subfolders.find(f => f.id === folderId);
+  const bgOpacity = useMotionValue(0);
+  const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
+
+  useEffect(() => {
+    setCurrentFolder({ subfolders: folderStructure, tables: [] });
+  }, [folderStructure]);
+
+  useEffect(() => {
+    if (currentPath.length === 0) {
+      setCurrentFolder({ subfolders: folderStructure, tables: [] });
+    } else {
+      let current = { subfolders: folderStructure, tables: [] };
+      for (let folderId of currentPath) {
+        current = current.subfolders.find(f => f.id === folderId);
+        if (!current) {
+          console.error("Folder not found:", folderId);
+          break;
+        }
+      }
+      setCurrentFolder(current);
     }
-    return current;
-  };
+  }, [currentPath, folderStructure]);
 
   const handleFolderClick = (folder) => {
-    setCurrentPath([...currentPath, folder.id]);
+    setExpandedFolders(prev => ({ ...prev, [folder.id]: !prev[folder.id] }));
   };
 
-  const handleBackClick = () => {
-    setCurrentPath(currentPath.slice(0, -1));
+  const handleTableSelect = (tableId) => {
+    onSelectTable(tableId);
+    onClose();
   };
 
-  const currentFolder = getCurrentFolder();
+  const filteredContents = (folder) => {
+    const filteredSubfolders = folder.subfolders?.filter(sf => sf.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
+    const filteredTables = folder.tables?.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
+    return { subfolders: filteredSubfolders, tables: filteredTables };
+  };
+
+  const renderFolderContents = (folder, depth = 0) => {
+    const { subfolders, tables } = filteredContents(folder);
+    return (
+      <motion.div
+        className="space-y-2"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ staggerChildren: 0.1, delayChildren: 0.2 }}
+      >
+        {subfolders.map((subfolder) => (
+          <motion.div key={subfolder.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+            <FolderCard
+              folder={subfolder}
+              onClick={() => handleFolderClick(subfolder)}
+              isExpanded={expandedFolders[subfolder.id]}
+            />
+            {expandedFolders[subfolder.id] && (
+              <div className="ml-6 mt-2">
+                {renderFolderContents(subfolder, depth + 1)}
+              </div>
+            )}
+          </motion.div>
+        ))}
+        {tables.map((table) => (
+          <motion.div key={table.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+            <TableCard table={table} onClick={() => handleTableSelect(table.id)} />
+          </motion.div>
+        ))}
+      </motion.div>
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -31,66 +141,44 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4"
+          className="fixed inset-0 flex justify-center items-center z-50 p-8"
           onClick={onClose}
+          style={{
+            backgroundColor: `rgba(0, 0, 0, ${bgOpacity.get()})`,
+            backdropFilter: `blur(${bgBlur.get()}px)`,
+          }}
         >
           <motion.div
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -50, opacity: 0 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-4xl h-[80vh] overflow-hidden backdrop-filter backdrop-blur-lg"
             onClick={(e) => e.stopPropagation()}
+            onAnimationComplete={() => bgOpacity.set(0.5)}
           >
-            <div className="p-6 bg-gradient-to-r from-blue-500 to-purple-600">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-white">Select Table</h2>
-                <button onClick={onClose} className="text-white hover:text-gray-200 transition-colors">
-                  <X size={24} />
-                </button>
+            <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
+              <div className="flex items-center space-x-4">
+                <AnimatedLogo />
+                <h2 className="text-3xl font-black text-black tracking-tight">Select Table</h2>
               </div>
             </div>
-            <div className="p-6">
-              <div className="mb-4 flex items-center">
-                <button
-                  onClick={handleBackClick}
-                  disabled={currentPath.length === 0}
-                  className={`mr-2 ${currentPath.length === 0 ? 'text-gray-400' : 'text-blue-500 hover:text-blue-600'}`}
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <span className="text-gray-600">
-                  {currentPath.length === 0 ? 'Root' : currentPath.map(id => {
-                    let folder = folderStructure;
-                    for (let fId of currentPath) {
-                      folder = folder.find(f => f.id === fId);
-                      if (fId === id) break;
-                    }
-                    return folder.name;
-                  }).join(' / ')}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-4 mb-4 max-h-60 overflow-y-auto">
-                {currentFolder.subfolders && currentFolder.subfolders.map((folder) => (
-                  <div
-                    key={folder.id}
-                    onClick={() => handleFolderClick(folder)}
-                    className="flex items-center p-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors"
-                  >
-                    <Folder size={20} className="text-yellow-500 mr-2" />
-                    <span className="text-sm">{folder.name}</span>
-                    <ChevronRight size={16} className="ml-auto text-gray-400" />
-                  </div>
-                ))}
-                {currentFolder.tables && currentFolder.tables.map((table) => (
-                  <div
-                    key={table.id}
-                    onClick={() => onSelectTable(table.id)}
-                    className="flex items-center p-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors"
-                  >
-                    <File size={20} className="text-blue-500 mr-2" />
-                    <span className="text-sm">{table.name}</span>
-                  </div>
-                ))}
+            <div className="p-8">
+              <motion.div 
+                className="mb-6 bg-blue-100 bg-opacity-50 rounded-full py-2 px-4 flex items-center space-x-2"
+                whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+              >
+                <Search size={18} className="text-black" />
+                <input
+                  type="text"
+                  placeholder="Search tables and folders..."
+                  className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </motion.div>
+              <div className="max-h-[calc(80vh-220px)] overflow-y-auto pr-4 space-y-4">
+                {renderFolderContents(currentFolder)}
               </div>
             </div>
           </motion.div>

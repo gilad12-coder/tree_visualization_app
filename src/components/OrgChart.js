@@ -1,8 +1,6 @@
-// src/components/OrgChart.js
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
-import {AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Filter, Upload, List } from 'react-feather';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { ChevronDown, ChevronUp, Filter, Upload, List, Home } from 'react-feather';
 import FilterModal from './FilterModal';
 import TreeNode from './TreeNode';
 import Modal from './Modal';
@@ -10,108 +8,72 @@ import Button from './Button';
 import FileUploadModal from './FileUploadModal';
 import TableSelectionModal from './TableSelectionModal';
 import LandingPage from './LandingPage';
+import { useKeyboardShortcut } from '../Utilities/KeyboardShortcuts';
+import { useOrgChart } from '../hooks/useOrgChart';
+import { useOrgChartContext } from './OrgChartContext';
 
 const OrgChart = () => {
-  const [orgData, setOrgData] = useState(null);
+  const {
+    orgData,
+    folderStructure,
+    selectedTableId,
+    loading,
+    error,
+    hasTables,
+    setSelectedTableId,
+    handleFileUpload,
+    fetchFolderStructureData,
+  } = useOrgChart();
+
+  const {
+    showLanding,
+    setShowLanding,
+    activeFilters,
+    setActiveFilters,
+    expandAll,
+    setExpandAll,
+  } = useOrgChartContext();
+
   const [selectedNode, setSelectedNode] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
-  const [expandAll, setExpandAll] = useState(false);
-  const [activeFilters, setActiveFilters] = useState([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
-  const [selectedTableId, setSelectedTableId] = useState(null);
-  const [folderStructure, setFolderStructure] = useState(null);
-  const [folderError, setFolderError] = useState(null);
-  const [showLanding, setShowLanding] = useState(true);
-  const [hasTables, setHasTables] = useState(false);
+  
   const dragRef = useRef(null);
   const chartRef = useRef(null);
 
-  useEffect(() => {
-    fetchFolderStructure();
-  }, []);
-
-  useEffect(() => {
-    if (selectedTableId) {
-      fetchOrgData(selectedTableId);
-    }
-  }, [selectedTableId]);
-
-  const fetchFolderStructure = async () => {
-    try {
-      setFolderError(null);
-      const response = await axios.get('http://localhost:5000/folder_structure');
-      setFolderStructure(response.data);
-      setHasTables(response.data.length > 0);
-    } catch (err) {
-      console.error('Error fetching folder structure:', err);
-      setFolderError('Failed to fetch folder structure. Please try again later.');
-    }
-  };
-
-  const fetchOrgData = async (tableId) => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`http://localhost:5000/org-data?table_id=${tableId}`);
-      setOrgData(response.data);
-      setLoading(false);
-      setShowLanding(false);
-    } catch (err) {
-      console.error('Error fetching org data:', err);
-      setError('Failed to fetch organizational data');
-      setLoading(false);
-    }
-  };
-
-  const handleFileUpload = async (formData) => {
-    try {
-      const response = await axios.post('http://localhost:5000/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setIsUploadOpen(false);
-      fetchFolderStructure();
-      if (response.data.table_id) {
-        setSelectedTableId(response.data.table_id);
-        fetchOrgData(response.data.table_id);
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      setError('Failed to upload file');
-    }
-  };
-
-  const handleTableSelection = async (tableId) => {
+  const handleTableSelection = useCallback(async (tableId) => {
     setSelectedTableId(tableId);
     setIsTableSelectionOpen(false);
-    fetchOrgData(tableId);
-  };
+    setShowLanding(false);
+  }, [setSelectedTableId, setShowLanding]);
 
-  const handleViewTables = () => {
-    setIsTableSelectionOpen(true);
-  };
+  const handleViewTables = useCallback(() => {
+    if (hasTables) {
+      setIsTableSelectionOpen(true);
+      setShowLanding(false);
+    } else {
+      setIsUploadOpen(true);
+    }
+  }, [hasTables, setShowLanding]);
 
-  const handleUpload = () => {
+  const handleUpload = useCallback(() => {
     setIsUploadOpen(true);
-  };
+    setShowLanding(false);
+  }, [setShowLanding]);
 
-  const handleCreateTable = () => {
-    setIsUploadOpen(true);
-  };
-
-  const handleNodeClick = (node) => {
+  const handleNodeClick = useCallback((node) => {
     setSelectedNode(node);
-  };
+  }, []);
 
-  const handleFilterChange = (filters) => {
+  const handleFilterChange = useCallback((filters) => {
     setActiveFilters(filters);
     setIsFilterOpen(false);
-  };
+  }, [setActiveFilters]);
 
-  const filterOrgData = useCallback((node) => {
+  const filterOrgData = useMemo(() => (node) => {
     if (activeFilters.length === 0) return true;
     return activeFilters.some(filter => 
       node.name.toLowerCase().includes(filter.toLowerCase()) ||
@@ -119,12 +81,12 @@ const OrgChart = () => {
     );
   }, [activeFilters]);
 
-  const handleMouseDown = (e) => {
-    if (e.button === 0) { // Left mouse button
+  const handleMouseDown = useCallback((e) => {
+    if (e.button === 0) {
       setIsDragging(true);
       e.preventDefault();
     }
-  };
+  }, []);
 
   const handleMouseMove = useCallback((e) => {
     if (isDragging) {
@@ -140,22 +102,19 @@ const OrgChart = () => {
     setIsDragging(false);
   }, []);
 
-  const handleWheel = (e) => {
+  const handleWheel = useCallback((e) => {
     e.preventDefault();
     const scaleFactor = 1 - e.deltaY * 0.001;
-    
     setTransform(prev => {
       const newScale = Math.max(0.1, Math.min(3, prev.scale * scaleFactor));
       const scaleDiff = newScale - prev.scale;
-      
       const mouseX = e.clientX - dragRef.current.offsetLeft;
       const mouseY = e.clientY - dragRef.current.offsetTop;
       const newX = prev.x - (mouseX - prev.x) * (scaleDiff / prev.scale);
       const newY = prev.y - (mouseY - prev.y) * (scaleDiff / prev.scale);
-
       return { x: newX, y: newY, scale: newScale };
     });
-  };
+  }, []);
 
   useEffect(() => {
     if (isDragging) {
@@ -171,99 +130,104 @@ const OrgChart = () => {
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  if (folderError) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen">
-        <p className="text-red-600 text-xl mb-4">{folderError}</p>
-        <Button onClick={fetchFolderStructure}>Retry</Button>
-      </div>
-    );
-  }
+  const toggleFilterModal = useCallback(() => {
+    setIsFilterOpen(prev => !prev);
+  }, []);
 
-  if (folderStructure === null) {
-    return <div className="flex justify-center items-center h-screen text-2xl text-gray-600">Loading folder structure...</div>;
-  }
+  useKeyboardShortcut('f', true, toggleFilterModal);
 
-  if (showLanding) {
-    return (
-      <LandingPage
-        hasTables={hasTables}
-        onViewTables={handleViewTables}
-        onUpload={handleUpload}
-        onCreateTable={handleCreateTable}
-      />
-    );
-  }
+  const renderContent = () => {
+    if (error) {
+      return (
+        <div className="flex flex-col justify-center items-center h-screen">
+          <p className="text-red-600 text-xl mb-4">{error}</p>
+          <Button onClick={fetchFolderStructureData}>Retry</Button>
+        </div>
+      );
+    }
 
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen text-2xl text-gray-600">Loading...</div>;
-  }
+    if (showLanding) {
+      return (
+        <LandingPage
+          hasTables={hasTables}
+          onViewTables={handleViewTables}
+          onUpload={handleUpload}
+          onCreateTable={handleUpload}
+        />
+      );
+    }
 
-  if (error) {
-    return <div className="flex justify-center items-center h-screen text-2xl text-red-600">{error}</div>;
-  }
+    if (loading) {
+      return <div className="flex justify-center items-center h-screen text-2xl text-gray-600">Loading...</div>;
+    }
 
-  if (!selectedTableId) {
+    if (selectedTableId && orgData) {
+      return (
+        <>
+          <div className="absolute top-4 left-4 z-10 flex space-x-2">
+            <Button onClick={() => setShowLanding(true)} icon={Home}>
+              Home
+            </Button>
+            <Button onClick={() => setExpandAll(true)} icon={ChevronDown}>
+              Open All
+            </Button>
+            <Button onClick={() => setExpandAll(false)} icon={ChevronUp}>
+              Collapse All
+            </Button>
+            <Button onClick={toggleFilterModal} icon={Filter}>
+              Filter (Ctrl+F)
+            </Button>
+            <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
+              Change Table
+            </Button>
+            <Button onClick={() => setIsUploadOpen(true)} icon={Upload}>
+              Upload New Table
+            </Button>
+          </div>
+          <div
+            ref={dragRef}
+            className="w-full h-full cursor-move"
+            onMouseDown={handleMouseDown}
+            onWheel={handleWheel}
+            style={{ overflow: 'hidden' }}
+          >
+            <div
+              ref={chartRef}
+              style={{
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+                transformOrigin: '0 0'
+              }}
+            >
+              <div className="p-8 pt-20">
+                <TreeNode 
+                  node={orgData} 
+                  onNodeClick={handleNodeClick} 
+                  expandAll={expandAll}
+                  filterNode={filterOrgData}
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    }
+
     return (
       <div className="flex justify-center items-center h-screen">
         <Button onClick={handleViewTables} icon={List} className="mr-4">
-          Select Table
+          {hasTables ? "Select Table" : "Create New Table"}
         </Button>
         <Button onClick={handleUpload} icon={Upload}>
           Upload New Table
         </Button>
       </div>
     );
-  }
+  };
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="absolute top-4 left-4 z-10 flex space-x-2">
-        <Button onClick={() => setExpandAll(true)} icon={ChevronDown}>
-          Open All
-        </Button>
-        <Button onClick={() => setExpandAll(false)} icon={ChevronUp}>
-          Collapse All
-        </Button>
-        <Button onClick={() => setIsFilterOpen(true)} icon={Filter}>
-          Filter
-        </Button>
-        <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
-          Change Table
-        </Button>
-        <Button onClick={() => setIsUploadOpen(true)} icon={Upload}>
-          Upload New Table
-        </Button>
-      </div>
-      <div
-        ref={dragRef}
-        className="w-full h-full cursor-move"
-        onMouseDown={handleMouseDown}
-        onWheel={handleWheel}
-        style={{
-          overflow: 'hidden'
-        }}
-      >
-        <div
-          ref={chartRef}
-          style={{
-            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-            transition: isDragging ? 'none' : 'transform 0.3s ease-out',
-            transformOrigin: '0 0'
-          }}
-        >
-          <div className="p-8 pt-20">
-            {orgData && (
-              <TreeNode 
-                node={orgData} 
-                onNodeClick={handleNodeClick} 
-                expandAll={expandAll}
-                filterNode={filterOrgData}
-              />
-            )}
-          </div>
-        </div>
-      </div>
+      {renderContent()}
       <AnimatePresence>
         {selectedNode && (
           <Modal node={selectedNode} onClose={() => setSelectedNode(null)} />
@@ -278,10 +242,7 @@ const OrgChart = () => {
       />
       <TableSelectionModal
         isOpen={isTableSelectionOpen}
-        onClose={() => {
-          setIsTableSelectionOpen(false);
-          if (!selectedTableId) setShowLanding(true);
-        }}
+        onClose={() => setIsTableSelectionOpen(false)}
         onSelectTable={handleTableSelection}
         folderStructure={folderStructure}
       />

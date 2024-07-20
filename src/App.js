@@ -1,11 +1,16 @@
-// src/App.js
-
 import React from 'react';
+import { OrgChartProvider } from './components/OrgChartContext';
 import OrgChart from './components/OrgChart';
 import './App.css';
 
-const App = () => {
-  return <OrgChart />;
-};
+function App() {
+  return (
+    <div className="App">
+      <OrgChartProvider>
+        <OrgChart />
+      </OrgChartProvider>
+    </div>
+  );
+}
 
 export default App;

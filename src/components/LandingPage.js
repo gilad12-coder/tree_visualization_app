@@ -1,104 +1,127 @@
-// src/components/LandingPage.js
 import React from 'react';
-import { motion } from 'framer-motion';
-import { FileText, Upload, Users, Briefcase, ChevronRight } from 'react-feather';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FileText, Upload, ChevronRight } from 'react-feather';
 import { ReactComponent as OrgChartSVG } from '../assets/landing_page_image.svg';
 
-const FeatureCard = ({ icon: Icon, title, description }) => (
-  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg shadow-md border border-blue-200">
-    <Icon className="w-12 h-12 text-blue-500 mb-4" />
-    <h3 className="text-xl font-semibold mb-2 text-blue-700">{title}</h3>
-    <p className="text-gray-600">{description}</p>
-  </div>
+const MotionPath = motion.path;
+
+const AnimatedLogo = () => (
+  <svg width="60" height="60" viewBox="0 0 50 50">
+    <MotionPath
+      d="M25,10 L40,40 L10,40 Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      initial={{ pathLength: 0 }}
+      animate={{ pathLength: 1 }}
+      transition={{ duration: 2, ease: "easeInOut", repeat: Infinity }}
+    />
+  </svg>
 );
 
 const LandingPage = ({ hasTables, onViewTables, onUpload, onCreateTable }) => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="container mx-auto px-4 py-16">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-16"
-        >
-          <h1 className="text-5xl font-bold text-blue-600 mb-4">OrgChart Visualizer</h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Transform your organizational structure into an interactive, easy-to-understand visual chart.
-          </p>
-        </motion.div>
+  const handleFirstTimeUserClick = () => {
+    onUpload();
+  };
 
-        <div className="grid md:grid-cols-2 gap-8 mb-16">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-6xl overflow-hidden backdrop-filter backdrop-blur-lg"
+      >
+        <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
+          <div className="flex items-center space-x-4">
+            <AnimatedLogo />
+            <h1 className="text-4xl font-black text-black tracking-tight">OrgChart Visualizer</h1>
+          </div>
+        </div>
+        <div className="p-8 grid md:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-xl text-gray-700"
+            >
+              Transform your organizational structure into an interactive, easy-to-understand visual chart.
+            </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-blue-500 bg-opacity-20 rounded-xl p-6 space-y-4"
+            >
+              <h2 className="text-2xl font-bold text-black">Visualize Your Organization</h2>
+              <p className="text-gray-700">
+                Whether you're a small startup or a large corporation, our OrgChart Visualizer helps you create clear, 
+                interactive organizational charts that bring your company structure to life.
+              </p>
+            </motion.div>
+            <AnimatePresence>
+              {hasTables ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="space-y-4"
+                >
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={onViewTables}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center">
+                      <FileText size={20} className="mr-2" />
+                      <span className="font-bold">View Existing Charts</span>
+                    </span>
+                    <ChevronRight size={20} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={onUpload}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center">
+                      <Upload size={20} className="mr-2" />
+                      <span className="font-bold">Upload New Data</span>
+                    </span>
+                    <ChevronRight size={20} />
+                  </motion.button>
+                </motion.div>
+              ) : (
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  whileHover={{ scale: 1.02, y: -5 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleFirstTimeUserClick}
+                  className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                >
+                  <span className="flex items-center">
+                    <Upload size={20} className="mr-2" />
+                    <span className="font-bold">Upload Your First File</span>
+                  </span>
+                  <ChevronRight size={20} />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="bg-white p-4 rounded-lg shadow-lg"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="bg-blue-500 bg-opacity-20 rounded-xl p-6 flex items-center justify-center"
           >
             <OrgChartSVG className="w-full h-auto" />
           </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex flex-col justify-center"
-          >
-            <h2 className="text-3xl font-semibold text-blue-600 mb-4">Visualize Your Organization</h2>
-            <p className="text-gray-600 mb-6">
-              Whether you're a small startup or a large corporation, our OrgChart Visualizer helps you create clear, 
-              interactive organizational charts that bring your company structure to life.
-            </p>
-            {hasTables ? (
-              <div className="space-y-4">
-                <button
-                  onClick={onViewTables}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 flex items-center justify-center"
-                >
-                  <FileText className="mr-2" /> View Existing Charts
-                </button>
-                <button
-                  onClick={onUpload}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 flex items-center justify-center"
-                >
-                  <Upload className="mr-2" /> Upload New Data
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={onCreateTable}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 flex items-center justify-center"
-              >
-                <ChevronRight className="mr-2" /> Create Your First Chart
-              </button>
-            )}
-          </motion.div>
         </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          <h2 className="text-3xl font-semibold text-center text-blue-600 mb-8">Key Features</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={Users}
-              title="Interactive Visualization"
-              description="Create dynamic, clickable org charts that bring your company structure to life."
-            />
-            <FeatureCard 
-              icon={Upload}
-              title="Easy Data Import"
-              description="Quickly import your organizational data from CSV files or other common formats."
-            />
-            <FeatureCard 
-              icon={Briefcase}
-              title="Role-based Insights"
-              description="Gain valuable insights into roles, departments, and reporting structures at a glance."
-            />
-          </div>
-        </motion.div>
-      </div>
+      </motion.div>
     </div>
   );
 };

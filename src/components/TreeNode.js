@@ -1,7 +1,6 @@
-// src/components/TreeNode.js
 import React, { useState, useEffect } from 'react';
-import { motion} from 'framer-motion';
-import {User, Mail, Briefcase, Plus, Minus } from 'react-feather';
+import { motion } from 'framer-motion';
+import { User, Mail, Briefcase, ChevronDown, ChevronRight } from 'react-feather';
 
 const colors = {
   level1: 'bg-blue-100 border-blue-300',
@@ -16,40 +15,40 @@ const NodeCard = ({ node, onLeftClick, onRightClick, isExpanded, depth }) => {
 
   return (
     <motion.div
-      whileHover={{ y: -4, boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
+      whileHover={{ y: -2, boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
       whileTap={{ scale: 0.98 }}
-      className={`${colorClass} rounded-xl shadow-md transition-all duration-200 ease-out p-5 w-72`}
+      className={`${colorClass} rounded-lg border-2 shadow-md transition-all duration-200 ease-out p-4 w-72`}
       onClick={onLeftClick}
       onContextMenu={onRightClick}
     >
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="text-lg font-bold text-gray-800">{node.name}</h3>
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold text-gray-800">{node.name}</h3>
         {node.children && node.children.length > 0 && (
           <motion.div
-            animate={{ rotate: isExpanded ? 180 : 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 10 }}
+            animate={{ rotate: isExpanded ? 90 : 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
           >
             {isExpanded ? (
-              <Minus size={20} className="text-gray-600" />
+              <ChevronDown size={20} className="text-gray-600" />
             ) : (
-              <Plus size={20} className="text-gray-600" />
+              <ChevronRight size={20} className="text-gray-600" />
             )}
           </motion.div>
         )}
       </div>
-      <div className="text-sm font-semibold text-gray-700 flex items-center mb-2">
-        <Briefcase size={16} className="mr-2 text-gray-600" />
+      <div className="text-sm font-medium text-gray-700 flex items-center mb-1">
+        <Briefcase size={14} className="mr-2 text-gray-600" />
         {node.role}
       </div>
       {node.department && (
-        <div className="text-sm text-gray-600 flex items-center mb-2">
-          <User size={16} className="mr-2" />
+        <div className="text-sm text-gray-600 flex items-center mb-1">
+          <User size={14} className="mr-2 text-gray-600" />
           {node.department}
         </div>
       )}
       {node.email && (
         <div className="text-sm text-gray-600 flex items-center">
-          <Mail size={16} className="mr-2" />
+          <Mail size={14} className="mr-2 text-gray-600" />
           {node.email}
         </div>
       )}
@@ -90,24 +89,40 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, filterNode }) => {
       />
       {hasChildren && isExpanded && (
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="mt-8 flex flex-col items-center"
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+          className="mt-6 flex flex-col items-center"
         >
-          <div className="w-px h-16 bg-gray-300"></div>
+          <motion.div 
+            className="w-0.5 h-12 bg-gray-400"
+            initial={{ height: 0 }}
+            animate={{ height: 48 }}
+            transition={{ duration: 0.2 }}
+          ></motion.div>
           <div className="relative flex flex-row justify-center">
-            <div className="absolute top-0 h-px w-full bg-gray-300"></div>
+            <motion.div 
+              className="absolute top-0 h-0.5 bg-gray-400"
+              style={{ left: "-50%", right: "-50%" }}
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.2 }}
+            ></motion.div>
             {node.children.map((child, index) => (
               <motion.div
                 key={child.id || `${depth}-${index}`}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="flex flex-col items-center mx-6"
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                className="flex flex-col items-center mx-4"
               >
-                <div className="w-px h-16 bg-gray-300"></div>
+                <motion.div 
+                  className="w-0.5 h-12 bg-gray-400"
+                  initial={{ height: 0 }}
+                  animate={{ height: 48 }}
+                  transition={{ duration: 0.2 }}
+                ></motion.div>
                 <TreeNode 
                   node={child} 
                   onNodeClick={onNodeClick} 

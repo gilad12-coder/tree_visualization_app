@@ -1,11 +1,29 @@
-// src/components/FileUploadModal.js
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload } from 'react-feather';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { X, Upload, Folder, File } from 'react-feather';
+
+const MotionPath = motion.path;
+
+const AnimatedLogo = () => (
+  <svg width="40" height="40" viewBox="0 0 50 50">
+    <MotionPath
+      d="M25,10 L40,40 L10,40 Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      initial={{ pathLength: 0 }}
+      animate={{ pathLength: 1 }}
+      transition={{ duration: 2, ease: "easeInOut" }}
+    />
+  </svg>
+);
 
 const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [folderName, setFolderName] = useState('');
+
+  const bgOpacity = useMotionValue(0);
+  const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
 
   const handleFileChange = (event) => {
     setSelectedFile(event.target.files[0]);
@@ -33,6 +51,8 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
     }
   };
 
+  const isUploadDisabled = !selectedFile || !folderName;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -40,45 +60,81 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4"
+          className="fixed inset-0 flex justify-center items-center z-50 p-8"
           onClick={onClose}
+          style={{
+            backgroundColor: `rgba(0, 0, 0, ${bgOpacity.get()})`,
+            backdropFilter: `blur(${bgBlur.get()}px)`,
+          }}
         >
           <motion.div
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -50, opacity: 0 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden backdrop-filter backdrop-blur-lg"
             onClick={(e) => e.stopPropagation()}
+            onAnimationComplete={() => bgOpacity.set(0.5)}
           >
-            <div className="p-6 bg-gradient-to-r from-blue-500 to-purple-600">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-white">Upload File</h2>
-                <button onClick={onClose} className="text-white hover:text-gray-200 transition-colors">
+            <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <AnimatedLogo />
+                  <h2 className="text-3xl font-black text-black tracking-tight">Upload File</h2>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={onClose}
+                  className="text-black hover:text-gray-700 transition-colors"
+                >
                   <X size={24} />
-                </button>
+                </motion.button>
               </div>
             </div>
-            <div className="p-6">
-              <input
-                type="text"
-                value={folderName}
-                onChange={handleFolderNameChange}
-                placeholder="Enter folder name"
-                className="w-full p-2 mb-4 border border-gray-300 rounded"
-              />
-              <input
-                type="file"
-                onChange={handleFileChange}
-                className="w-full mb-4"
-              />
-              <button
-                onClick={handleUpload}
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
-                disabled={!selectedFile || !folderName}
+            <div className="p-8 space-y-6">
+              <motion.div 
+                className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4"
+                whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
               >
-                <Upload size={20} className="mr-2" />
-                Upload
-              </button>
+                <div className="flex items-center space-x-3">
+                  <Folder size={20} className="text-black" />
+                  <input
+                    type="text"
+                    value={folderName}
+                    onChange={handleFolderNameChange}
+                    placeholder="Enter folder name"
+                    className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
+                  />
+                </div>
+              </motion.div>
+              <motion.div 
+                className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4"
+                whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+              >
+                <div className="flex items-center space-x-3">
+                  <File size={20} className="text-black" />
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    className="bg-transparent w-full outline-none text-sm text-black file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800"
+                  />
+                </div>
+              </motion.div>
+              <motion.button
+                whileHover={!isUploadDisabled ? { scale: 1.02, y: -5 } : {}}
+                whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}
+                onClick={handleUpload}
+                className={`w-full px-4 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl transition-colors flex items-center justify-center space-x-2 ${
+                  isUploadDisabled
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:bg-blue-600 hover:bg-opacity-30'
+                }`}
+                disabled={isUploadDisabled}
+              >
+                <Upload size={20} />
+                <span className="font-bold">Upload</span>
+              </motion.button>
             </div>
           </motion.div>
         </motion.div>
