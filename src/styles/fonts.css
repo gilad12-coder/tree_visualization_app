@@ -1,0 +1,22 @@
+/* fonts.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap');
+
+:root {
+  --font-merriweather: 'Merriweather', serif;
+  --font-hebrew: 'Rubik', sans-serif;
+  --font-arabic: 'Merriweather', serif;
+}
+
+.font-merriweather {
+  font-family: var(--font-merriweather);
+}
+
+.font-hebrew {
+  font-family: var(--font-hebrew);
+}
+
+.font-arabic {
+  font-family: var(--font-arabic);
+}

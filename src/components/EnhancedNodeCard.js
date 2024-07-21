@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, User, Mail, Briefcase, Users, ChevronDown, Download } from 'react-feather';
+import { X, User, Mail, Users, ChevronDown, Download } from 'react-feather';
+import { getLanguage, getFontClass, getTextAlignClass, getTextDirection } from '../Utilities/languageUtils';
+import '../styles/fonts.css';
 
 const MotionPath = motion.path;
 
@@ -24,6 +26,9 @@ const EnhancedNodeCard = ({ node, onClose }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const bgOpacity = useMotionValue(0);
   const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
+
+  const nameLanguage = getLanguage(node.name);
+  const roleLanguage = getLanguage(node.role);
 
   useEffect(() => {
     console.log('Node data:', node);
@@ -67,16 +72,21 @@ const EnhancedNodeCard = ({ node, onClose }) => {
     if (indirectReports.length <= INDIRECT_REPORTS_DISPLAY_THRESHOLD) {
       return (
         <ul className="text-sm text-black list-disc list-inside">
-          {indirectReports.map((report, index) => (
-            <motion.li
-              key={index}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: (index + directReports.length) * 0.1 }}
-            >
-              {report.name} - {report.role}
-            </motion.li>
-          ))}
+          {indirectReports.map((report, index) => {
+            const reportLanguage = getLanguage(report.name);
+            return (
+              <motion.li
+                key={index}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: (index + directReports.length) * 0.1 }}
+                className={`${getTextAlignClass(reportLanguage)} ${getFontClass(reportLanguage)}`}
+                dir={getTextDirection(reportLanguage)}
+              >
+                {report.name} - {report.role}
+              </motion.li>
+            );
+          })}
         </ul>
       );
     } else {
@@ -86,16 +96,21 @@ const EnhancedNodeCard = ({ node, onClose }) => {
             Showing top {INDIRECT_REPORTS_DISPLAY_THRESHOLD} of {indirectReports.length} indirect reports:
           </p>
           <ul className="text-sm text-black list-disc list-inside mb-4">
-            {indirectReports.slice(0, INDIRECT_REPORTS_DISPLAY_THRESHOLD).map((report, index) => (
-              <motion.li
-                key={index}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                {report.name} - {report.role}
-              </motion.li>
-            ))}
+            {indirectReports.slice(0, INDIRECT_REPORTS_DISPLAY_THRESHOLD).map((report, index) => {
+              const reportLanguage = getLanguage(report.name);
+              return (
+                <motion.li
+                  key={index}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className={`${getTextAlignClass(reportLanguage)} ${getFontClass(reportLanguage)}`}
+                  dir={getTextDirection(reportLanguage)}
+                >
+                  {report.name} - {report.role}
+                </motion.li>
+              );
+            })}
           </ul>
           <motion.button
             onClick={handleDownload}
@@ -133,41 +148,55 @@ const EnhancedNodeCard = ({ node, onClose }) => {
           onClick={(e) => e.stopPropagation()}
           onAnimationComplete={() => bgOpacity.set(0.5)}
         >
-          <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
+          <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm relative">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+              <div className="absolute left-8">
                 <AnimatedLogo />
-                <h2 className="text-3xl font-black text-black tracking-tight">{node.name}</h2>
               </div>
+              <h2
+                className={`text-3xl font-black text-black tracking-tight ${getFontClass(nameLanguage)} text-right w-full pr-12`}
+                dir={getTextDirection(nameLanguage)}
+              >
+                {node.name}
+              </h2>
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="text-black hover:text-gray-700 transition-colors"
+                className="absolute right-8 text-black hover:text-gray-700 transition-colors"
               >
                 <X size={24} />
               </motion.button>
             </div>
           </div>
           <div className="p-8 space-y-6">
-            <motion.div 
-              className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4 flex items-center space-x-3"
+            <motion.div
+              className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4 flex items-center justify-center"
               whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
             >
-              <Briefcase size={20} className="text-black" />
-              <span className="text-black">{node.role}</span>
+              <span
+                className={`text-black ${getFontClass(roleLanguage)} text-center`}
+                dir={getTextDirection(roleLanguage)}
+              >
+                {node.role}
+              </span>
             </motion.div>
             {node.department && (
-              <motion.div 
-                className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4 flex items-center space-x-3"
+              <motion.div
+                className={`bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4 flex items-center space-x-3 ${getLanguage(node.department) !== 'default' ? 'flex-row-reverse' : 'flex-row'}`}
                 whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
               >
                 <User size={20} className="text-black" />
-                <span className="text-black">{node.department}</span>
+                <span
+                  className={`text-black ${getFontClass(getLanguage(node.department))} ${getTextAlignClass(getLanguage(node.department))}`}
+                  dir={getTextDirection(getLanguage(node.department))}
+                >
+                  {node.department}
+                </span>
               </motion.div>
             )}
             {node.email && (
-              <motion.div 
+              <motion.div
                 className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4 flex items-center space-x-3"
                 whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
               >
@@ -205,16 +234,21 @@ const EnhancedNodeCard = ({ node, onClose }) => {
                     </h4>
                     <ul className="text-sm text-black list-disc list-inside">
                       {directReports.length > 0 ? (
-                        directReports.map((child, index) => (
-                          <motion.li
-                            key={index}
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                          >
-                            {child.name} - {child.role}
-                          </motion.li>
-                        ))
+                        directReports.map((child, index) => {
+                          const childLanguage = getLanguage(child.name);
+                          return (
+                            <motion.li
+                              key={index}
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.1 }}
+                              className={`${getTextAlignClass(childLanguage)} ${getFontClass(childLanguage)}`}
+                              dir={getTextDirection(childLanguage)}
+                            >
+                              {child.name} - {child.role}
+                            </motion.li>
+                          );
+                        })
                       ) : (
                         <li>No direct reports</li>
                       )}

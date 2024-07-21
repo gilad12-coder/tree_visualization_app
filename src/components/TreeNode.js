@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight } from 'react-feather';
+import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 
 const colors = {
   level1: 'bg-blue-500 bg-opacity-20',
@@ -14,6 +15,9 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
   const [isExpanded, setIsExpanded] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
   const colorClass = colors[`level${(depth % 5) + 1}`];
+
+  const nameLanguage = getLanguage(node.name);
+  const roleLanguage = getLanguage(node.role);
 
   useEffect(() => {
     if (expandAll) {
@@ -51,8 +55,13 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
         onClick={handleClick}
         onContextMenu={handleToggle}
       >
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="text-lg font-bold text-black">{node.name}</h3>
+        <div className={`flex justify-between items-center mb-2 ${nameLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row'}`}>
+          <h3 
+            className={`text-lg font-bold text-black ${getFontClass(nameLanguage)}`}
+            dir={getTextDirection(nameLanguage)}
+          >
+            {node.name}
+          </h3>
           {visibleChildren.length > 0 && (
             <motion.div
               animate={{ rotate: isExpanded ? 90 : 0 }}
@@ -67,7 +76,12 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
             </motion.div>
           )}
         </div>
-        <div className="text-sm font-medium text-black">{node.role}</div>
+        <div 
+          className={`text-sm font-medium text-black ${getFontClass(roleLanguage)} text-center`}
+          dir={getTextDirection(roleLanguage)}
+        >
+          {node.role}
+        </div>
       </motion.div>
       <AnimatePresence initial={false}>
         {visibleChildren.length > 0 && isExpanded && (
