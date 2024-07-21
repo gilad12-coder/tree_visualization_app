@@ -82,7 +82,15 @@ const OrgChart = () => {
       );
     };
 
-    return matchesFilter(node);
+    const hasMatchingDescendant = (n) => {
+      if (matchesFilter(n)) return true;
+      if (n.children) {
+        return n.children.some(hasMatchingDescendant);
+      }
+      return false;
+    };
+
+    return hasMatchingDescendant(node);
   }, [activeFilters]);
 
   const handleMouseDown = useCallback((e) => {

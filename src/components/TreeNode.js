@@ -37,24 +37,23 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
   };
 
   const nodeMatchesFilter = filterNode(node);
-  const childrenMatchFilter = hasChildren && node.children.some(filterNode);
 
-  if (!nodeMatchesFilter && !childrenMatchFilter) return null;
+  if (!nodeMatchesFilter) return null;
+
+  const visibleChildren = hasChildren ? node.children.filter(filterNode) : [];
 
   return (
     <div className="flex flex-col items-center">
       <motion.div
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        className={`${colorClass} rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer ${
-          !nodeMatchesFilter ? 'opacity-50' : ''
-        }`}
+        className={`${colorClass} rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer`}
         onClick={handleClick}
         onContextMenu={handleToggle}
       >
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-lg font-bold text-black">{node.name}</h3>
-          {hasChildren && (
+          {visibleChildren.length > 0 && (
             <motion.div
               animate={{ rotate: isExpanded ? 90 : 0 }}
               transition={{ duration: 0.3 }}
@@ -71,7 +70,7 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
         <div className="text-sm font-medium text-black">{node.role}</div>
       </motion.div>
       <AnimatePresence initial={false}>
-        {hasChildren && isExpanded && (
+        {visibleChildren.length > 0 && isExpanded && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -79,9 +78,11 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="relative mt-4 pt-8 w-full"
           >
-            <div className="absolute left-1/2 -translate-x-px w-0.5 bg-gray-300 h-8 top-0" />
+            {visibleChildren.length > 0 && (
+              <div className="absolute left-1/2 -translate-x-px w-0.5 bg-gray-300 h-8 top-0" />
+            )}
             <div className="relative flex justify-center">
-              {node.children.map((child, index, array) => (
+              {visibleChildren.map((child, index, array) => (
                 <div key={child.id || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
                   {index === 0 && array.length > 1 && (
                     <div className="absolute w-1/2 h-0.5 bg-gray-300 right-0 top-0" />
