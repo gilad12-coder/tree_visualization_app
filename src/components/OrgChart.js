@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Filter, Upload, List, Home } from 'react-feather';
 import FilterModal from './FilterModal';
@@ -30,8 +30,6 @@ const OrgChart = () => {
     setShowLanding,
     activeFilters,
     setActiveFilters,
-    expandAll,
-    setExpandAll,
   } = useOrgChartContext();
 
   const [selectedNode, setSelectedNode] = useState(null);
@@ -40,6 +38,7 @@ const OrgChart = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
+  const [expandAll, setExpandAll] = useState(false);
   const [collapseAll, setCollapseAll] = useState(false);
   
   const dragRef = useRef(null);
@@ -74,27 +73,16 @@ const OrgChart = () => {
     setIsFilterOpen(false);
   }, [setActiveFilters]);
 
-  const filterOrgData = useMemo(() => {
-    const matchesFilter = (node) => {
+  const filterOrgData = useCallback((node) => {
+    const matchesFilter = (n) => {
       if (activeFilters.length === 0) return true;
       return activeFilters.some(filter => 
-        node.name.toLowerCase().includes(filter.toLowerCase()) ||
-        node.role.toLowerCase().includes(filter.toLowerCase())
+        n.name.toLowerCase().includes(filter.toLowerCase()) ||
+        n.role.toLowerCase().includes(filter.toLowerCase())
       );
     };
 
-    const hasMatchingDescendant = (node) => {
-      if (matchesFilter(node)) return true;
-      if (node.children) {
-        return node.children.some(hasMatchingDescendant);
-      }
-      return false;
-    };
-
-    return (node) => {
-      if (activeFilters.length === 0) return true;
-      return hasMatchingDescendant(node);
-    };
+    return matchesFilter(node);
   }, [activeFilters]);
 
   const handleMouseDown = useCallback((e) => {
@@ -155,14 +143,14 @@ const OrgChart = () => {
   const handleExpandAll = useCallback(() => {
     setExpandAll(true);
     setCollapseAll(false);
-  }, [setExpandAll]);
+  }, []);
 
   const handleCollapseAll = useCallback(() => {
     setExpandAll(false);
     setCollapseAll(true);
     // Reset collapseAll after a short delay
     setTimeout(() => setCollapseAll(false), 100);
-  }, [setExpandAll]);
+  }, []);
 
   const renderContent = () => {
     if (error) {

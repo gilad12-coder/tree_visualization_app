@@ -37,9 +37,9 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
   };
 
   const nodeMatchesFilter = filterNode(node);
-  const hasMatchingDescendant = hasChildren && node.children.some(child => filterNode(child) || hasMatchingDescendant);
+  const childrenMatchFilter = hasChildren && node.children.some(filterNode);
 
-  if (!nodeMatchesFilter && !hasMatchingDescendant) return null;
+  if (!nodeMatchesFilter && !childrenMatchFilter) return null;
 
   return (
     <div className="flex flex-col items-center">
