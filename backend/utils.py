@@ -49,3 +49,29 @@ def parse_org_data(df):
 
     logging.debug(f"Returning root node: {root}")
     return root
+
+def compare_trees(tree1, tree2):
+    def get_node_set(tree):
+        node_set = set()
+        def traverse(node):
+            node_set.add((node['name'], node['role']))
+            for child in node.get('children', []):
+                traverse(child)
+        traverse(tree)
+        return node_set
+
+    set1 = get_node_set(tree1)
+    set2 = get_node_set(tree2)
+    
+    shared_nodes = set1.intersection(set2)
+    total_nodes = set1.union(set2)
+    
+    if not total_nodes:
+        return 0
+    
+    similarity_percentage = (len(shared_nodes) / len(total_nodes)) * 100
+    return similarity_percentage
+
+def is_valid_continuation(new_tree, previous_tree):
+    similarity = compare_trees(new_tree, previous_tree)
+    return similarity >= 50

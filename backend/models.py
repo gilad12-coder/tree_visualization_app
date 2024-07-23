@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, create_engine
+
 
 Base = declarative_base()
 
@@ -12,12 +13,12 @@ class Folder(Base):
     parent = relationship('Folder', remote_side=[id], back_populates='subfolders')
     subfolders = relationship('Folder', back_populates='parent')
     tables = relationship('Table', back_populates='folder')
-
 class Table(Base):
     __tablename__ = 'tables'
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     folder_id = Column(Integer, ForeignKey('folders.id'), nullable=False)
+    upload_date = Column(Date, nullable=False)
     folder = relationship('Folder', back_populates='tables')
     data_entries = relationship('DataEntry', back_populates='table')
 

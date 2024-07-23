@@ -1,0 +1,86 @@
+.date-picker-wrapper {
+  width: 100%;
+}
+
+.date-picker-popper {
+  z-index: 9999 !important;
+}
+
+.custom-calendar {
+  font-family: inherit;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  background-color: white;
+}
+
+.custom-calendar .react-datepicker__header {
+  background-color: rgba(59, 130, 246, 0.1);  /* Very light blue background */
+  border-bottom: 1px solid #e5e7eb;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+}
+
+.custom-calendar .react-datepicker__current-month,
+.custom-calendar .react-datepicker-time__header,
+.custom-calendar .react-datepicker-year-header {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.custom-calendar .react-datepicker__navigation {
+  top: 8px;
+}
+
+.custom-calendar .react-datepicker__month-select,
+.custom-calendar .react-datepicker__year-select {
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  color: #374151;
+}
+
+.custom-calendar .react-datepicker__day-name,
+.custom-calendar .react-datepicker__day {
+  color: #374151;
+}
+
+.custom-calendar .react-datepicker__day:hover {
+  background-color: rgba(59, 130, 246, 0.1);  /* Very light blue for hover */
+}
+
+.custom-calendar .react-datepicker__day--selected,
+.custom-calendar .react-datepicker__day--keyboard-selected {
+  background-color: rgba(59, 130, 246, 0.2);  /* Light blue matching the card */
+  color: #000000;  /* Black text for better contrast */
+}
+
+.custom-calendar .react-datepicker__day--selected:hover,
+.custom-calendar .react-datepicker__day--keyboard-selected:hover {
+  background-color: rgba(59, 130, 246, 0.3);  /* Slightly darker blue for hover on selected date */
+}
+
+.custom-calendar .react-datepicker__day--today {
+  font-weight: bold;
+  color: #3b82f6;  /* Highlight today's date with the blue color */
+}
+
+/* Style for the month and year dropdowns */
+.custom-calendar .react-datepicker__month-dropdown,
+.custom-calendar .react-datepicker__year-dropdown {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+}
+
+.custom-calendar .react-datepicker__month-option:hover,
+.custom-calendar .react-datepicker__year-option:hover {
+  background-color: rgba(59, 130, 246, 0.1);  /* Very light blue for hover */
+}
+
+.custom-calendar .react-datepicker__month-option--selected,
+.custom-calendar .react-datepicker__year-option--selected {
+  background-color: rgba(59, 130, 246, 0.2);  /* Light blue matching the card */
+}

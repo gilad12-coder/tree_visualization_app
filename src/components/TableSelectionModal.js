@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Folder, File, ChevronRight, Search, X } from 'react-feather';
+import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown } from 'react-feather';
 
 const MotionPath = motion.path;
 
@@ -50,9 +50,12 @@ const TableCard = ({ table, onClick }) => {
       className="bg-blue-500 bg-opacity-20 rounded-xl border border-blue-200 shadow-sm transition-all duration-300 ease-out p-4 w-full cursor-pointer backdrop-filter backdrop-blur-sm"
       onClick={onClick}
     >
-      <div className="flex items-center space-x-3">
-        <File size={20} className="text-black" />
-        <span className="text-base font-medium text-black">{table.name}</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <File size={20} className="text-black" />
+          <span className="text-base font-medium text-black">{table.name}</span>
+        </div>
+        <span className="text-sm text-black">{table.upload_date}</span>
       </div>
     </motion.div>
   );
@@ -63,6 +66,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
   const [currentFolder, setCurrentFolder] = useState(null);
   const [expandedFolders, setExpandedFolders] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortByDate, setSortByDate] = useState(false);  // Initially off
 
   const bgOpacity = useMotionValue(0);
   const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
@@ -98,7 +102,15 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
 
   const filteredContents = (folder) => {
     const filteredSubfolders = folder.subfolders?.filter(sf => sf.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
-    const filteredTables = folder.tables?.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
+    let filteredTables = folder.tables?.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
+    
+    filteredTables.sort((a, b) => {
+      if (!a.upload_date) return 1;
+      if (!b.upload_date) return -1;
+      const comparison = new Date(b.upload_date) - new Date(a.upload_date);
+      return sortByDate ? -comparison : comparison;  // Reverse order when sortByDate is true
+    });
+    
     return { subfolders: filteredSubfolders, tables: filteredTables };
   };
 
@@ -174,19 +186,32 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
               </div>
             </div>
             <div className="p-8">
-              <motion.div 
-                className="mb-6 bg-blue-100 bg-opacity-50 rounded-full py-2 px-4 flex items-center space-x-2"
-                whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-              >
-                <Search size={18} className="text-black" />
-                <input
-                  type="text"
-                  placeholder="Search tables and folders..."
-                  className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </motion.div>
+              <div className="mb-6 flex space-x-4">
+                <motion.div 
+                  className="flex-grow bg-blue-100 bg-opacity-50 rounded-full py-2 px-4 flex items-center space-x-2"
+                  whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                >
+                  <Search size={18} className="text-black" />
+                  <input
+                    type="text"
+                    placeholder="Search tables and folders..."
+                    className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </motion.div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSortByDate(!sortByDate)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
+                    sortByDate ? 'bg-blue-500 text-white' : 'bg-blue-100 text-black'
+                  } transition-colors duration-200`}
+                >
+                  {sortByDate ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
+                  <span className="text-sm font-medium">Sort by Date</span>
+                </motion.button>
+              </div>
               <div className="max-h-[calc(80vh-220px)] overflow-y-auto pr-4 space-y-4">
                 {renderFolderContents(currentFolder)}
               </div>
