@@ -1,13 +1,45 @@
-# utils.py
-
 import pandas as pd
+from models import Session, Table, DataEntry
+import json
+import io
 import logging
 import re
 
 logging.basicConfig(level=logging.DEBUG)
 
+def check_continuation(folder_id, file_content, file_extension):
+    session = Session()
+    try:
+        # Get the most recent table for the folder
+        previous_table = session.query(Table).filter_by(folder_id=folder_id).order_by(Table.upload_date.desc()).first()
+
+        # If there's no previous table, it's a valid continuation (initial upload)
+        if not previous_table:
+            return True
+
+        # Get the data from the previous table
+        previous_data = session.query(DataEntry).filter_by(table_id=previous_table.id).all()
+        previous_df = pd.DataFrame([json.loads(entry.data) for entry in previous_data])
+        previous_tree = parse_org_data(previous_df)
+
+        # Parse the new file
+        if file_extension == 'csv':
+            new_df = pd.read_csv(io.BytesIO(file_content))
+        else:  # xlsx
+            new_df = pd.read_excel(io.BytesIO(file_content))
+
+        new_tree = parse_org_data(new_df)
+
+        # Check if the new tree is a valid continuation of the previous one
+        return is_valid_continuation(new_tree, previous_tree)
+
+    except Exception as e:
+        print(f"Error in continuation check: {str(e)}")
+        return False
+    finally:
+        session.close()
+
 def parse_org_data(df):
-    logging.debug(f"Received DataFrame with {len(df)} rows")
 
     # Sort the DataFrame by Hierarchical_Structure to ensure parents are processed before children
     df = df.sort_values('Hierarchical_Structure')
@@ -25,7 +57,6 @@ def parse_org_data(df):
         role = row.get('Role', '')
 
         if not structure:
-            logging.warning(f"Skipping row due to missing Hierarchical_Structure: {row}")
             continue
 
         # Create the new node
@@ -47,7 +78,6 @@ def parse_org_data(df):
     # The root is the node with structure '/1'
     root = nodes.get('/1', {})
 
-    logging.debug(f"Returning root node: {root}")
     return root
 
 def compare_trees(tree1, tree2):

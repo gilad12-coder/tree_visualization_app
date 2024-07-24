@@ -30,6 +30,6 @@ class DataEntry(Base):
     table = relationship('Table', back_populates='data_entries')
 
 # Database setup
-engine = create_engine('sqlite:///your_database.db', echo=True)
+engine = create_engine('sqlite:///app_database.db', echo=True)
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)

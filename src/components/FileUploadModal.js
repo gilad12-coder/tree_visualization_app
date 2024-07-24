@@ -23,6 +23,16 @@ const AnimatedLogo = () => (
   </svg>
 );
 
+// Utility function to convert a date to UTC
+const convertToUTCDate = (date) => {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+};
+
+// Utility function to format a date as YYYY-MM-DD
+const formatDateForAPI = (date) => {
+  return date.toISOString().split('T')[0];
+};
+
 const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [folderName, setFolderName] = useState('');
@@ -48,7 +58,11 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('folder_name', folderName);
-      formData.append('upload_date', uploadDate.toISOString().split('T')[0]);
+      
+      // Convert the selected date to UTC and format it
+      const utcDate = convertToUTCDate(uploadDate);
+      const formattedDate = formatDateForAPI(utcDate);
+      formData.append('upload_date', formattedDate);
 
       try {
         await onUpload(formData);
