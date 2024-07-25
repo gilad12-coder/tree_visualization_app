@@ -66,7 +66,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
   const [currentFolder, setCurrentFolder] = useState(null);
   const [expandedFolders, setExpandedFolders] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortByDate, setSortByDate] = useState(false);  // Initially off
+  const [sortByDate, setSortByDate] = useState(false);
 
   const bgOpacity = useMotionValue(0);
   const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
@@ -95,8 +95,8 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
     setExpandedFolders(prev => ({ ...prev, [folder.id]: !prev[folder.id] }));
   };
 
-  const handleTableSelect = (tableId) => {
-    onSelectTable(tableId);
+  const handleTableSelect = (table, folder) => {
+    onSelectTable(table.id, folder.id);
     onClose();
   };
 
@@ -139,7 +139,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
         ))}
         {tables.map((table) => (
           <motion.div key={table.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-            <TableCard table={table} onClick={() => handleTableSelect(table.id)} />
+            <TableCard table={table} onClick={() => handleTableSelect(table, folder)} />
           </motion.div>
         ))}
       </motion.div>

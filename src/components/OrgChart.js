@@ -40,12 +40,14 @@ const OrgChart = () => {
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
   const [expandAll, setExpandAll] = useState(false);
   const [collapseAll, setCollapseAll] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState(null);
   
   const dragRef = useRef(null);
   const chartRef = useRef(null);
 
-  const handleTableSelection = useCallback(async (tableId) => {
+  const handleTableSelection = useCallback(async (tableId, folderId) => {
     setSelectedTableId(tableId);
+    setSelectedFolderId(folderId);
     setIsTableSelectionOpen(false);
     setShowLanding(false);
   }, [setSelectedTableId, setShowLanding]);
@@ -65,8 +67,12 @@ const OrgChart = () => {
   }, [setShowLanding]);
 
   const handleNodeClick = useCallback((node) => {
-    setSelectedNode(node);
-  }, []);
+    setSelectedNode({
+      ...node,
+      folderId: selectedFolderId,
+      tableId: selectedTableId
+    });
+  }, [selectedFolderId, selectedTableId]);
 
   const handleFilterChange = useCallback((filters) => {
     setActiveFilters(filters);
@@ -230,6 +236,8 @@ const OrgChart = () => {
                   expandAll={expandAll}
                   collapseAll={collapseAll}
                   filterNode={filterOrgData}
+                  folderId={selectedFolderId}
+                  tableId={selectedTableId}
                 />
               </div>
             </div>
@@ -239,6 +247,8 @@ const OrgChart = () => {
               <EnhancedNodeCard
                 node={selectedNode}
                 onClose={() => setSelectedNode(null)}
+                folderId={selectedFolderId}
+                tableId={selectedTableId}
               />
             )}
           </AnimatePresence>

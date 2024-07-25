@@ -11,7 +11,7 @@ const colors = {
   level5: 'bg-pink-500 bg-opacity-20',
 };
 
-const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filterNode }) => {
+const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filterNode, folderId, tableId }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
   const colorClass = colors[`level${(depth % 5) + 1}`];
@@ -29,7 +29,7 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
 
   const handleClick = (e) => {
     e.stopPropagation();
-    onNodeClick(node);
+    onNodeClick({ ...node, folderId, tableId });
   };
 
   const handleToggle = (e) => {
@@ -115,6 +115,8 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
                     expandAll={expandAll}
                     collapseAll={collapseAll}
                     filterNode={filterNode}
+                    folderId={folderId}
+                    tableId={tableId}
                   />
                 </div>
               ))}
