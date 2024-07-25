@@ -21,6 +21,7 @@ const AnimatedLogo = () => (
 );
 
 const INDIRECT_REPORTS_DISPLAY_THRESHOLD = 10;
+const TIMELINE_AND_CV_DISPLAY_THRESHOLD = 10;
 
 const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -353,7 +354,7 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
             <div>
               <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">Role History</h3>
               <ul className="text-sm text-gray-700 list-none pl-0">
-                {cv.slice(0, 5).map((record, index) => {
+                {cv.slice(0, TIMELINE_AND_CV_DISPLAY_THRESHOLD).map((record, index) => {
                   const roleLanguage = getLanguage(record.role);
                   return (
                     <motion.li
@@ -374,7 +375,7 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
                   );
                 })}
               </ul>
-              {cv.length > 5 && (
+              {cv.length > TIMELINE_AND_CV_DISPLAY_THRESHOLD && (
                 <motion.button
                   onClick={() => handleDownload(cv, `${node.name}_cv.json`)}
                   className="mt-4 flex items-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors mx-auto"
@@ -416,7 +417,7 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
                     className="mt-4 space-y-4"
                   >
                     <div className="relative pl-4 border-l-2 border-blue-200">
-                      {timeline.slice(0, 5).map((entry, index) => (
+                      {timeline.slice(0, TIMELINE_AND_CV_DISPLAY_THRESHOLD).map((entry, index) => (
                         <motion.div
                           key={index}
                           initial={{ opacity: 0, x: -10 }}
@@ -437,7 +438,7 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
                         </motion.div>
                       ))}
                     </div>
-                    {timeline.length > 5 && (
+                    {timeline.length > TIMELINE_AND_CV_DISPLAY_THRESHOLD && (
                       <motion.button
                         onClick={handleTimelineDownload}
                         className="mt-4 flex items-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors mx-auto"
