@@ -1,5 +1,5 @@
 import pandas as pd
-from models import Session, Table, DataEntry
+from models import Table, DataEntry, get_session
 import json
 import io
 import logging
@@ -8,7 +8,7 @@ import re
 logging.basicConfig(level=logging.DEBUG)
 
 def check_continuation(folder_id, file_content, file_extension):
-    session = Session()
+    session = get_session()
     try:
         # Get the most recent table for the folder
         previous_table = session.query(Table).filter_by(folder_id=folder_id).order_by(Table.upload_date.desc()).first()

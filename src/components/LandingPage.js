@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Upload, ChevronRight } from 'react-feather';
+import { FileText, Upload, ChevronRight, Database, Plus } from 'react-feather';
 import { ReactComponent as OrgChartSVG } from '../assets/landing_page_image.svg';
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:5000';
 
 const MotionPath = motion.path;
 
@@ -19,10 +22,71 @@ const AnimatedLogo = () => (
   </svg>
 );
 
-const LandingPage = ({ hasTables, onViewTables, onUpload, onCreateTable }) => {
-  const handleFirstTimeUserClick = () => {
-    onUpload();
+const LandingPage = ({ onViewTables, onUpload, onCreateTable }) => {
+  const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasExistingDB, setHasExistingDB] = useState(false);
+  const [hasData, setHasData] = useState(false);
+
+  useEffect(() => {
+    checkExistingDB();
+  }, []);
+
+  const checkExistingDB = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/check_existing_db`);
+      setHasExistingDB(response.data.exists);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error checking existing DB:', error);
+      setIsLoading(false);
+    }
   };
+
+  const handleUseExistingDB = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/use_existing_db`);
+      setHasData(response.data.hasData);
+      setStep(2);
+    } catch (error) {
+      console.error('Error using existing DB:', error);
+      alert('Error using existing DB. Please try again.');
+    }
+  };
+
+  const handleUploadNewDB = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('db_file', file);
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/upload_new_db`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setHasData(response.data.hasData);
+      setStep(2);
+    } catch (error) {
+      console.error('Error uploading new DB:', error);
+      alert('Error uploading new DB. Please try again.');
+    }
+  };
+
+  const handleCreateNewDB = async () => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/create_new_db`);
+      setHasData(false);
+      setStep(2);
+    } catch (error) {
+      console.error('Error creating new DB:', error);
+      alert('Error creating new DB. Please try again.');
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
@@ -60,26 +124,70 @@ const LandingPage = ({ hasTables, onViewTables, onUpload, onCreateTable }) => {
                 interactive organizational charts that bring your company structure to life.
               </p>
             </motion.div>
-            <AnimatePresence>
-              {hasTables ? (
+            <AnimatePresence mode="wait">
+              {step === 1 && (
                 <motion.div
+                  key="step1"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
                   transition={{ delay: 0.6 }}
                   className="space-y-4"
                 >
+                  {hasExistingDB && (
+                    <motion.button
+                      whileHover={{ scale: 1.02, y: -5 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleUseExistingDB}
+                      className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                    >
+                      <span className="flex items-center">
+                        <Database size={20} className="mr-2" />
+                        <span className="font-bold">Use Current Database</span>
+                      </span>
+                      <ChevronRight size={20} />
+                    </motion.button>
+                  )}
+                  <motion.label
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between cursor-pointer"
+                  >
+                    <span className="flex items-center">
+                      <Upload size={20} className="mr-2" />
+                      <span className="font-bold">Upload New Database</span>
+                    </span>
+                    <ChevronRight size={20} />
+                    <input
+                      type="file"
+                      accept=".db"
+                      onChange={handleUploadNewDB}
+                      className="hidden"
+                    />
+                  </motion.label>
                   <motion.button
                     whileHover={{ scale: 1.02, y: -5 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={onViewTables}
+                    onClick={handleCreateNewDB}
                     className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
                   >
                     <span className="flex items-center">
-                      <FileText size={20} className="mr-2" />
-                      <span className="font-bold">View Existing Charts</span>
+                      <Plus size={20} className="mr-2" />
+                      <span className="font-bold">Create New Database</span>
                     </span>
                     <ChevronRight size={20} />
                   </motion.button>
+                </motion.div>
+              )}
+              {step === 2 && (
+                <motion.div
+                  key="step2"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: 0.6 }}
+                  className="space-y-4"
+                >
                   <motion.button
                     whileHover={{ scale: 1.02, y: -5 }}
                     whileTap={{ scale: 0.98 }}
@@ -88,27 +196,25 @@ const LandingPage = ({ hasTables, onViewTables, onUpload, onCreateTable }) => {
                   >
                     <span className="flex items-center">
                       <Upload size={20} className="mr-2" />
-                      <span className="font-bold">Upload New Data</span>
+                      <span className="font-bold">Upload New File</span>
                     </span>
                     <ChevronRight size={20} />
                   </motion.button>
+                  {hasData && (
+                    <motion.button
+                      whileHover={{ scale: 1.02, y: -5 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={onViewTables}
+                      className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                    >
+                      <span className="flex items-center">
+                        <FileText size={20} className="mr-2" />
+                        <span className="font-bold">View Existing Charts</span>
+                      </span>
+                      <ChevronRight size={20} />
+                    </motion.button>
+                  )}
                 </motion.div>
-              ) : (
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleFirstTimeUserClick}
-                  className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
-                >
-                  <span className="flex items-center">
-                    <Upload size={20} className="mr-2" />
-                    <span className="font-bold">Upload Your First File</span>
-                  </span>
-                  <ChevronRight size={20} />
-                </motion.button>
               )}
             </AnimatePresence>
           </div>

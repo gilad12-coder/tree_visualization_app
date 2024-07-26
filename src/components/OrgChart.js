@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Filter, Upload, List, Home } from 'react-feather';
+import axios from 'axios';
 import FilterModal from './FilterModal';
 import TreeNode from './TreeNode';
 import EnhancedNodeCard from './EnhancedNodeCard';
@@ -11,6 +12,8 @@ import LandingPage from './LandingPage';
 import { useKeyboardShortcut } from '../Utilities/KeyboardShortcuts';
 import { useOrgChart } from '../hooks/useOrgChart';
 import { useOrgChartContext } from './OrgChartContext';
+
+const API_BASE_URL = 'http://localhost:5000';
 
 const OrgChart = () => {
   const {
@@ -32,6 +35,8 @@ const OrgChart = () => {
     setActiveFilters,
   } = useOrgChartContext();
 
+  const [hasExistingDB, setHasExistingDB] = useState(false);
+  const [isCheckingDB, setIsCheckingDB] = useState(true);
   const [selectedNode, setSelectedNode] = useState(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
@@ -44,6 +49,24 @@ const OrgChart = () => {
   
   const dragRef = useRef(null);
   const chartRef = useRef(null);
+
+  useEffect(() => {
+    checkExistingDB();
+  }, []);
+
+  const checkExistingDB = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/check_existing_db`);
+      setHasExistingDB(response.data.exists);
+      if (response.data.exists) {
+        fetchFolderStructureData();
+      }
+    } catch (error) {
+      console.error('Error checking existing DB:', error);
+    } finally {
+      setIsCheckingDB(false);
+    }
+  };
 
   const handleTableSelection = useCallback(async (tableId, folderId) => {
     setSelectedTableId(tableId);
@@ -167,16 +190,11 @@ const OrgChart = () => {
   }, []);
 
   const renderContent = () => {
-    if (error) {
-      return (
-        <div className="flex flex-col justify-center items-center h-screen">
-          <p className="text-red-600 text-xl mb-4">{error}</p>
-          <Button onClick={fetchFolderStructureData}>Retry</Button>
-        </div>
-      );
+    if (isCheckingDB) {
+      return <div className="flex justify-center items-center h-screen text-2xl text-gray-600">Checking database...</div>;
     }
 
-    if (showLanding) {
+    if (!hasExistingDB || showLanding) {
       return (
         <LandingPage
           hasTables={hasTables}
@@ -184,6 +202,15 @@ const OrgChart = () => {
           onUpload={handleUpload}
           onCreateTable={handleUpload}
         />
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="flex flex-col justify-center items-center h-screen">
+          <p className="text-red-600 text-xl mb-4">{error}</p>
+          <Button onClick={fetchFolderStructureData}>Retry</Button>
+        </div>
       );
     }
 
