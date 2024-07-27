@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
-from models import Folder, Table, DataEntry, get_session, get_db_path, dispose_db, create_new_db, init_db, get_engine, inspect
+from models import (Folder, Table, DataEntry, get_session, get_db_path, 
+                    dispose_db, create_new_db, init_db, set_db_path, 
+                    check_db_schema, is_valid_sqlite_db)
 from utils import parse_org_data, check_continuation
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import Session
@@ -50,78 +52,71 @@ def check_existing_db():
     else:
         return jsonify({"exists": False}), 200
 
-def check_db_schema(db_path):
-    try:
-        engine = get_engine(db_path)
-        inspector = inspect(engine)
-
-        expected_tables = {'folders', 'tables', 'data_entries'}
-        actual_tables = set(inspector.get_table_names())
-        
-        if not expected_tables.issubset(actual_tables):
-            return False, f"Missing tables. Expected {expected_tables}, found {actual_tables}"
-
-        # Check columns for each table
-        table_models = {
-            'folders': Folder,
-            'tables': Table,
-            'data_entries': DataEntry
-        }
-
-        for table_name, model in table_models.items():
-            expected_columns = set(column.key for column in model.__table__.columns)
-            actual_columns = set(column['name'] for column in inspector.get_columns(table_name))
-            
-            if not expected_columns.issubset(actual_columns):
-                return False, f"Missing columns in {table_name}. Expected {expected_columns}, found {actual_columns}"
-
-        return True, "Schema is valid"
-    except Exception as e:
-        return False, f"Error checking schema: {str(e)}"
-
 @app.route("/upload_new_db", methods=["POST"])
 def upload_new_db():
-    uploaded_file = request.files.get('db_file')
-    if not uploaded_file:
-        logger.error("No file uploaded")
+    if "db_file" not in request.files:
+        logger.error("No file uploaded in request")
         return jsonify({"error": "No file uploaded"}), 400
+    
+    uploaded_file = request.files["db_file"]
+    if uploaded_file.filename == "":
+        logger.error("Empty filename in uploaded file")
+        return jsonify({"error": "No selected file"}), 400
+
+    if not uploaded_file.filename.lower().endswith('.db'):
+        logger.error(f"Invalid file type uploaded: {uploaded_file.filename}")
+        return jsonify({"error": "Invalid file type. Please upload a .db file."}), 400
 
     try:
-        # Save the uploaded file
-        db_path = uploaded_file.filename
-        logger.info(f"Saving uploaded file to {db_path}")
-        uploaded_file.save(db_path)
+        # Get the full path of the uploaded file
+        db_path = os.path.abspath(uploaded_file.filename)
+        logger.info(f"Attempting to save uploaded file to: {db_path}")
+        
+        # Save the uploaded file to its original location
+        try:
+            uploaded_file.save(db_path)
+            logger.info(f"File saved successfully to: {db_path}")
+        except IOError as e:
+            logger.error(f"Failed to save uploaded file: {str(e)}")
+            return jsonify({"error": "Failed to save uploaded file"}), 500
 
         # Verify if it's a valid SQLite database
-        logger.info(f"Verifying if {db_path} is a valid SQLite database")
         if not is_valid_sqlite_db(db_path):
-            logger.error(f"{db_path} is not a valid SQLite database")
+            logger.error(f"Invalid SQLite database file: {db_path}")
             os.remove(db_path)
             return jsonify({"error": "Invalid SQLite database file"}), 400
 
         # Check the schema
         schema_valid, schema_message = check_db_schema(db_path)
         if not schema_valid:
-            logger.error(f"Schema validation failed: {schema_message}")
+            logger.error(f"Invalid database schema: {schema_message}")
             os.remove(db_path)
             return jsonify({"error": f"Invalid database schema: {schema_message}"}), 400
 
         # Dispose of the current engine and session
         dispose_db()
 
-        # Initialize the database with the new file
-        init_db(db_path)
+        # Set the new database path and initialize it
+        set_db_path(db_path)
+        init_db()
 
-        logger.info("New database successfully uploaded and verified")
+        # Check if the database has any data
+        has_data = check_if_db_has_data(db_path)
+
+        logger.info(f"New database uploaded and configured successfully: {db_path}")
         return jsonify({
-            "message": "New database uploaded successfully",
-            "hasData": check_if_db_has_data(db_path),
+            "message": "New database uploaded and configured successfully",
+            "hasData": has_data,
             "db_path": db_path
         }), 200
     except Exception as e:
-        logger.exception(f"Error in upload_new_db: {str(e)}")
+        logger.exception(f"Unexpected error in upload_new_db: {str(e)}")
         if os.path.exists(db_path):
-            os.remove(db_path)
+            try:
+                os.remove(db_path)
+                logger.info(f"Removed invalid database file: {db_path}")
+            except Exception as remove_error:
+                logger.error(f"Failed to remove invalid database file: {str(remove_error)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/create_new_db", methods=["POST"])
@@ -131,27 +126,23 @@ def create_new_db_route():
         folder_path = data.get('db_path')
         db_name = data.get('db_name', 'orgchart.db')
         
-        # Validate the folder path
         if not folder_path:
+            logger.error("No folder path provided")
             return jsonify({"error": "Folder path is required"}), 400
         
-        # Check if the directory exists
         if not os.path.exists(folder_path):
             logger.error(f"Directory does not exist: {folder_path}")
             return jsonify({"error": "The specified directory does not exist"}), 404
         
-        # Check if the directory is writable
         if not os.access(folder_path, os.W_OK):
             logger.error(f"Directory is not writable: {folder_path}")
             return jsonify({"error": "The specified directory is not writable"}), 403
         
-        # Construct the full database path
         db_path = os.path.join(folder_path, db_name)
+        logger.info(f"Attempting to create new database at: {db_path}")
         
-        # Dispose of any existing database connections
         dispose_db()
 
-        # Remove the existing database file if it exists
         if os.path.exists(db_path):
             try:
                 os.remove(db_path)
@@ -163,7 +154,6 @@ def create_new_db_route():
                 logger.error(f"Error removing existing database {db_path}: {str(e)}")
                 return jsonify({"error": f"Error removing existing database: {str(e)}"}), 500
 
-        # Create a new database file
         try:
             create_new_db(db_path)
             logger.info(f"New database created successfully at {db_path}")
@@ -171,7 +161,6 @@ def create_new_db_route():
             logger.error(f"Failed to create new database: {str(e)}")
             return jsonify({"error": f"Failed to create new database: {str(e)}"}), 500
 
-        # Initialize the database with the new file
         try:
             init_db()
             logger.info("Database initialized successfully")
@@ -179,15 +168,12 @@ def create_new_db_route():
             logger.error(f"Failed to initialize database: {str(e)}")
             return jsonify({"error": f"Failed to initialize database: {str(e)}"}), 500
 
-        # Verify the newly created database
         if not is_valid_sqlite_db(db_path):
             logger.error(f"Newly created database {db_path} is not valid")
             return jsonify({"error": "Failed to create a valid database"}), 500
 
-        # Check if the database has any data
         has_data = check_if_db_has_data(db_path)
 
-        # Get the first table ID if available
         first_table_id = None
         if has_data:
             session = get_session()
@@ -198,6 +184,7 @@ def create_new_db_route():
             finally:
                 session.close()
 
+        logger.info(f"New database created and initialized successfully at {db_path}")
         return jsonify({
             "message": "New database created and initialized successfully",
             "db_path": db_path,
@@ -529,11 +516,11 @@ def find_person_in_tree(tree, name):
     return None
 
 def check_if_db_has_data(db_path):
+    logger.info(f"Checking if database has data: {db_path}")
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        # Get all tables in the database
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = cursor.fetchall()
 
@@ -541,7 +528,6 @@ def check_if_db_has_data(db_path):
             logger.info(f"No tables found in the database: {db_path}")
             return False
 
-        # Check each table for data
         for table in tables:
             table_name = table[0]
             cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
@@ -563,22 +549,6 @@ def check_if_db_has_data(db_path):
     finally:
         if conn:
             conn.close()
-
-def is_valid_sqlite_db(file_path):
-    try:
-        conn = sqlite3.connect(file_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = cursor.fetchall()
-        conn.close()
-        logger.info(f"Database at {file_path} has {len(tables)} tables")
-        return len(tables) > 0
-    except sqlite3.Error as e:
-        logger.error(f"SQLite error in is_valid_sqlite_db: {str(e)}")
-        return False
-    except Exception as e:
-        logger.exception(f"Unexpected error in is_valid_sqlite_db: {str(e)}")
-        return False
 
 if __name__ == "__main__":
     app.run(debug=True)

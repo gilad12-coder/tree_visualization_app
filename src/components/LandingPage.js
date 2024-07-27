@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, ChevronRight, Plus } from 'react-feather';
+import { Upload, ChevronRight, Plus, List } from 'react-feather';
 import { ReactComponent as OrgChartSVG } from '../assets/landing_page_image.svg';
 import axios from 'axios';
 import FileUploadModal from './FileUploadModal';
+import TableSelectionModal from './TableSelectionModal';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -23,17 +24,75 @@ const AnimatedLogo = () => (
   </svg>
 );
 
-const LandingPage = ({ onDatabaseReady }) => {
+const StatusMonitor = ({ status }) => {
+  return (
+    <div className="w-full h-8 bg-gray-800 rounded-lg overflow-hidden">
+      <svg width="100%" height="100%" viewBox="0 0 100 20" preserveAspectRatio="none">
+        <path
+          d={status ? "M0,10 Q25,5 50,10 T100,10" : "M0,10 L100,10"}
+          fill="none"
+          stroke={status ? "#4CAF50" : "#FF5252"}
+          strokeWidth="2"
+          vectorEffect="non-scaling-stroke"
+        >
+          {status && (
+            <animate
+              attributeName="d"
+              values="M0,10 Q25,5 50,10 T100,10;M0,10 Q25,15 50,10 T100,10;M0,10 Q25,5 50,10 T100,10"
+              dur="4s"
+              repeatCount="indefinite"
+            />
+          )}
+        </path>
+      </svg>
+    </div>
+  );
+};
+
+const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [folderPath, setFolderPath] = useState('');
   const [folderPathError, setFolderPathError] = useState('');
-  const [dbPath, setDbPath] = useState(null);
+  const [dbPath, setDbPath] = useState(currentDbPath);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
+  const [dbInfo, setDbInfo] = useState(null);
+  const [selectedDbFile, setSelectedDbFile] = useState(null);
+  const [folderStructure, setFolderStructure] = useState([]);
+
+  const fetchDbInfo = useCallback(async () => {
+    if (!dbPath) return;
+  
+    try {
+      setIsLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/check_existing_db`, { params: { db_path: dbPath } });
+      if (response.data.exists) {
+        setDbInfo({
+          path: response.data.path,
+          exists: true,
+          hasData: response.data.hasData
+        });
+      } else {
+        setDbInfo(null);
+      }
+    } catch (error) {
+      console.error('Error fetching database info:', error);
+      setDbInfo(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dbPath]);
+  
+  useEffect(() => {
+    fetchDbInfo();
+  }, [fetchDbInfo]);
 
   const handleUploadNewDB = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
+
+    setSelectedDbFile(file.name);
 
     const formData = new FormData();
     formData.append('db_file', file);
@@ -44,7 +103,14 @@ const LandingPage = ({ onDatabaseReady }) => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setDbPath(response.data.db_path);
-      setStep(2);
+      
+      if (response.data.hasData) {
+        const folderResponse = await axios.get(`${API_BASE_URL}/folder_structure`, { params: { db_path: response.data.db_path } });
+        setFolderStructure(folderResponse.data);
+        setStep(3);
+      } else {
+        setStep(2);
+      }
     } catch (error) {
       console.error('Error uploading new DB:', error);
       alert('Error uploading new DB. Please try again.');
@@ -77,10 +143,19 @@ const LandingPage = ({ onDatabaseReady }) => {
 
   const handleUploadFile = async (tableId, folderId, folderName, fileName, uploadDate) => {
     try {
-      onDatabaseReady(dbPath, tableId);
+      onDatabaseReady(dbPath, tableId, folderId);  // Pass folderId here
     } catch (error) {
       console.error('Error after file upload:', error);
       alert('Error processing uploaded file. Please try again.');
+    }
+  };
+
+  const handleTableSelection = async (tableId, folderId) => {
+    try {
+      onDatabaseReady(dbPath, tableId, folderId);  // Pass folderId here
+    } catch (error) {
+      console.error('Error after table selection:', error);
+      alert('Error processing table selection. Please try again.');
     }
   };
 
@@ -141,6 +216,32 @@ const LandingPage = ({ onDatabaseReady }) => {
                 interactive organizational charts that bring your company structure to life.
               </p>
             </motion.div>
+            {dbPath && dbInfo && (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="mt-4 bg-blue-100 rounded-lg overflow-hidden"
+  >
+    <div className="p-4">
+      <h3 className="text-lg font-semibold text-green-600 mb-2">Current Database</h3>
+      <p className="text-sm text-green-600 mb-2">Path: {dbInfo.path}</p>
+    </div>
+    <StatusMonitor status={dbInfo.exists} />
+    <div className="p-4">
+      <p className="text-sm text-green-600 mb-2">
+        Status: {dbInfo.exists ? 'Connected' : 'Disconnected'}
+      </p>
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setStep(1)}
+        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+      >
+        Change Database
+      </motion.button>
+    </div>
+  </motion.div>
+)}
             <AnimatePresence mode="wait">
               {step === 1 && (
                 <motion.div
@@ -158,7 +259,9 @@ const LandingPage = ({ onDatabaseReady }) => {
                   >
                     <span className="flex items-center">
                       <Upload size={20} className="mr-2" />
-                      <span className="font-bold">Upload Existing Database</span>
+                      <span className="font-bold">
+                        {selectedDbFile ? `Selected: ${selectedDbFile}` : "Select Existing Database (.db file)"}
+                      </span>
                     </span>
                     <ChevronRight size={20} />
                     <input
@@ -272,6 +375,52 @@ const LandingPage = ({ onDatabaseReady }) => {
                   </motion.button>
                 </motion.div>
               )}
+              {step === 3 && (
+                <motion.div
+                  key="step3"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: 0.6 }}
+                  className="space-y-4"
+                >
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsTableSelectionOpen(true)}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center">
+                      <List size={20} className="mr-2" />
+                      <span className="font-bold">View Current Tables</span>
+                    </span>
+                    <ChevronRight size={20} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsUploadModalOpen(true)}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center">
+                      <Upload size={20} className="mr-2" />
+                      <span className="font-bold">Upload New File</span>
+                    </span>
+                    <ChevronRight size={20} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setStep(1)}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center">
+                      <ChevronRight size={20} className="mr-2 transform rotate-180" />
+                      <span className="font-bold">Back</span>
+                    </span>
+                  </motion.button>
+                </motion.div>
+              )}
             </AnimatePresence>
           </div>
           <motion.div
@@ -290,6 +439,13 @@ const LandingPage = ({ onDatabaseReady }) => {
         onClose={() => setIsUploadModalOpen(false)}
         onUpload={handleUploadFile}
         dbPath={dbPath}
+      />
+  
+      <TableSelectionModal
+        isOpen={isTableSelectionOpen}
+        onClose={() => setIsTableSelectionOpen(false)}
+        onSelectTable={handleTableSelection}
+        folderStructure={folderStructure}
       />
     </div>
   );

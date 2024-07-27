@@ -25,7 +25,7 @@ function App() {
     <div className="App">
       <OrgChartProvider>
         {!dbSelected ? (
-          <LandingPage onDatabaseReady={handleDatabaseReady} />
+          <LandingPage onDatabaseReady={handleDatabaseReady} currentDbPath={dbPath} />
         ) : (
           <OrgChart 
             dbPath={dbPath}
