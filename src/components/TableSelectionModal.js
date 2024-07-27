@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown } from 'react-feather';
 
@@ -62,8 +62,6 @@ const TableCard = ({ table, onClick }) => {
 };
 
 const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }) => {
-  const [currentPath] = useState([]);
-  const [currentFolder, setCurrentFolder] = useState(null);
   const [expandedFolders, setExpandedFolders] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [sortByDate, setSortByDate] = useState(false);
@@ -71,79 +69,52 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
   const bgOpacity = useMotionValue(0);
   const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
 
-  useEffect(() => {
-    setCurrentFolder({ subfolders: folderStructure, tables: [] });
-  }, [folderStructure]);
-
-  useEffect(() => {
-    if (currentPath.length === 0) {
-      setCurrentFolder({ subfolders: folderStructure, tables: [] });
-    } else {
-      let current = { subfolders: folderStructure, tables: [] };
-      for (let folderId of currentPath) {
-        current = current.subfolders.find(f => f.id === folderId);
-        if (!current) {
-          console.error("Folder not found:", folderId);
-          break;
-        }
-      }
-      setCurrentFolder(current);
-    }
-  }, [currentPath, folderStructure]);
-
-  const handleFolderClick = (folder) => {
-    setExpandedFolders(prev => ({ ...prev, [folder.id]: !prev[folder.id] }));
+  const handleFolderClick = (folderId) => {
+    setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
   };
 
-  const handleTableSelect = (table, folder) => {
-    onSelectTable(table.id, folder.id);
+  const handleTableSelect = (tableId, folderId) => {
+    onSelectTable(tableId, folderId);
     onClose();
   };
 
-  const filteredContents = (folder) => {
-    const filteredSubfolders = folder.subfolders?.filter(sf => sf.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
-    let filteredTables = folder.tables?.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase())) || [];
-    
-    filteredTables.sort((a, b) => {
-      if (!a.upload_date) return 1;
-      if (!b.upload_date) return -1;
-      const comparison = new Date(b.upload_date) - new Date(a.upload_date);
-      return sortByDate ? -comparison : comparison;  // Reverse order when sortByDate is true
-    });
-    
-    return { subfolders: filteredSubfolders, tables: filteredTables };
+  const filteredContents = () => {
+    return folderStructure.map(folder => ({
+      ...folder,
+      tables: folder.tables.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    })).filter(folder => 
+      folder.name.toLowerCase().includes(searchTerm.toLowerCase()) || folder.tables.length > 0
+    );
   };
 
-  const renderFolderContents = (folder, depth = 0) => {
-    const { subfolders, tables } = filteredContents(folder);
-    return (
-      <motion.div
-        className="space-y-2"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ staggerChildren: 0.1, delayChildren: 0.2 }}
-      >
-        {subfolders.map((subfolder) => (
-          <motion.div key={subfolder.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-            <FolderCard
-              folder={subfolder}
-              onClick={() => handleFolderClick(subfolder)}
-              isExpanded={expandedFolders[subfolder.id]}
-            />
-            {expandedFolders[subfolder.id] && (
-              <div className="ml-6 mt-2">
-                {renderFolderContents(subfolder, depth + 1)}
-              </div>
-            )}
-          </motion.div>
-        ))}
-        {tables.map((table) => (
-          <motion.div key={table.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-            <TableCard table={table} onClick={() => handleTableSelect(table, folder)} />
-          </motion.div>
-        ))}
+  const renderFolderContents = () => {
+    const filtered = filteredContents();
+    return filtered.map((folder) => (
+      <motion.div key={folder.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+        <FolderCard
+          folder={folder}
+          onClick={() => handleFolderClick(folder.id)}
+          isExpanded={expandedFolders[folder.id]}
+        />
+        {expandedFolders[folder.id] && (
+          <div className="ml-6 mt-2">
+            {folder.tables
+              .sort((a, b) => {
+                if (!a.upload_date) return 1;
+                if (!b.upload_date) return -1;
+                const comparison = new Date(b.upload_date) - new Date(a.upload_date);
+                return sortByDate ? -comparison : comparison;
+              })
+              .map((table) => (
+                <motion.div key={table.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+                  <TableCard table={table} onClick={() => handleTableSelect(table.id, folder.id)} />
+                </motion.div>
+              ))
+            }
+          </div>
+        )}
       </motion.div>
-    );
+    ));
   };
 
   return (
@@ -213,7 +184,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
                 </motion.button>
               </div>
               <div className="max-h-[calc(80vh-220px)] overflow-y-auto pr-4 space-y-4">
-                {renderFolderContents(currentFolder)}
+                {renderFolderContents()}
               </div>
             </div>
           </motion.div>

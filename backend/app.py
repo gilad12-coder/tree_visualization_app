@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
-from models import Folder, Table, DataEntry, get_session, get_db_path, dispose_db, create_new_db, init_db
+from models import Folder, Table, DataEntry, get_session, get_db_path, dispose_db, create_new_db, init_db, get_engine, inspect
 from utils import parse_org_data, check_continuation
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.orm import Session
 import logging
 from datetime import datetime
 import json
@@ -14,6 +15,7 @@ import sqlite3
 import glob
 import time
 from contextlib import contextmanager
+from sqlalchemy import func
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -48,25 +50,34 @@ def check_existing_db():
     else:
         return jsonify({"exists": False}), 200
 
-@app.route("/use_existing_db", methods=["GET"])
-def use_existing_db():
+def check_db_schema(db_path):
     try:
-        db_path = "orgchart.db"
-        if not os.path.exists(db_path):
-            logger.error("No existing database found")
-            return jsonify({"error": "No existing database found"}), 404
+        engine = get_engine(db_path)
+        inspector = inspect(engine)
 
-        if not is_valid_sqlite_db(db_path):
-            logger.error(f"{db_path} is not a valid SQLite database")
-            return jsonify({"error": "Invalid SQLite database file"}), 400
-
-        init_db()
+        expected_tables = {'folders', 'tables', 'data_entries'}
+        actual_tables = set(inspector.get_table_names())
         
-        logger.info("Existing database loaded successfully")
-        return jsonify({"message": "Existing database loaded successfully", "hasData": check_if_db_has_data(db_path)}), 200
+        if not expected_tables.issubset(actual_tables):
+            return False, f"Missing tables. Expected {expected_tables}, found {actual_tables}"
+
+        # Check columns for each table
+        table_models = {
+            'folders': Folder,
+            'tables': Table,
+            'data_entries': DataEntry
+        }
+
+        for table_name, model in table_models.items():
+            expected_columns = set(column.key for column in model.__table__.columns)
+            actual_columns = set(column['name'] for column in inspector.get_columns(table_name))
+            
+            if not expected_columns.issubset(actual_columns):
+                return False, f"Missing columns in {table_name}. Expected {expected_columns}, found {actual_columns}"
+
+        return True, "Schema is valid"
     except Exception as e:
-        logger.exception(f"Error in use_existing_db: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return False, f"Error checking schema: {str(e)}"
 
 @app.route("/upload_new_db", methods=["POST"])
 def upload_new_db():
@@ -76,56 +87,66 @@ def upload_new_db():
         return jsonify({"error": "No file uploaded"}), 400
 
     try:
+        # Save the uploaded file
+        db_path = uploaded_file.filename
+        logger.info(f"Saving uploaded file to {db_path}")
+        uploaded_file.save(db_path)
+
+        # Verify if it's a valid SQLite database
+        logger.info(f"Verifying if {db_path} is a valid SQLite database")
+        if not is_valid_sqlite_db(db_path):
+            logger.error(f"{db_path} is not a valid SQLite database")
+            os.remove(db_path)
+            return jsonify({"error": "Invalid SQLite database file"}), 400
+
+        # Check the schema
+        schema_valid, schema_message = check_db_schema(db_path)
+        if not schema_valid:
+            logger.error(f"Schema validation failed: {schema_message}")
+            os.remove(db_path)
+            return jsonify({"error": f"Invalid database schema: {schema_message}"}), 400
+
         # Dispose of the current engine and session
         dispose_db()
 
-        # Save the uploaded file
-        upload_path = uploaded_file.filename
-        logger.info(f"Saving uploaded file to {upload_path}")
-        uploaded_file.save(upload_path)
-
-        # Verify if it's a valid SQLite database
-        logger.info(f"Verifying if {upload_path} is a valid SQLite database")
-        if not is_valid_sqlite_db(upload_path):
-            logger.error(f"{upload_path} is not a valid SQLite database")
-            os.remove(upload_path)
-            return jsonify({"error": "Invalid SQLite database file"}), 400
-
-        # Remove any existing .db files except the one we just uploaded
-        existing_dbs = [db for db in glob.glob('*.db') if db != upload_path]
-        logger.info(f"Removing existing .db files: {existing_dbs}")
-        for existing_db in existing_dbs:
-            with retry_on_error():
-                os.remove(existing_db)
-
-        # Rename the uploaded file to a standard name
-        new_db_path = "orgchart.db"
-        logger.info(f"Renaming {upload_path} to {new_db_path}")
-        if os.path.exists(new_db_path):
-            with retry_on_error():
-                os.remove(new_db_path)  # Remove the destination file if it exists
-        with retry_on_error():
-            os.rename(upload_path, new_db_path)
-
-        # Verify the renamed database
-        logger.info(f"Verifying the renamed database {new_db_path}")
-        if not is_valid_sqlite_db(new_db_path):
-            logger.error(f"Renamed database {new_db_path} is not valid")
-            os.remove(new_db_path)
-            return jsonify({"error": "Database became invalid after renaming"}), 500
-
-        init_db()
+        # Initialize the database with the new file
+        init_db(db_path)
 
         logger.info("New database successfully uploaded and verified")
-        return jsonify({"message": "New database uploaded successfully", "hasData": check_if_db_has_data(new_db_path)}), 200
+        return jsonify({
+            "message": "New database uploaded successfully",
+            "hasData": check_if_db_has_data(db_path),
+            "db_path": db_path
+        }), 200
     except Exception as e:
         logger.exception(f"Error in upload_new_db: {str(e)}")
+        if os.path.exists(db_path):
+            os.remove(db_path)
         return jsonify({"error": str(e)}), 500
 
 @app.route("/create_new_db", methods=["POST"])
 def create_new_db_route():
     try:
-        db_path = "orgchart.db"
+        data = request.json
+        folder_path = data.get('db_path')
+        db_name = data.get('db_name', 'orgchart.db')
+        
+        # Validate the folder path
+        if not folder_path:
+            return jsonify({"error": "Folder path is required"}), 400
+        
+        # Check if the directory exists
+        if not os.path.exists(folder_path):
+            logger.error(f"Directory does not exist: {folder_path}")
+            return jsonify({"error": "The specified directory does not exist"}), 404
+        
+        # Check if the directory is writable
+        if not os.access(folder_path, os.W_OK):
+            logger.error(f"Directory is not writable: {folder_path}")
+            return jsonify({"error": "The specified directory is not writable"}), 403
+        
+        # Construct the full database path
+        db_path = os.path.join(folder_path, db_name)
         
         # Dispose of any existing database connections
         dispose_db()
@@ -158,12 +179,41 @@ def create_new_db_route():
             logger.error(f"Failed to initialize database: {str(e)}")
             return jsonify({"error": f"Failed to initialize database: {str(e)}"}), 500
 
-        return jsonify({"message": "New database created and initialized successfully"}), 200
+        # Verify the newly created database
+        if not is_valid_sqlite_db(db_path):
+            logger.error(f"Newly created database {db_path} is not valid")
+            return jsonify({"error": "Failed to create a valid database"}), 500
+
+        # Check if the database has any data
+        has_data = check_if_db_has_data(db_path)
+
+        # Get the first table ID if available
+        first_table_id = None
+        if has_data:
+            session = get_session()
+            try:
+                first_table = session.query(Table).first()
+                if first_table:
+                    first_table_id = first_table.id
+            finally:
+                session.close()
+
+        return jsonify({
+            "message": "New database created and initialized successfully",
+            "db_path": db_path,
+            "hasData": has_data,
+            "tableId": first_table_id
+        }), 200
     except Exception as e:
         logger.exception(f"Unexpected error in create_new_db: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-from sqlalchemy.orm import Session
+    
+def get_next_folder_id(session):
+    """
+    Get the next available folder ID by finding the maximum current ID and adding 1.
+    """
+    max_id = session.query(func.max(Folder.id)).scalar()
+    return (max_id or 0) + 1
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
@@ -176,7 +226,7 @@ def upload_file():
         return jsonify({"error": "Upload date is required"}), 400
     try:
         upload_date = datetime.strptime(upload_date_str, "%Y-%m-%d").date()
-        print(f"Upload date: {upload_date}")
+        logger.info(f"Upload date: {upload_date}")
     except ValueError:
         return jsonify({"error": "Invalid date format"}), 400
 
@@ -192,33 +242,68 @@ def upload_file():
         # Find or create the folder
         folder = session.query(Folder).filter_by(name=folder_name).first()
         if not folder:
-            folder = Folder(name=folder_name)
-            session.add(folder)
-            session.flush()  # This will assign an ID to the folder if it's new
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    next_id = get_next_folder_id(session)
+                    folder = Folder(id=next_id, name=folder_name)
+                    session.add(folder)
+                    session.commit()  # Commit the folder to the database
+                    logger.info(f"New folder created and committed: {folder.name} (ID: {folder.id})")
+                    break
+                except IntegrityError:
+                    session.rollback()
+                    logger.warning(f"Folder creation attempt {attempt + 1} failed due to IntegrityError. Retrying...")
+                    if attempt == max_retries - 1:
+                        raise ValueError("Failed to create a new folder with a unique ID after multiple attempts.")
+        else:
+            logger.info(f"Existing folder found: {folder.name} (ID: {folder.id})")
+        
+        logger.info(f"Using folder: {folder.name} (ID: {folder.id})")
 
         # Read the file content
         file_content = file.read()
+        logger.info(f"File content read, size: {len(file_content)} bytes")
 
         # Check if this is a valid continuation
-        if not check_continuation(folder.id, file_content, file_extension):
-            return jsonify({"error": "New table is not a valid continuation of the previous one"}), 400
+        try:
+            is_valid_continuation = check_continuation(folder.id, file_content, file_extension)
+            if not is_valid_continuation:
+                return jsonify({"error": "New table is not a valid continuation of the previous one"}), 400
+        except Exception as e:
+            logger.error(f"Error in check_continuation: {str(e)}")
+            return jsonify({"error": f"Error checking file continuation: {str(e)}"}), 500
 
         table = Table(name=file.filename, folder_id=folder.id, upload_date=upload_date)
         session.add(table)
         session.flush()  # This will assign an ID to the table
+        logger.info(f"Table created: {table.name} (ID: {table.id})")
 
-        process_file(session, file_content, file_extension, table.id)
-        
+        try:
+            process_file(session, file_content, file_extension, table.id)
+            logger.info(f"File processed successfully for table ID: {table.id}")
+        except Exception as e:
+            logger.error(f"Error in process_file: {str(e)}")
+            raise
+
         session.commit()
-        return jsonify({"message": "File uploaded and processed successfully", "table_id": table.id}), 200
+        logger.info(f"File upload completed successfully for table ID: {table.id}")
+        return jsonify({
+            "message": "File uploaded and processed successfully",
+            "table_id": table.id,
+            "folder_id": folder.id
+        }), 200
     except ValueError as ve:
         session.rollback()
+        logger.error(f"ValueError in upload_file: {str(ve)}")
         return jsonify({"error": str(ve)}), 400
     except SQLAlchemyError as e:
         session.rollback()
+        logger.error(f"Database error in upload_file: {str(e)}")
         return jsonify({"error": f"Database error: {str(e)}"}), 500
     except Exception as e:
         session.rollback()
+        logger.error(f"Unexpected error in upload_file: {str(e)}")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
     finally:
         session.close()
@@ -232,13 +317,33 @@ def process_file(session: Session, file_content, file_extension, table_id):
         else:
             raise ValueError("Unsupported file type")
 
-        for _, row in df.iterrows():
+        logger.info(f"File read successfully. Shape: {df.shape}")
+
+        for index, row in df.iterrows():
             data_entry = DataEntry(data=row.to_json(), table_id=table_id)
             session.add(data_entry)
+            if index % 1000 == 0:  # Log progress every 1000 rows
+                logger.info(f"Processed {index} rows for table ID: {table_id}")
         
         session.flush()  # This will assign IDs to the data entries
-    except pd.errors.ParserError:
-        raise ValueError(f"Error parsing {file_extension.upper()} content.")
+        logger.info(f"All rows processed for table ID: {table_id}")
+
+        # Fetch the folder_id for the table
+        table = session.query(Table).filter_by(id=table_id).first()
+        if table:
+            return table.folder_id
+        else:
+            raise ValueError(f"Table with ID {table_id} not found")
+
+    except pd.errors.EmptyDataError:
+        logger.error(f"Empty file content for table ID: {table_id}")
+        raise ValueError("The uploaded file is empty.")
+    except pd.errors.ParserError as e:
+        logger.error(f"Error parsing {file_extension.upper()} content for table ID: {table_id}. Error: {str(e)}")
+        raise ValueError(f"Error parsing {file_extension.upper()} content: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error in process_file for table ID: {table_id}. Error: {str(e)}")
+        raise
 
 def get_folder_structure():
     session = get_session()
@@ -247,8 +352,7 @@ def get_folder_structure():
         folders = session.query(Folder).all()
         folder_structure = []
 
-        def build_folder_structure(folder):
-            subfolders = [build_folder_structure(subfolder) for subfolder in folder.subfolders]
+        for folder in folders:
             tables = [
                 {
                     "id": table.id,
@@ -257,20 +361,15 @@ def get_folder_structure():
                 }
                 for table in folder.tables
             ]
-            return {
+            folder_structure.append({
                 "id": folder.id,
                 "name": folder.name,
-                "parent_id": folder.parent_id,
-                "subfolders": subfolders,
                 "tables": tables,
-            }
-
-        root_folders = [folder for folder in folders if folder.parent_id is None]
-        for root_folder in root_folders:
-            folder_structure.append(build_folder_structure(root_folder))
+            })
 
         return folder_structure
     except SQLAlchemyError as e:
+        logger.error(f"Error retrieving folder structure: {str(e)}")
         raise e
     finally:
         session.close()
@@ -291,31 +390,6 @@ def view_tables():
         return jsonify([{"id": t.id, "name": t.name} for t in tables]), 200
     except SQLAlchemyError as e:
         return jsonify({"error": f"Database error: {str(e)}"}), 500
-    finally:
-        session.close()
-
-@app.route("/update_table", methods=["POST"])
-def update_table():
-    session = get_session()
-    try:
-        data = request.json
-        table_id = data.get("table_id")
-        entries = data.get("entries")
-        if not table_id or not entries:
-            return jsonify({"error": "Invalid input"}), 400
-        table = session.query(Table).filter_by(id=table_id).first()
-        if not table:
-            return jsonify({"error": "Table not found"}), 404
-        for entry in entries:
-            data_entry = DataEntry(data=entry, table_id=table_id)
-            session.add(data_entry)
-        session.commit()
-        return jsonify({"message": "Table updated successfully"}), 200
-    except SQLAlchemyError as e:
-        session.rollback()
-        return jsonify({"error": f"Database error: {str(e)}"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
     finally:
         session.close()
 
@@ -375,13 +449,11 @@ def get_timeline(folder_id):
             .all()
         )
         
-        # If a specific table_id is provided, find its upload date and filter tables
+        # If a specific table_id is provided, validate it exists in the folder
         if table_id:
-            target_table = next((table for table in tables if str(table.id) == table_id), None)
-            if not target_table:
-                return jsonify({"error": f"Table with id {table_id} not found"}), 404
-            target_date = target_table.upload_date
-            tables = [table for table in tables if table.upload_date <= target_date]
+            table_id = int(table_id)  # Convert to int for comparison
+            if table_id not in [table.id for table in tables]:
+                return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
         
         print(f"Processing {len(tables)} tables")
         
@@ -391,6 +463,10 @@ def get_timeline(folder_id):
         
         for table in tables:
             data_entries = session.query(DataEntry).filter_by(table_id=table.id).all()
+            if not data_entries:
+                print(f"No data entries found for table {table.id}")
+                continue
+
             df = pd.DataFrame([json.loads(entry.data) for entry in data_entries])
             org_tree = parse_org_data(df)
             
@@ -418,6 +494,10 @@ def get_timeline(folder_id):
                     timeline_entry["person_info"] = person
             
             timeline.append(timeline_entry)
+            
+            # If a specific table_id was provided and we've processed it, stop here
+            if table_id and table.id == table_id:
+                break
         
         if current_role:
             cv.append({
@@ -434,6 +514,8 @@ def get_timeline(folder_id):
         return jsonify(result), 200
     except SQLAlchemyError as e:
         return jsonify({"error": f"Database error: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
     finally:
         session.close()
 

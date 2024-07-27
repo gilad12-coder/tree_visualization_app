@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Filter, Upload, List, Home } from 'react-feather';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronDown, ChevronUp, Filter, Upload, List } from 'react-feather';
 import axios from 'axios';
 import FilterModal from './FilterModal';
 import TreeNode from './TreeNode';
@@ -8,35 +8,25 @@ import EnhancedNodeCard from './EnhancedNodeCard';
 import Button from './Button';
 import FileUploadModal from './FileUploadModal';
 import TableSelectionModal from './TableSelectionModal';
-import LandingPage from './LandingPage';
 import { useKeyboardShortcut } from '../Utilities/KeyboardShortcuts';
-import { useOrgChart } from '../hooks/useOrgChart';
 import { useOrgChartContext } from './OrgChartContext';
 
 const API_BASE_URL = 'http://localhost:5000';
 
-const OrgChart = () => {
+const OrgChart = ({ 
+  dbPath = null, 
+  initialTableId = null,
+  initialFolderId = null
+}) => {
   const {
-    orgData,
-    folderStructure,
-    selectedTableId,
-    loading,
-    error,
-    hasTables,
-    setSelectedTableId,
-    handleFileUpload,
-    fetchFolderStructureData,
-  } = useOrgChart();
-
-  const {
-    showLanding,
-    setShowLanding,
     activeFilters,
     setActiveFilters,
   } = useOrgChartContext();
 
-  const [hasExistingDB, setHasExistingDB] = useState(false);
-  const [isCheckingDB, setIsCheckingDB] = useState(true);
+  const [orgData, setOrgData] = useState(null);
+  const [folderStructure, setFolderStructure] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
@@ -45,59 +35,70 @@ const OrgChart = () => {
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
   const [expandAll, setExpandAll] = useState(false);
   const [collapseAll, setCollapseAll] = useState(false);
-  const [selectedFolderId, setSelectedFolderId] = useState(null);
+  const [selectedTableId, setSelectedTableId] = useState(initialTableId);
+  const [selectedFolderId, setSelectedFolderId] = useState(initialFolderId);
   
   const dragRef = useRef(null);
   const chartRef = useRef(null);
 
-  useEffect(() => {
-    checkExistingDB();
-  }, []);
+  const fetchData = useCallback(async () => {
+    if (!dbPath || !selectedTableId) return;
 
-  const checkExistingDB = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      const response = await axios.get(`${API_BASE_URL}/check_existing_db`);
-      setHasExistingDB(response.data.exists);
-      if (response.data.exists) {
-        fetchFolderStructureData();
-      }
+      const [folderResponse, orgDataResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/folder_structure`, { params: { db_path: dbPath } }),
+        axios.get(`${API_BASE_URL}/org-data`, { params: { table_id: selectedTableId, db_path: dbPath } })
+      ]);
+
+      setFolderStructure(folderResponse.data);
+      setOrgData(orgDataResponse.data);
     } catch (error) {
-      console.error('Error checking existing DB:', error);
+      console.error('Error fetching data:', error);
+      setError('Failed to fetch data. Please try again.');
     } finally {
-      setIsCheckingDB(false);
+      setLoading(false);
     }
+  }, [dbPath, selectedTableId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleFileUpload = async (uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate) => {
+    console.log('File uploaded:', { uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate });
+    setSelectedTableId(uploadedTableId);
+    setSelectedFolderId(uploadedFolderId);
+    await fetchData();
+    setIsUploadOpen(false);
   };
 
   const handleTableSelection = useCallback(async (tableId, folderId) => {
+    console.log('Table selected:', { tableId, folderId });
     setSelectedTableId(tableId);
     setSelectedFolderId(folderId);
     setIsTableSelectionOpen(false);
-    setShowLanding(false);
-  }, [setSelectedTableId, setShowLanding]);
-
-  const handleViewTables = useCallback(() => {
-    if (hasTables) {
-      setIsTableSelectionOpen(true);
-      setShowLanding(false);
-    } else {
-      setIsUploadOpen(true);
-    }
-  }, [hasTables, setShowLanding]);
+    await fetchData();
+  }, [fetchData]);
 
   const handleUpload = useCallback(() => {
+    console.log('Upload clicked');
     setIsUploadOpen(true);
-    setShowLanding(false);
-  }, [setShowLanding]);
+  }, []);
 
   const handleNodeClick = useCallback((node) => {
-    setSelectedNode({
+    console.log('Node clicked:', node);
+    setSelectedNode(prevNode => ({
       ...node,
       folderId: selectedFolderId,
       tableId: selectedTableId
-    });
+    }));
   }, [selectedFolderId, selectedTableId]);
 
   const handleFilterChange = useCallback((filters) => {
+    console.log('Filters changed:', filters);
     setActiveFilters(filters);
     setIsFilterOpen(false);
   }, [setActiveFilters]);
@@ -185,119 +186,121 @@ const OrgChart = () => {
   const handleCollapseAll = useCallback(() => {
     setExpandAll(false);
     setCollapseAll(true);
-    // Reset collapseAll after a short delay
     setTimeout(() => setCollapseAll(false), 100);
   }, []);
 
-  const renderContent = () => {
-    if (isCheckingDB) {
-      return <div className="flex justify-center items-center h-screen text-2xl text-gray-600">Checking database...</div>;
-    }
+  console.log('Render state:', { loading, error, selectedTableId, orgData, folderStructure });
 
-    if (!hasExistingDB || showLanding) {
-      return (
-        <LandingPage
-          hasTables={hasTables}
-          onViewTables={handleViewTables}
-          onUpload={handleUpload}
-          onCreateTable={handleUpload}
-        />
-      );
-    }
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="flex justify-center items-center h-screen text-2xl text-gray-600"
+      >
+        Loading...
+      </motion.div>
+    );
+  }
 
-    if (error) {
-      return (
-        <div className="flex flex-col justify-center items-center h-screen">
-          <p className="text-red-600 text-xl mb-4">{error}</p>
-          <Button onClick={fetchFolderStructureData}>Retry</Button>
+  if (error) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="flex flex-col justify-center items-center h-screen"
+      >
+        <p className="text-red-600 text-xl mb-4">{error}</p>
+        <Button onClick={fetchData}>Retry</Button>
+      </motion.div>
+    );
+  }
+
+  if (!dbPath || !selectedTableId || !orgData) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="flex flex-col justify-center items-center h-screen"
+      >
+        <p className="text-xl mb-4">No data available. Please upload a file or select a table.</p>
+        <Button onClick={handleUpload} icon={Upload} className="mb-4">
+          Upload File
+        </Button>
+        <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
+          Select Table
+        </Button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100"
+      >
+        <div className="absolute top-4 left-4 z-10 flex space-x-2">
+          <Button onClick={handleExpandAll} icon={ChevronDown}>
+            Open All
+          </Button>
+          <Button onClick={handleCollapseAll} icon={ChevronUp}>
+            Collapse All
+          </Button>
+          <Button onClick={toggleFilterModal} icon={Filter}>
+            Filter (Ctrl+F)
+          </Button>
+          <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
+            Change Table
+          </Button>
+          <Button onClick={() => setIsUploadOpen(true)} icon={Upload}>
+            Upload New Table
+          </Button>
         </div>
-      );
-    }
-
-    if (loading) {
-      return <div className="flex justify-center items-center h-screen text-2xl text-gray-600">Loading...</div>;
-    }
-
-    if (selectedTableId && orgData) {
-      return (
-        <>
-          <div className="absolute top-4 left-4 z-10 flex space-x-2">
-            <Button onClick={() => setShowLanding(true)} icon={Home}>
-              Home
-            </Button>
-            <Button onClick={handleExpandAll} icon={ChevronDown}>
-              Open All
-            </Button>
-            <Button onClick={handleCollapseAll} icon={ChevronUp}>
-              Collapse All
-            </Button>
-            <Button onClick={toggleFilterModal} icon={Filter}>
-              Filter (Ctrl+F)
-            </Button>
-            <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
-              Change Table
-            </Button>
-            <Button onClick={() => setIsUploadOpen(true)} icon={Upload}>
-              Upload New Table
-            </Button>
-          </div>
+        <div
+          ref={dragRef}
+          className="w-full h-full cursor-move"
+          onMouseDown={handleMouseDown}
+          onWheel={handleWheel}
+          style={{ overflow: 'hidden' }}
+        >
           <div
-            ref={dragRef}
-            className="w-full h-full cursor-move"
-            onMouseDown={handleMouseDown}
-            onWheel={handleWheel}
-            style={{ overflow: 'hidden' }}
+            ref={chartRef}
+            style={{
+              transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+              transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+              transformOrigin: '0 0'
+            }}
           >
-            <div
-              ref={chartRef}
-              style={{
-                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-                transition: isDragging ? 'none' : 'transform 0.3s ease-out',
-                transformOrigin: '0 0'
-              }}
-            >
-              <div className="p-8 pt-20">
-                <TreeNode 
-                  node={orgData} 
-                  onNodeClick={handleNodeClick} 
-                  expandAll={expandAll}
-                  collapseAll={collapseAll}
-                  filterNode={filterOrgData}
-                  folderId={selectedFolderId}
-                  tableId={selectedTableId}
-                />
-              </div>
-            </div>
-          </div>
-          <AnimatePresence>
-            {selectedNode && (
-              <EnhancedNodeCard
-                node={selectedNode}
-                onClose={() => setSelectedNode(null)}
+            <div className="p-8 pt-20">
+              <TreeNode 
+                node={orgData} 
+                onNodeClick={handleNodeClick} 
+                expandAll={expandAll}
+                collapseAll={collapseAll}
+                filterNode={filterOrgData}
                 folderId={selectedFolderId}
                 tableId={selectedTableId}
               />
-            )}
-          </AnimatePresence>
-        </>
-      );
-    }
-
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Button onClick={handleViewTables} icon={List} className="mr-4">
-          {hasTables ? "Select Table" : "Create New Table"}
-        </Button>
-        <Button onClick={handleUpload} icon={Upload}>
-          Upload New Table
-        </Button>
-      </div>
-    );
-  };
-
-  return (
-    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-      {renderContent()}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+      <AnimatePresence>
+        {selectedNode && (
+          <EnhancedNodeCard
+            node={selectedNode}
+            onClose={() => setSelectedNode(null)}
+            folderId={selectedFolderId}
+            tableId={selectedTableId}
+          />
+        )}
+      </AnimatePresence>
       <FilterModal
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
@@ -313,13 +316,11 @@ const OrgChart = () => {
       />
       <FileUploadModal
         isOpen={isUploadOpen}
-        onClose={() => {
-          setIsUploadOpen(false);
-          if (!selectedTableId) setShowLanding(true);
-        }}
+        onClose={() => setIsUploadOpen(false)}
         onUpload={handleFileUpload}
+        dbPath={dbPath}
       />
-    </div>
+    </>
   );
 };
 

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Upload, ChevronRight, Database, Plus } from 'react-feather';
+import { Upload, ChevronRight, Plus } from 'react-feather';
 import { ReactComponent as OrgChartSVG } from '../assets/landing_page_image.svg';
 import axios from 'axios';
+import FileUploadModal from './FileUploadModal';
 
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -22,37 +23,13 @@ const AnimatedLogo = () => (
   </svg>
 );
 
-const LandingPage = ({ onViewTables, onUpload, onCreateTable }) => {
+const LandingPage = ({ onDatabaseReady }) => {
   const [step, setStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasExistingDB, setHasExistingDB] = useState(false);
-  const [hasData, setHasData] = useState(false);
-
-  useEffect(() => {
-    checkExistingDB();
-  }, []);
-
-  const checkExistingDB = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/check_existing_db`);
-      setHasExistingDB(response.data.exists);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error checking existing DB:', error);
-      setIsLoading(false);
-    }
-  };
-
-  const handleUseExistingDB = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/use_existing_db`);
-      setHasData(response.data.hasData);
-      setStep(2);
-    } catch (error) {
-      console.error('Error using existing DB:', error);
-      alert('Error using existing DB. Please try again.');
-    }
-  };
+  const [isLoading, setIsLoading] = useState(false);
+  const [folderPath, setFolderPath] = useState('');
+  const [folderPathError, setFolderPathError] = useState('');
+  const [dbPath, setDbPath] = useState(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   const handleUploadNewDB = async (event) => {
     const file = event.target.files[0];
@@ -62,26 +39,66 @@ const LandingPage = ({ onViewTables, onUpload, onCreateTable }) => {
     formData.append('db_file', file);
 
     try {
+      setIsLoading(true);
       const response = await axios.post(`${API_BASE_URL}/upload_new_db`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setHasData(response.data.hasData);
+      setDbPath(response.data.db_path);
       setStep(2);
     } catch (error) {
       console.error('Error uploading new DB:', error);
       alert('Error uploading new DB. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleCreateNewDB = async () => {
+    if (!validateFolderPath()) return;
+
     try {
-      const response = await axios.post(`${API_BASE_URL}/create_new_db`);
-      setHasData(false);
-      setStep(2);
+      setIsLoading(true);
+      const response = await axios.post(`${API_BASE_URL}/create_new_db`, { 
+        db_path: folderPath
+      });
+      if (response.data.error) {
+        setFolderPathError(response.data.error);
+      } else {
+        setDbPath(response.data.db_path);
+        setStep(2);
+      }
     } catch (error) {
       console.error('Error creating new DB:', error);
-      alert('Error creating new DB. Please try again.');
+      setFolderPathError('Error creating new DB. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleUploadFile = async (tableId, folderId, folderName, fileName, uploadDate) => {
+    try {
+      onDatabaseReady(dbPath, tableId);
+    } catch (error) {
+      console.error('Error after file upload:', error);
+      alert('Error processing uploaded file. Please try again.');
+    }
+  };
+
+  const handleFolderPathChange = (e) => {
+    setFolderPath(e.target.value);
+    setFolderPathError('');
+  };
+
+  const validateFolderPath = () => {
+    if (!folderPath) {
+      setFolderPathError('Please enter a folder path');
+      return false;
+    }
+    if (!/^[a-zA-Z]:\\[\\\S|*\S]?.*$/.test(folderPath) && !folderPath.startsWith('/')) {
+      setFolderPathError('Please enter a valid folder path');
+      return false;
+    }
+    return true;
   };
 
   if (isLoading) {
@@ -134,20 +151,6 @@ const LandingPage = ({ onViewTables, onUpload, onCreateTable }) => {
                   transition={{ delay: 0.6 }}
                   className="space-y-4"
                 >
-                  {hasExistingDB && (
-                    <motion.button
-                      whileHover={{ scale: 1.02, y: -5 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleUseExistingDB}
-                      className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
-                    >
-                      <span className="flex items-center">
-                        <Database size={20} className="mr-2" />
-                        <span className="font-bold">Use Current Database</span>
-                      </span>
-                      <ChevronRight size={20} />
-                    </motion.button>
-                  )}
                   <motion.label
                     whileHover={{ scale: 1.02, y: -5 }}
                     whileTap={{ scale: 0.98 }}
@@ -155,7 +158,7 @@ const LandingPage = ({ onViewTables, onUpload, onCreateTable }) => {
                   >
                     <span className="flex items-center">
                       <Upload size={20} className="mr-2" />
-                      <span className="font-bold">Upload New Database</span>
+                      <span className="font-bold">Upload Existing Database</span>
                     </span>
                     <ChevronRight size={20} />
                     <input
@@ -168,7 +171,7 @@ const LandingPage = ({ onViewTables, onUpload, onCreateTable }) => {
                   <motion.button
                     whileHover={{ scale: 1.02, y: -5 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={handleCreateNewDB}
+                    onClick={() => setStep(1.5)}
                     className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
                   >
                     <span className="flex items-center">
@@ -176,6 +179,62 @@ const LandingPage = ({ onViewTables, onUpload, onCreateTable }) => {
                       <span className="font-bold">Create New Database</span>
                     </span>
                     <ChevronRight size={20} />
+                  </motion.button>
+                </motion.div>
+              )}
+              {step === 1.5 && (
+                <motion.div
+                  key="step1.5"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: 0.6 }}
+                  className="space-y-4"
+                >
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Enter folder path"
+                      value={folderPath}
+                      onChange={handleFolderPathChange}
+                      className="w-full bg-transparent outline-none"
+                    />
+                  </motion.div>
+                  {folderPathError && (
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-red-500 text-sm"
+                    >
+                      {folderPathError}
+                    </motion.p>
+                  )}
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleCreateNewDB}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center">
+                      <Plus size={20} className="mr-2" />
+                      <span className="font-bold">Create Database</span>
+                    </span>
+                    <ChevronRight size={20} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setStep(1)}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center">
+                      <ChevronRight size={20} className="mr-2 transform rotate-180" />
+                      <span className="font-bold">Back</span>
+                    </span>
                   </motion.button>
                 </motion.div>
               )}
@@ -191,29 +250,26 @@ const LandingPage = ({ onViewTables, onUpload, onCreateTable }) => {
                   <motion.button
                     whileHover={{ scale: 1.02, y: -5 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={onUpload}
+                    onClick={() => setIsUploadModalOpen(true)}
                     className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
                   >
                     <span className="flex items-center">
                       <Upload size={20} className="mr-2" />
-                      <span className="font-bold">Upload New File</span>
+                      <span className="font-bold">Upload First File</span>
                     </span>
                     <ChevronRight size={20} />
                   </motion.button>
-                  {hasData && (
-                    <motion.button
-                      whileHover={{ scale: 1.02, y: -5 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={onViewTables}
-                      className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
-                    >
-                      <span className="flex items-center">
-                        <FileText size={20} className="mr-2" />
-                        <span className="font-bold">View Existing Charts</span>
-                      </span>
-                      <ChevronRight size={20} />
-                    </motion.button>
-                  )}
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setStep(1)}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center">
+                      <ChevronRight size={20} className="mr-2 transform rotate-180" />
+                      <span className="font-bold">Back</span>
+                    </span>
+                  </motion.button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -228,6 +284,13 @@ const LandingPage = ({ onViewTables, onUpload, onCreateTable }) => {
           </motion.div>
         </div>
       </motion.div>
+      
+      <FileUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUpload={handleUploadFile}
+        dbPath={dbPath}
+      />
     </div>
   );
 };

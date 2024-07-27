@@ -29,7 +29,11 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
 
   const handleClick = (e) => {
     e.stopPropagation();
-    onNodeClick({ ...node, folderId, tableId });
+    onNodeClick({
+      ...node,
+      folderId: folderId || node.folderId,
+      tableId: tableId || node.tableId
+    });
   };
 
   const handleToggle = (e) => {
@@ -109,15 +113,15 @@ const TreeNode = ({ node, onNodeClick, depth = 0, expandAll, collapseAll, filter
                   )}
                   <div className="w-0.5 bg-gray-300 h-8 mb-4" />
                   <TreeNode 
-                    node={child} 
-                    onNodeClick={onNodeClick} 
-                    depth={depth + 1} 
-                    expandAll={expandAll}
-                    collapseAll={collapseAll}
-                    filterNode={filterNode}
-                    folderId={folderId}
-                    tableId={tableId}
-                  />
+  node={child} 
+  onNodeClick={onNodeClick} 
+  depth={depth + 1} 
+  expandAll={expandAll}
+  collapseAll={collapseAll}
+  filterNode={filterNode}
+  folderId={folderId || node.folderId}
+  tableId={tableId || node.tableId}
+/>
                 </div>
               ))}
             </div>

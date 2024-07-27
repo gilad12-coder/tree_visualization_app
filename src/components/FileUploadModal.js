@@ -6,6 +6,9 @@ import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/datepicker.css';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:5000';
 
 const MotionPath = motion.path;
 
@@ -59,13 +62,18 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
       formData.append('file', selectedFile);
       formData.append('folder_name', folderName);
       
-      // Convert the selected date to UTC and format it
       const utcDate = convertToUTCDate(uploadDate);
       const formattedDate = formatDateForAPI(utcDate);
       formData.append('upload_date', formattedDate);
 
       try {
-        await onUpload(formData);
+        const response = await axios.post(`${API_BASE_URL}/upload`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        
+        // Pass the formatted date, table_id, and folder_id to onUpload
+        onUpload(response.data.table_id, response.data.folder_id, folderName, selectedFile.name, formattedDate);
+        
         setSelectedFile(null);
         setFolderName('');
         setUploadDate(null);
