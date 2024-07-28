@@ -58,7 +58,8 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
   const [dbInfo, setDbInfo] = useState(null);
-  const [selectedDbFile, setSelectedDbFile] = useState(null);
+  const [existingDbPath, setExistingDbPath] = useState('');
+  const [existingDbPathError, setExistingDbPathError] = useState('');
   const [folderStructure, setFolderStructure] = useState([]);
 
   const fetchDbInfo = useCallback(async () => {
@@ -66,7 +67,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   
     try {
       setIsLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/check_existing_db`, { params: { db_path: dbPath } });
+      const response = await axios.post(`${API_BASE_URL}/check_existing_db`, { db_path: dbPath });
       if (response.data.exists) {
         setDbInfo({
           path: response.data.path,
@@ -88,32 +89,26 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
     fetchDbInfo();
   }, [fetchDbInfo]);
 
-  const handleUploadNewDB = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setSelectedDbFile(file.name);
-
-    const formData = new FormData();
-    formData.append('db_file', file);
+  const handleUseExistingDB = async () => {
+    if (!validateExistingDbPath()) return;
 
     try {
       setIsLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/upload_new_db`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const response = await axios.post(`${API_BASE_URL}/check_existing_db`, { 
+        db_path: existingDbPath
       });
-      setDbPath(response.data.db_path);
+      setDbPath(response.data.path);
       
       if (response.data.hasData) {
-        const folderResponse = await axios.get(`${API_BASE_URL}/folder_structure`, { params: { db_path: response.data.db_path } });
+        const folderResponse = await axios.get(`${API_BASE_URL}/folder_structure`, { params: { db_path: response.data.path } });
         setFolderStructure(folderResponse.data);
         setStep(3);
       } else {
         setStep(2);
       }
     } catch (error) {
-      console.error('Error uploading new DB:', error);
-      alert('Error uploading new DB. Please try again.');
+      console.error('Error checking existing DB:', error);
+      setExistingDbPathError(error.response?.data?.error || 'Error checking existing DB. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -143,7 +138,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
 
   const handleUploadFile = async (tableId, folderId, folderName, fileName, uploadDate) => {
     try {
-      onDatabaseReady(dbPath, tableId, folderId);  // Pass folderId here
+      onDatabaseReady(dbPath, tableId, folderId);
     } catch (error) {
       console.error('Error after file upload:', error);
       alert('Error processing uploaded file. Please try again.');
@@ -152,7 +147,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
 
   const handleTableSelection = async (tableId, folderId) => {
     try {
-      onDatabaseReady(dbPath, tableId, folderId);  // Pass folderId here
+      onDatabaseReady(dbPath, tableId, folderId);
     } catch (error) {
       console.error('Error after table selection:', error);
       alert('Error processing table selection. Please try again.');
@@ -164,6 +159,11 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
     setFolderPathError('');
   };
 
+  const handleExistingDbPathChange = (e) => {
+    setExistingDbPath(e.target.value);
+    setExistingDbPathError('');
+  };
+
   const validateFolderPath = () => {
     if (!folderPath) {
       setFolderPathError('Please enter a folder path');
@@ -171,6 +171,18 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
     }
     if (!/^[a-zA-Z]:\\[\\\S|*\S]?.*$/.test(folderPath) && !folderPath.startsWith('/')) {
       setFolderPathError('Please enter a valid folder path');
+      return false;
+    }
+    return true;
+  };
+
+  const validateExistingDbPath = () => {
+    if (!existingDbPath) {
+      setExistingDbPathError('Please enter a database path');
+      return false;
+    }
+    if (!/^[a-zA-Z]:\\[\\\S|*\S]?.*\.db$/.test(existingDbPath) && !existingDbPath.endsWith('.db')) {
+      setExistingDbPathError('Please enter a valid SQLite database path (ending with .db)');
       return false;
     }
     return true;
@@ -252,25 +264,40 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   transition={{ delay: 0.6 }}
                   className="space-y-4"
                 >
-                  <motion.label
+                  <motion.div
                     whileHover={{ scale: 1.02, y: -5 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between cursor-pointer"
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Enter existing database path (.db file)"
+                      value={existingDbPath}
+                      onChange={handleExistingDbPathChange}
+                      className="w-full bg-transparent outline-none"
+                    />
+                  </motion.div>
+                  {existingDbPathError && (
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-red-500 text-sm"
+                    >
+                      {existingDbPathError}
+                    </motion.p>
+                  )}
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleUseExistingDB}
+                    className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-between"
                   >
                     <span className="flex items-center">
                       <Upload size={20} className="mr-2" />
-                      <span className="font-bold">
-                        {selectedDbFile ? `Selected: ${selectedDbFile}` : "Select Existing Database (.db file)"}
-                      </span>
+                      <span className="font-bold">Use Existing Database</span>
                     </span>
                     <ChevronRight size={20} />
-                    <input
-                      type="file"
-                      accept=".db"
-                      onChange={handleUploadNewDB}
-                      className="hidden"
-                    />
-                  </motion.label>
+                  </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.02, y: -5 }}
                     whileTap={{ scale: 0.98 }}

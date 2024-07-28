@@ -44,80 +44,34 @@ def retry_on_error(max_attempts=5, delay=1):
                 raise
             time.sleep(delay)
 
-@app.route("/check_existing_db", methods=["GET"])
+@app.route("/check_existing_db", methods=["POST"])
 def check_existing_db():
-    db_path = get_db_path()
-    if db_path:
-        return jsonify({"exists": True, "path": db_path}), 200
-    else:
-        return jsonify({"exists": False}), 200
+    data = request.json
+    db_path = data.get('db_path')
+    if not db_path:
+        return jsonify({"error": "No database path provided"}), 400
 
-@app.route("/upload_new_db", methods=["POST"])
-def upload_new_db():
-    if "db_file" not in request.files:
-        logger.error("No file uploaded in request")
-        return jsonify({"error": "No file uploaded"}), 400
-    
-    uploaded_file = request.files["db_file"]
-    if uploaded_file.filename == "":
-        logger.error("Empty filename in uploaded file")
-        return jsonify({"error": "No selected file"}), 400
+    if not os.path.exists(db_path):
+        return jsonify({"error": "Database file does not exist"}), 404
 
-    if not uploaded_file.filename.lower().endswith('.db'):
-        logger.error(f"Invalid file type uploaded: {uploaded_file.filename}")
-        return jsonify({"error": "Invalid file type. Please upload a .db file."}), 400
+    if not is_valid_sqlite_db(db_path):
+        return jsonify({"error": "Invalid SQLite database file"}), 400
 
-    try:
-        # Get the full path of the uploaded file
-        db_path = os.path.abspath(uploaded_file.filename)
-        logger.info(f"Attempting to save uploaded file to: {db_path}")
-        
-        # Save the uploaded file to its original location
-        try:
-            uploaded_file.save(db_path)
-            logger.info(f"File saved successfully to: {db_path}")
-        except IOError as e:
-            logger.error(f"Failed to save uploaded file: {str(e)}")
-            return jsonify({"error": "Failed to save uploaded file"}), 500
+    schema_valid, schema_message = check_db_schema(db_path)
+    if not schema_valid:
+        return jsonify({"error": f"Invalid database schema: {schema_message}"}), 400
 
-        # Verify if it's a valid SQLite database
-        if not is_valid_sqlite_db(db_path):
-            logger.error(f"Invalid SQLite database file: {db_path}")
-            os.remove(db_path)
-            return jsonify({"error": "Invalid SQLite database file"}), 400
+    dispose_db()
+    set_db_path(db_path)
+    init_db()
 
-        # Check the schema
-        schema_valid, schema_message = check_db_schema(db_path)
-        if not schema_valid:
-            logger.error(f"Invalid database schema: {schema_message}")
-            os.remove(db_path)
-            return jsonify({"error": f"Invalid database schema: {schema_message}"}), 400
+    has_data = check_if_db_has_data(db_path)
 
-        # Dispose of the current engine and session
-        dispose_db()
-
-        # Set the new database path and initialize it
-        set_db_path(db_path)
-        init_db()
-
-        # Check if the database has any data
-        has_data = check_if_db_has_data(db_path)
-
-        logger.info(f"New database uploaded and configured successfully: {db_path}")
-        return jsonify({
-            "message": "New database uploaded and configured successfully",
-            "hasData": has_data,
-            "db_path": db_path
-        }), 200
-    except Exception as e:
-        logger.exception(f"Unexpected error in upload_new_db: {str(e)}")
-        if os.path.exists(db_path):
-            try:
-                os.remove(db_path)
-                logger.info(f"Removed invalid database file: {db_path}")
-            except Exception as remove_error:
-                logger.error(f"Failed to remove invalid database file: {str(remove_error)}")
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "exists": True,
+        "path": db_path,
+        "hasData": has_data
+    }), 200
 
 @app.route("/create_new_db", methods=["POST"])
 def create_new_db_route():
