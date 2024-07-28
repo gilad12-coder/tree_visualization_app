@@ -39,22 +39,30 @@ def check_continuation(folder_id, file_content, file_extension):
     finally:
         session.close()
 
-def parse_org_data(df):
-
-    # Sort the DataFrame by Hierarchical_Structure to ensure parents are processed before children
-    df = df.sort_values('Hierarchical_Structure')
+def parse_org_data(df, structure_col='Hierarchical_Structure', name_col='Name', role_col='Role'):
+    # Sort the DataFrame by the structure column to ensure parents are processed before children
+    df = df.sort_values(structure_col)
 
     # Initialize a dictionary to store all nodes
     nodes = {}
+    root = None
+
+    def is_rtl(text):
+        # Simple check for RTL: if the string contains Hebrew characters
+        return any('\u0590' <= c <= '\u05FF' for c in text)
 
     def split_structure(structure):
-        # Use regex to split the structure, preserving escaped forward slashes
-        return re.findall(r'/(?:\\\/|[^/])+', structure)
+        if structure.startswith('/'):
+            return structure.split('/')[1:]  # Remove empty string at the beginning
+        elif '\\' in structure:
+            return structure.split('\\')
+        else:
+            return structure.split('/')
 
     for _, row in df.iterrows():
-        structure = row.get('Hierarchical_Structure', '')
-        name = row.get('Name', '')
-        role = row.get('Role', '')
+        structure = row.get(structure_col, '')
+        name = row.get(name_col, '')
+        role = row.get(role_col, '')
 
         if not structure:
             continue
@@ -63,20 +71,28 @@ def parse_org_data(df):
         new_node = {"name": name, "role": role, "children": []}
         nodes[structure] = new_node
 
-        # Split the structure into parts
         parts = split_structure(structure)
 
-        # If not the root node, add this node as a child to its parent
-        if len(parts) > 1:
-            parent_structure = ''.join(parts[:-1])
-            parent = nodes.get(parent_structure)
-            if parent:
-                parent["children"].append(new_node)
-            else:
-                logging.warning(f"Parent not found for node: {structure}")
+        # Identify the root node
+        if len(parts) == 1:
+            root = new_node
+            continue
 
-    # The root is the node with structure '/1'
-    root = nodes.get('/1', {})
+        # Find the parent
+        if structure.startswith('/'):
+            parent_structure = '/' + '/'.join(parts[:-1])
+        elif '\\' in structure:
+            parent_structure = '\\'.join(parts[:-1])
+        elif is_rtl(structure):
+            parent_structure = '/'.join(parts[:-1])
+        else:
+            parent_structure = '/'.join(parts[:-1])
+
+        parent = nodes.get(parent_structure)
+        if parent:
+            parent["children"].append(new_node)
+        else:
+            print(f"Parent not found for node: {structure}")
 
     return root
 
