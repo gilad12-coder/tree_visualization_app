@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, ChevronUp, Filter, Upload, List } from 'react-feather';
+import { ChevronDown, ChevronUp, Filter, Upload, List, Target } from 'react-feather';
 import axios from 'axios';
 import FilterModal from './FilterModal';
 import TreeNode from './TreeNode';
@@ -29,6 +29,7 @@ const OrgChart = ({
   const [error, setError] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [initialTransform, setInitialTransform] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -66,6 +67,17 @@ const OrgChart = ({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (chartRef.current && !initialTransform) {
+      const rect = chartRef.current.getBoundingClientRect();
+      const centerX = window.innerWidth / 2 - rect.width / 2;
+      const centerY = window.innerHeight / 2 - rect.height / 2;
+      const initialState = { x: centerX, y: centerY, scale: 1 };
+      setInitialTransform(initialState);
+      setTransform(initialState);
+    }
+  }, [orgData, initialTransform]);
 
   const handleFileUpload = async (uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate) => {
     console.log('File uploaded:', { uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate });
@@ -189,6 +201,12 @@ const OrgChart = ({
     setTimeout(() => setCollapseAll(false), 100);
   }, []);
 
+  const handleCenter = useCallback(() => {
+    if (initialTransform) {
+      setTransform(initialTransform);
+    }
+  }, [initialTransform]);
+
   console.log('Render state:', { loading, error, selectedTableId, orgData, folderStructure });
 
   if (loading) {
@@ -251,6 +269,9 @@ const OrgChart = ({
           </Button>
           <Button onClick={handleCollapseAll} icon={ChevronUp}>
             Collapse All
+          </Button>
+          <Button onClick={handleCenter} icon={Target}>
+            Center
           </Button>
           <Button onClick={toggleFilterModal} icon={Filter}>
             Filter (Ctrl+F)
