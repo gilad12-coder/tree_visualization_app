@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import pandas as pd
 from models import (Folder, Table, DataEntry, get_session, get_db_path, 
@@ -18,6 +18,22 @@ import glob
 import time
 from contextlib import contextmanager
 from sqlalchemy import func
+import sys
+import os
+from flask import send_from_directory
+import webbrowser
+import threading
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+def open_browser():
+    time.sleep(1)
+    webbrowser.open_new('http://localhost:5000/')
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -27,8 +43,9 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='build', static_url_path='')
 CORS(app)
+
 
 @contextmanager
 def retry_on_error(max_attempts=5, delay=1):
@@ -503,6 +520,25 @@ def check_if_db_has_data(db_path):
     finally:
         if conn:
             conn.close()
+            
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(app.static_folder + '/' + path):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+    
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+    return jsonify({"error": "An unexpected error occurred"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # print("Starting application...")
+    # print(f"Current working directory: {os.getcwd()}")
+    # print(f"Static folder path: {app.static_folder}")
+    # print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
+    
+    # threading.Thread(target=open_browser).start()
+    app.run(host='0.0.0.0', port=5000, use_reloader=False)

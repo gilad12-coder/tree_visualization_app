@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown } from 'react-feather';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, Filter } from 'react-feather';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import '../styles/datepicker.css';
+import { format, parseISO } from 'date-fns';
 
 const MotionPath = motion.path;
 
@@ -18,10 +24,10 @@ const AnimatedLogo = () => (
   </svg>
 );
 
-const FolderCard = ({ folder, onClick, isExpanded }) => {
+const FolderCard = ({ folder, onClick, tablesCount }) => {
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -5 }}
+      whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className="bg-blue-500 bg-opacity-20 rounded-xl border border-blue-200 shadow-sm transition-all duration-300 ease-out p-4 w-full cursor-pointer backdrop-filter backdrop-blur-sm"
       onClick={onClick}
@@ -31,12 +37,10 @@ const FolderCard = ({ folder, onClick, isExpanded }) => {
           <Folder size={20} className="text-black" />
           <span className="text-base font-medium text-black">{folder.name}</span>
         </div>
-        <motion.div
-          animate={{ rotate: isExpanded ? 90 : 0 }}
-          transition={{ type: "spring", stiffness: 200, damping: 15 }}
-        >
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-600">{tablesCount} tables</span>
           <ChevronRight size={20} className="text-black" />
-        </motion.div>
+        </div>
       </div>
     </motion.div>
   );
@@ -45,7 +49,7 @@ const FolderCard = ({ folder, onClick, isExpanded }) => {
 const TableCard = ({ table, onClick }) => {
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -5 }}
+      whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className="bg-blue-500 bg-opacity-20 rounded-xl border border-blue-200 shadow-sm transition-all duration-300 ease-out p-4 w-full cursor-pointer backdrop-filter backdrop-blur-sm"
       onClick={onClick}
@@ -55,66 +59,111 @@ const TableCard = ({ table, onClick }) => {
           <File size={20} className="text-black" />
           <span className="text-base font-medium text-black">{table.name}</span>
         </div>
-        <span className="text-sm text-black">{table.upload_date}</span>
+        <span className="text-sm text-black">
+          {table.upload_date ? format(parseISO(table.upload_date), 'MMM dd, yyyy') : 'N/A'}
+        </span>
       </div>
     </motion.div>
   );
 };
 
 const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }) => {
-  const [expandedFolders, setExpandedFolders] = useState({});
+  const [step, setStep] = useState('folder');
+  const [selectedFolder, setSelectedFolder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortByDate, setSortByDate] = useState(false);
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [dateFilter, setDateFilter] = useState({ start: null, end: null });
 
-  const bgOpacity = useMotionValue(0);
-  const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
+  const filterMenuRef = useRef(null);
+  const isFilterActive = dateFilter.start !== null || dateFilter.end !== null;
 
-  const handleFolderClick = (folderId) => {
-    setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
-  };
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target)) {
+        setFilterMenuOpen(false);
+      }
+    };
 
-  const handleTableSelect = (tableId, folderId) => {
-    onSelectTable(tableId, folderId);
-    onClose();
-  };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
-  const filteredContents = () => {
-    return folderStructure.map(folder => ({
-      ...folder,
-      tables: folder.tables.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    })).filter(folder => 
-      folder.name.toLowerCase().includes(searchTerm.toLowerCase()) || folder.tables.length > 0
+  const filteredFolders = useMemo(() => {
+    return folderStructure.filter(folder => 
+      folder.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  };
+  }, [folderStructure, searchTerm]);
 
-  const renderFolderContents = () => {
-    const filtered = filteredContents();
-    return filtered.map((folder) => (
-      <motion.div key={folder.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+  const filteredTables = useMemo(() => {
+    if (!selectedFolder) return [];
+    const folder = folderStructure.find(f => f.id === selectedFolder);
+    if (!folder) return [];
+    
+    return folder.tables
+      .filter(table => {
+        const nameMatch = table.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const dateMatch = 
+          (!dateFilter.start || new Date(table.upload_date) >= dateFilter.start) &&
+          (!dateFilter.end || new Date(table.upload_date) <= dateFilter.end);
+        return nameMatch && dateMatch;
+      })
+      .sort((a, b) => {
+        if (!a.upload_date) return 1;
+        if (!b.upload_date) return -1;
+        const comparison = new Date(b.upload_date) - new Date(a.upload_date);
+        return sortByDate ? comparison : -comparison;
+      });
+  }, [selectedFolder, folderStructure, searchTerm, sortByDate, dateFilter]);
+
+  const handleFolderSelect = useCallback((folderId) => {
+    setSelectedFolder(folderId);
+    setStep('table');
+    setSearchTerm('');
+  }, []);
+
+  const handleTableSelect = useCallback((tableId) => {
+    onSelectTable(tableId, selectedFolder);
+    onClose();
+  }, [onSelectTable, selectedFolder, onClose]);
+
+  const renderFolder = useCallback(({ index, style }) => {
+    const folder = filteredFolders[index];
+    return (
+      <div style={style} className="py-2">
         <FolderCard
           folder={folder}
-          onClick={() => handleFolderClick(folder.id)}
-          isExpanded={expandedFolders[folder.id]}
+          onClick={() => handleFolderSelect(folder.id)}
+          tablesCount={folder.tables.length}
         />
-        {expandedFolders[folder.id] && (
-          <div className="ml-6 mt-2">
-            {folder.tables
-              .sort((a, b) => {
-                if (!a.upload_date) return 1;
-                if (!b.upload_date) return -1;
-                const comparison = new Date(b.upload_date) - new Date(a.upload_date);
-                return sortByDate ? -comparison : comparison;
-              })
-              .map((table) => (
-                <motion.div key={table.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-                  <TableCard table={table} onClick={() => handleTableSelect(table.id, folder.id)} />
-                </motion.div>
-              ))
-            }
-          </div>
-        )}
-      </motion.div>
-    ));
+      </div>
+    );
+  }, [filteredFolders, handleFolderSelect]);
+
+  const renderTable = useCallback(({ index, style }) => {
+    const table = filteredTables[index];
+    return (
+      <div style={style} className="py-2">
+        <TableCard
+          table={table}
+          onClick={() => handleTableSelect(table.id)}
+        />
+      </div>
+    );
+  }, [filteredTables, handleTableSelect]);
+
+  const pageVariants = {
+    initial: { opacity: 0, x: '-100%' },
+    in: { opacity: 1, x: 0 },
+    out: { opacity: 0, x: '100%' }
+  };
+
+  const pageTransition = {
+    type: 'tween',
+    ease: 'anticipate',
+    duration: 0.5
   };
 
   return (
@@ -124,27 +173,24 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 flex justify-center items-center z-50 p-8"
+          className="fixed inset-0 flex justify-center items-center z-50 p-8 bg-black bg-opacity-50"
           onClick={onClose}
-          style={{
-            backgroundColor: `rgba(0, 0, 0, ${bgOpacity.get()})`,
-            backdropFilter: `blur(${bgBlur.get()}px)`,
-          }}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-4xl h-[80vh] overflow-hidden backdrop-filter backdrop-blur-lg"
+            className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] overflow-hidden backdrop-filter backdrop-blur-lg"
             onClick={(e) => e.stopPropagation()}
-            onAnimationComplete={() => bgOpacity.set(0.5)}
           >
             <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <AnimatedLogo />
-                  <h2 className="text-3xl font-black text-black tracking-tight">Select Table</h2>
+                  <h2 className="text-3xl font-black text-black tracking-tight">
+                    {step === 'folder' ? 'Select Folder' : 'Select Table'}
+                  </h2>
                 </div>
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -156,37 +202,144 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
                 </motion.button>
               </div>
             </div>
-            <div className="p-8">
-              <div className="mb-6 flex space-x-4">
-                <motion.div 
-                  className="flex-grow bg-blue-100 bg-opacity-50 rounded-full py-2 px-4 flex items-center space-x-2"
-                  whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-                >
-                  <Search size={18} className="text-black" />
-                  <input
-                    type="text"
-                    placeholder="Search tables and folders..."
-                    className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </motion.div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setSortByDate(!sortByDate)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
-                    sortByDate ? 'bg-blue-500 text-white' : 'bg-blue-100 text-black'
-                  } transition-colors duration-200`}
-                >
-                  {sortByDate ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
-                  <span className="text-sm font-medium">Sort by Date</span>
-                </motion.button>
-              </div>
-              <div className="max-h-[calc(80vh-220px)] overflow-y-auto pr-4 space-y-4">
-                {renderFolderContents()}
-              </div>
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial="initial"
+                animate="in"
+                exit="out"
+                variants={pageVariants}
+                transition={pageTransition}
+                className="p-8 h-[calc(90vh-116px)] flex flex-col"
+              >
+                <div className="mb-6 flex space-x-4">
+                  {step === 'table' && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setStep('folder');
+                        setSelectedFolder(null);
+                        setSearchTerm('');
+                      }}
+                      className="flex items-center space-x-2 px-4 py-2 rounded-full bg-blue-100 text-black transition-colors duration-200"
+                    >
+                      <ArrowLeft size={18} />
+                      <span className="text-sm font-medium">Back to Folders</span>
+                    </motion.button>
+                  )}
+                  <motion.div 
+                    className="flex-grow bg-blue-100 bg-opacity-50 rounded-full py-2 px-4 flex items-center space-x-2"
+                    whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                  >
+                    <Search size={18} className="text-black" />
+                    <input
+                      type="text"
+                      placeholder={`Search ${step === 'folder' ? 'folders' : 'tables'}...`}
+                      className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </motion.div>
+                  {step === 'table' && (
+                    <>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setSortByDate(!sortByDate)}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
+                          sortByDate ? 'bg-blue-500 text-white' : 'bg-blue-100 text-black'
+                        } transition-colors duration-200`}
+                      >
+                        {sortByDate ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
+                        <span className="text-sm font-medium">Sort by Date</span>
+                      </motion.button>
+                      <div className="relative">
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                          className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
+                            isFilterActive
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-blue-100 text-black'
+                          } transition-colors duration-200`}
+                        >
+                          <Filter size={18} />
+                          <span className="text-sm font-medium">Filter</span>
+                        </motion.button>
+                        <AnimatePresence>
+                          {filterMenuOpen && (
+                            <motion.div
+                              ref={filterMenuRef}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 10 }}
+                              className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg p-4 z-10"
+                            >
+                              <h3 className="text-lg font-semibold mb-2">Date Filter</h3>
+                              <div className="space-y-2">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                                  <DatePicker
+                                    selected={dateFilter.start}
+                                    onChange={(date) => setDateFilter(prev => ({ ...prev, start: date }))}
+                                    dateFormat="yyyy-MM-dd"
+                                    placeholderText="Select start date"
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                    showMonthDropdown
+                                    showYearDropdown
+                                    dropdownMode="select"
+                                    isClearable
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700">End Date</label>
+                                  <DatePicker
+                                    selected={dateFilter.end}
+                                    onChange={(date) => setDateFilter(prev => ({ ...prev, end: date }))}
+                                    dateFormat="yyyy-MM-dd"
+                                    placeholderText="Select end date"
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                    showMonthDropdown
+                                    showYearDropdown
+                                    dropdownMode="select"
+                                    isClearable
+                                  />
+                                </div>
+                              </div>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setDateFilter({ start: null, end: null })}
+                                className="mt-4 w-full bg-red-500 text-white rounded-md py-2 text-sm font-medium"
+                              >
+                                Clear Filter
+                              </motion.button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex-grow overflow-hidden">
+                  <AutoSizer>
+                    {({ height, width }) => (
+                      <List
+                        className="scrollbar-thin scrollbar-thumb-blue-500 scrollbar-track-blue-100"
+                        height={height}
+                        itemCount={step === 'folder' ? filteredFolders.length : filteredTables.length}
+                        itemSize={80}
+                        width={width}
+                      >
+                        {step === 'folder' ? renderFolder : renderTable}
+                      </List>
+                    )}
+                  </AutoSizer>
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </motion.div>
         </motion.div>
       )}
