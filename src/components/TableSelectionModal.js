@@ -67,9 +67,9 @@ const TableCard = ({ table, onClick }) => {
   );
 };
 
-const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }) => {
-  const [step, setStep] = useState('folder');
-  const [selectedFolder, setSelectedFolder] = useState(null);
+const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, currentFolderId, isComparingMode }) => {
+  const [step, setStep] = useState(isComparingMode ? 'table' : 'folder');
+  const [selectedFolder, setSelectedFolder] = useState(currentFolderId);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortByDate, setSortByDate] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -77,6 +77,13 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
 
   const filterMenuRef = useRef(null);
   const isFilterActive = dateFilter.start !== null || dateFilter.end !== null;
+
+  useEffect(() => {
+    if (isComparingMode && currentFolderId) {
+      setSelectedFolder(currentFolderId);
+      setStep('table');
+    }
+  }, [isComparingMode, currentFolderId]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -189,7 +196,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
                 <div className="flex items-center space-x-4">
                   <AnimatedLogo />
                   <h2 className="text-3xl font-black text-black tracking-tight">
-                    {step === 'folder' ? 'Select Folder' : 'Select Table'}
+                    {isComparingMode ? 'Select Table for Comparison' : (step === 'folder' ? 'Select Folder' : 'Select Table')}
                   </h2>
                 </div>
                 <motion.button
@@ -213,7 +220,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure }
                 className="p-8 h-[calc(90vh-116px)] flex flex-col"
               >
                 <div className="mb-6 flex space-x-4">
-                  {step === 'table' && (
+                  {!isComparingMode && step === 'table' && (
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
