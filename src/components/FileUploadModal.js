@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, Upload, Folder, File, Calendar } from 'react-feather';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Upload, Folder, File, Calendar, Plus } from 'react-feather';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/datepicker.css';
@@ -26,29 +26,49 @@ const AnimatedLogo = () => (
   </svg>
 );
 
-// Utility function to convert a date to UTC
 const convertToUTCDate = (date) => {
   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 };
 
-// Utility function to format a date as YYYY-MM-DD
 const formatDateForAPI = (date) => {
   return date.toISOString().split('T')[0];
 };
 
-const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
+const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [folderName, setFolderName] = useState('');
   const [uploadDate, setUploadDate] = useState(null);
+  const [folders, setFolders] = useState([]);
+  const [selectedFolderId, setSelectedFolderId] = useState('');
+  const [folderSelectionType, setFolderSelectionType] = useState(null);
 
-  const bgOpacity = useMotionValue(0);
-  const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
+  const fetchFolders = useCallback(async () => {
+    if (!dbPath) return;
+    try {
+      const response = await axios.get(`${API_BASE_URL}/folders`, { params: { db_path: dbPath } });
+      setFolders(response.data);
+    } catch (error) {
+      console.error('Failed to fetch folders:', error);
+      toast.error('Failed to fetch folders. Please try again.');
+    }
+  }, [dbPath]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchFolders();
+    }
+  }, [isOpen, fetchFolders]);
 
   const handleFileChange = (event) => {
     setSelectedFile(event.target.files[0]);
   };
 
-  const handleFolderNameChange = (event) => {
+  const handleFolderSelection = (folderId) => {
+    setSelectedFolderId(folderId);
+    setFolderName(folders.find(folder => folder.id === folderId).name);
+  };
+
+  const handleNewFolderNameChange = (event) => {
     setFolderName(event.target.value);
   };
 
@@ -57,10 +77,14 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
   };
 
   const handleUpload = async () => {
-    if (selectedFile && folderName && uploadDate) {
+    if (selectedFile && ((folderSelectionType === 'existing' && selectedFolderId) || (folderSelectionType === 'new' && folderName)) && uploadDate) {
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('folder_name', folderName);
+      formData.append('is_new_folder', folderSelectionType === 'new' ? 'true' : 'false');
+      if (folderSelectionType === 'existing') {
+        formData.append('folder_id', selectedFolderId);
+      }
       
       const utcDate = convertToUTCDate(uploadDate);
       const formattedDate = formatDateForAPI(utcDate);
@@ -71,76 +95,39 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         
-        // Pass the formatted date, table_id, and folder_id to onUpload
         onUpload(response.data.table_id, response.data.folder_id, folderName, selectedFile.name, formattedDate);
         
         setSelectedFile(null);
         setFolderName('');
         setUploadDate(null);
+        setSelectedFolderId('');
+        setFolderSelectionType(null);
         onClose();
-        toast.success('File uploaded successfully!', {
-          position: "bottom-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-        });
+        toast.success('File uploaded successfully!');
       } catch (error) {
         console.error('Failed to upload file:', error);
         if (error.response && error.response.data && error.response.data.error === "New table is not a valid continuation of the previous one") {
-          toast.warn('This table is not a valid continuation of the previous one. Please check the data and try again.', {
-            position: "bottom-right",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-          });
+          toast.warn('This table is not a valid continuation of the previous one. Please check the data and try again.');
         } else {
-          toast.error('Failed to upload file. Please try again.', {
-            position: "bottom-right",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-          });
+          toast.error('Failed to upload file. Please try again.');
         }
       }
     }
   };
 
-  const isUploadDisabled = !selectedFile || !folderName || !uploadDate;
+  const isUploadDisabled = !selectedFile || !uploadDate || (folderSelectionType === 'new' && !folderName) || (folderSelectionType === 'existing' && !selectedFolderId);
 
   return (
     <>
-      <ToastContainer
-        position="bottom-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
+      <ToastContainer position="bottom-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 flex justify-center items-center z-50 p-8"
+            className="fixed inset-0 flex justify-center items-center z-50 p-8 bg-black bg-opacity-50"
             onClick={onClose}
-            style={{
-              backgroundColor: `rgba(0, 0, 0, ${bgOpacity.get()})`,
-              backdropFilter: `blur(${bgBlur.get()}px)`,
-            }}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -149,7 +136,6 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
               className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden backdrop-filter backdrop-blur-lg"
               onClick={(e) => e.stopPropagation()}
-              onAnimationComplete={() => bgOpacity.set(0.5)}
             >
               <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
                 <div className="flex items-center justify-between">
@@ -173,21 +159,6 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
                   whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
                 >
                   <div className="flex items-center space-x-3">
-                    <Folder size={20} className="text-black" />
-                    <input
-                      type="text"
-                      value={folderName}
-                      onChange={handleFolderNameChange}
-                      placeholder="Enter folder name"
-                      className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
-                    />
-                  </div>
-                </motion.div>
-                <motion.div 
-                  className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4"
-                  whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-                >
-                  <div className="flex items-center space-x-3">
                     <File size={20} className="text-black" />
                     <input
                       type="file"
@@ -196,6 +167,67 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
                     />
                   </div>
                 </motion.div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-800">Select Folder</h3>
+                  <div className="flex space-x-4">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setFolderSelectionType('existing')}
+                      className={`flex-1 py-2 px-4 rounded-lg ${folderSelectionType === 'existing' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                    >
+                      Existing Folder
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setFolderSelectionType('new')}
+                      className={`flex-1 py-2 px-4 rounded-lg ${folderSelectionType === 'new' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                    >
+                      New Folder
+                    </motion.button>
+                  </div>
+                </div>
+
+                {folderSelectionType === 'existing' && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-600">Choose an existing folder:</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      {folders.map(folder => (
+                        <motion.button
+                          key={folder.id}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleFolderSelection(folder.id)}
+                          className={`py-2 px-4 rounded-lg text-left ${selectedFolderId === folder.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        >
+                          <Folder size={16} className="inline mr-2" />
+                          {folder.name}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {folderSelectionType === 'new' && (
+                  <motion.div 
+                    className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4"
+                    whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Plus size={20} className="text-black" />
+                      <input
+                        type="text"
+                        value={folderName}
+                        onChange={handleNewFolderNameChange}
+                        placeholder="Enter new folder name"
+                        className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
                 <motion.div 
                   className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4 relative"
                   whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
@@ -219,6 +251,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload }) => {
                     />
                   </div>
                 </motion.div>
+
                 <motion.button
                   whileHover={!isUploadDisabled ? { scale: 1.02, y: -5 } : {}}
                   whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}

@@ -521,6 +521,196 @@ def check_if_db_has_data(db_path):
         if conn:
             conn.close()
             
+@app.route("/folders", methods=["GET"])
+def get_folders_list():
+    db_path = request.args.get('db_path')
+    if not db_path:
+        return jsonify({"error": "No database path provided"}), 400
+
+    if not os.path.exists(db_path):
+        return jsonify({"error": "Database file does not exist"}), 404
+
+    if not is_valid_sqlite_db(db_path):
+        return jsonify({"error": "Invalid SQLite database file"}), 400
+
+    dispose_db()
+    set_db_path(db_path)
+    init_db()
+
+    session = get_session()
+    try:
+        folders = session.query(Folder).all()
+        folders_list = [{"id": folder.id, "name": folder.name} for folder in folders]
+        return jsonify(folders_list), 200
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_folders_list: {str(e)}")
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in get_folders_list: {str(e)}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    finally:
+        session.close()
+
+@app.route("/compare_tables/<int:folder_id>", methods=["GET"])
+def compare_tables(folder_id):
+    session = get_session()
+    try:
+        table1_id = request.args.get('table1_id')
+        table2_id = request.args.get('table2_id')
+        
+        if not table1_id or not table2_id:
+            return jsonify({"error": "Both table1_id and table2_id are required"}), 400
+        
+        table1_id = int(table1_id)
+        table2_id = int(table2_id)
+        
+        # Fetch the tables and ensure they belong to the specified folder
+        table1 = session.query(Table).filter_by(id=table1_id, folder_id=folder_id).first()
+        table2 = session.query(Table).filter_by(id=table2_id, folder_id=folder_id).first()
+        
+        if not table1 or not table2:
+            return jsonify({"error": "One or both tables not found in the specified folder"}), 404
+        
+        # Ensure table1 is the earlier table
+        if table1.upload_date > table2.upload_date:
+            table1, table2 = table2, table1
+        
+        # Fetch and parse data for both tables
+        def get_table_data(table):
+            data_entries = session.query(DataEntry).filter_by(table_id=table.id).all()
+            df = pd.DataFrame([json.loads(entry.data) for entry in data_entries])
+            return parse_org_data(df), df
+        
+        tree1, df1 = get_table_data(table1)
+        tree2, df2 = get_table_data(table2)
+        
+        # Compare the trees
+        changes = compare_org_structures(tree1, tree2)
+        
+        # Analyze role changes
+        role_changes = analyze_role_changes(df1, df2)
+        
+        # Generate aggregated report
+        aggregated_report = generate_aggregated_report(changes, role_changes, tree1, tree2)
+        
+        report = {
+            "table1": {
+                "id": table1.id,
+                "name": table1.name,
+                "upload_date": table1.upload_date.isoformat()
+            },
+            "table2": {
+                "id": table2.id,
+                "name": table2.name,
+                "upload_date": table2.upload_date.isoformat()
+            },
+            "structure_changes": changes,
+            "role_changes": role_changes,
+            "aggregated_report": aggregated_report
+        }
+        
+        return jsonify(report), 200
+    except SQLAlchemyError as e:
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    finally:
+        session.close()
+
+def compare_org_structures(tree1, tree2):
+    changes = []
+    
+    def traverse_and_compare(node1, node2, path=""):
+        if not node1 and node2:
+            changes.append({"type": "added", "path": path, "name": node2["name"], "role": node2["role"]})
+        elif node1 and not node2:
+            changes.append({"type": "removed", "path": path, "name": node1["name"], "role": node1["role"]})
+        elif node1["name"] != node2["name"] or node1["role"] != node2["role"]:
+            changes.append({
+                "type": "changed",
+                "path": path,
+                "old": {"name": node1["name"], "role": node1["role"]},
+                "new": {"name": node2["name"], "role": node2["role"]}
+            })
+        
+        children1 = {child["name"]: child for child in node1.get("children", [])}
+        children2 = {child["name"]: child for child in node2.get("children", [])}
+        
+        all_children = set(children1.keys()) | set(children2.keys())
+        
+        for child_name in all_children:
+            child1 = children1.get(child_name)
+            child2 = children2.get(child_name)
+            new_path = f"{path}/{child_name}" if path else child_name
+            traverse_and_compare(child1, child2, new_path)
+    
+    traverse_and_compare(tree1, tree2)
+    return changes
+
+def analyze_role_changes(df1, df2):
+    changes = []
+    df1_dict = dict(zip(df1['Name'], df1['Role']))
+    df2_dict = dict(zip(df2['Name'], df2['Role']))
+    
+    all_names = set(df1_dict.keys()) | set(df2_dict.keys())
+    
+    for name in all_names:
+        role1 = df1_dict.get(name)
+        role2 = df2_dict.get(name)
+        
+        if role1 != role2:
+            changes.append({
+                "name": name,
+                "old_role": role1,
+                "new_role": role2
+            })
+    
+    return changes
+
+def generate_aggregated_report(structure_changes, role_changes, tree1, tree2):
+    def count_nodes(tree):
+        count = 1  # Count the root
+        for child in tree.get("children", []):
+            count += count_nodes(child)
+        return count
+
+    total_nodes_before = count_nodes(tree1)
+    total_nodes_after = count_nodes(tree2)
+
+    structure_change_count = {
+        "added": sum(1 for change in structure_changes if change["type"] == "added"),
+        "removed": sum(1 for change in structure_changes if change["type"] == "removed"),
+        "changed": sum(1 for change in structure_changes if change["type"] == "changed")
+    }
+
+    role_change_count = len(role_changes)
+
+    # Calculate percentages
+    total_changes = sum(structure_change_count.values()) + role_change_count
+    change_percentage = (total_changes / total_nodes_before) * 100 if total_nodes_before > 0 else 0
+
+    # Identify most affected areas
+    area_changes = {}
+    for change in structure_changes:
+        area = change["path"].split("/")[0] if "/" in change["path"] else "Root"
+        area_changes[area] = area_changes.get(area, 0) + 1
+
+    most_affected_areas = sorted(area_changes.items(), key=lambda x: x[1], reverse=True)[:5]
+
+    return {
+        "total_nodes": {
+            "before": total_nodes_before,
+            "after": total_nodes_after,
+            "difference": total_nodes_after - total_nodes_before
+        },
+        "structure_changes": structure_change_count,
+        "role_changes": role_change_count,
+        "total_changes": total_changes,
+        "change_percentage": change_percentage,
+        "most_affected_areas": most_affected_areas,
+        "growth_rate": ((total_nodes_after - total_nodes_before) / total_nodes_before) * 100 if total_nodes_before > 0 else 0
+    }
+            
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
@@ -535,10 +725,10 @@ def handle_exception(e):
     return jsonify({"error": "An unexpected error occurred"}), 500
 
 if __name__ == "__main__":
-    print("Starting application...")
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Static folder path: {app.static_folder}")
-    print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
+    # print("Starting application...")
+    # print(f"Current working directory: {os.getcwd()}")
+    # print(f"Static folder path: {app.static_folder}")
+    # print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
     
-    threading.Thread(target=open_browser).start()
+    # threading.Thread(target=open_browser).start()
     app.run(host='0.0.0.0', port=5000, use_reloader=False)

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, ChevronUp, Filter, Upload, List, Target } from 'react-feather';
+import { ChevronDown, ChevronUp, Filter, Upload, List, Target, GitBranch, Home } from 'react-feather';
 import axios from 'axios';
 import FilterModal from './FilterModal';
 import TreeNode from './TreeNode';
@@ -8,15 +8,17 @@ import EnhancedNodeCard from './EnhancedNodeCard';
 import Button from './Button';
 import FileUploadModal from './FileUploadModal';
 import TableSelectionModal from './TableSelectionModal';
+import ComparisonDashboard from './ComparisonDashboard';
 import { useKeyboardShortcut } from '../Utilities/KeyboardShortcuts';
 import { useOrgChartContext } from './OrgChartContext';
 
 const API_BASE_URL = 'http://localhost:5000';
 
 const OrgChart = ({ 
-  dbPath = null, 
-  initialTableId = null,
-  initialFolderId = null
+  dbPath, 
+  initialTableId,
+  initialFolderId,
+  onReturnToLanding
 }) => {
   const {
     activeFilters,
@@ -38,6 +40,9 @@ const OrgChart = ({
   const [collapseAll, setCollapseAll] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState(initialTableId);
   const [selectedFolderId, setSelectedFolderId] = useState(initialFolderId);
+  const [isComparing, setIsComparing] = useState(false);
+  const [comparisonData, setComparisonData] = useState(null);
+  const [isComparisonLoading, setIsComparisonLoading] = useState(false);
   
   const dragRef = useRef(null);
   const chartRef = useRef(null);
@@ -69,15 +74,24 @@ const OrgChart = ({
   }, [fetchData]);
 
   useEffect(() => {
-    if (chartRef.current && !initialTransform) {
-      const rect = chartRef.current.getBoundingClientRect();
-      const centerX = window.innerWidth / 2 - rect.width / 2;
-      const centerY = window.innerHeight / 2 - rect.height / 2;
-      const initialState = { x: centerX, y: centerY, scale: 1 };
-      setInitialTransform(initialState);
-      setTransform(initialState);
-    }
-  }, [orgData, initialTransform]);
+    const updateInitialTransform = () => {
+      if (chartRef.current) {
+        const rect = chartRef.current.getBoundingClientRect();
+        const centerX = window.innerWidth / 2 - rect.width / 2;
+        const centerY = (window.innerHeight / 2 - rect.height / 2) * 0.9; // Slightly above center
+        const initialState = { x: centerX, y: centerY, scale: 1 };
+        setInitialTransform(initialState);
+        setTransform(initialState);
+      }
+    };
+
+    updateInitialTransform();
+    window.addEventListener('resize', updateInitialTransform);
+
+    return () => {
+      window.removeEventListener('resize', updateInitialTransform);
+    };
+  }, [orgData]);
 
   const handleFileUpload = async (uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate) => {
     console.log('File uploaded:', { uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate });
@@ -87,18 +101,34 @@ const OrgChart = ({
     setIsUploadOpen(false);
   };
 
+  const fetchComparisonData = useCallback(async (table1Id, table2Id) => {
+    setIsComparisonLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/compare_tables/${selectedFolderId}`, {
+        params: { table1_id: table1Id, table2_id: table2Id }
+      });
+      setComparisonData(response.data);
+      setIsComparing(true);
+    } catch (error) {
+      console.error('Error fetching comparison data:', error);
+      setError('Failed to fetch comparison data. Please try again.');
+    } finally {
+      setIsComparisonLoading(false);
+    }
+  }, [selectedFolderId]);
+
   const handleTableSelection = useCallback(async (tableId, folderId) => {
     console.log('Table selected:', { tableId, folderId });
-    setSelectedTableId(tableId);
-    setSelectedFolderId(folderId);
+    if (isComparing) {
+      await fetchComparisonData(selectedTableId, tableId);
+    } else {
+      setSelectedTableId(tableId);
+      setSelectedFolderId(folderId);
+      await fetchData();
+    }
     setIsTableSelectionOpen(false);
-    await fetchData();
-  }, [fetchData]);
-
-  const handleUpload = useCallback(() => {
-    console.log('Upload clicked');
-    setIsUploadOpen(true);
-  }, []);
+  }, [fetchData, isComparing, selectedTableId, fetchComparisonData]);
 
   const handleNodeClick = useCallback((node) => {
     console.log('Node clicked:', node);
@@ -207,7 +237,21 @@ const OrgChart = ({
     }
   }, [initialTransform]);
 
-  console.log('Render state:', { loading, error, selectedTableId, orgData, folderStructure });
+  const handleHome = useCallback(() => {
+    setSelectedNode(null);
+    handleCenter();
+    onReturnToLanding(); // This will reset the app to the landing page
+  }, [handleCenter, onReturnToLanding]);
+
+  const handleCompare = useCallback(() => {
+    setIsComparing(true);
+    setIsTableSelectionOpen(true);
+  }, []);
+
+  const handleCloseComparison = useCallback(() => {
+    setIsComparing(false);
+    setComparisonData(null);
+  }, []);
 
   if (loading) {
     return (
@@ -245,7 +289,7 @@ const OrgChart = ({
         className="flex flex-col justify-center items-center h-screen"
       >
         <p className="text-xl mb-4">No data available. Please upload a file or select a table.</p>
-        <Button onClick={handleUpload} icon={Upload} className="mb-4">
+        <Button onClick={() => setIsUploadOpen(true)} icon={Upload} className="mb-4">
           Upload File
         </Button>
         <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
@@ -263,57 +307,74 @@ const OrgChart = ({
         exit={{ opacity: 0 }}
         className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100"
       >
-        <div className="absolute top-4 left-4 z-10 flex space-x-2">
-          <Button onClick={handleExpandAll} icon={ChevronDown}>
-            Open All
-          </Button>
-          <Button onClick={handleCollapseAll} icon={ChevronUp}>
-            Collapse All
-          </Button>
-          <Button onClick={handleCenter} icon={Target}>
-            Center
-          </Button>
-          <Button onClick={toggleFilterModal} icon={Filter}>
-            Filter (Ctrl+F)
-          </Button>
-          <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
-            Change Table
-          </Button>
-          <Button onClick={() => setIsUploadOpen(true)} icon={Upload}>
-            Upload New Table
-          </Button>
-        </div>
-        <div
-          ref={dragRef}
-          className="w-full h-full cursor-move"
-          onMouseDown={handleMouseDown}
-          onWheel={handleWheel}
-          style={{ overflow: 'hidden' }}
-        >
+        {!isComparing && (
+          <div className="absolute top-4 left-4 z-10 flex space-x-2">
+            <Button onClick={handleHome} icon={Home}>
+              Home
+            </Button>
+            <Button onClick={handleExpandAll} icon={ChevronDown}>
+              Open All
+            </Button>
+            <Button onClick={handleCollapseAll} icon={ChevronUp}>
+              Collapse All
+            </Button>
+            <Button onClick={handleCenter} icon={Target}>
+              Center
+            </Button>
+            <Button onClick={toggleFilterModal} icon={Filter}>
+              Filter (Ctrl+F)
+            </Button>
+            <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
+              Change Table
+            </Button>
+            <Button onClick={() => setIsUploadOpen(true)} icon={Upload}>
+              Upload New Table
+            </Button>
+            <Button onClick={handleCompare} icon={GitBranch}>
+              Compare Tables
+            </Button>
+          </div>
+        )}
+        {!isComparing ? (
           <div
-            ref={chartRef}
-            style={{
-              transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-              transition: isDragging ? 'none' : 'transform 0.3s ease-out',
-              transformOrigin: '0 0'
-            }}
+            ref={dragRef}
+            className="w-full h-full cursor-move"
+            onMouseDown={handleMouseDown}
+            onWheel={handleWheel}
+            style={{ overflow: 'hidden' }}
           >
-            <div className="p-8 pt-20">
-              <TreeNode 
-                node={orgData} 
-                onNodeClick={handleNodeClick} 
-                expandAll={expandAll}
-                collapseAll={collapseAll}
-                filterNode={filterOrgData}
-                folderId={selectedFolderId}
-                tableId={selectedTableId}
-              />
+            <div
+              ref={chartRef}
+              style={{
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+                transformOrigin: '0 0'
+              }}
+            >
+              <div className="p-8 pt-20">
+                <TreeNode 
+                  node={orgData} 
+                  onNodeClick={handleNodeClick} 
+                  expandAll={expandAll}
+                  collapseAll={collapseAll}
+                  filterNode={filterOrgData}
+                  folderId={selectedFolderId}
+                  tableId={selectedTableId}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <ComparisonDashboard
+            comparisonData={comparisonData}
+            onClose={handleCloseComparison}
+            isLoading={isComparisonLoading}
+            error={error}
+          />
+        )}
       </motion.div>
       <AnimatePresence>
-        {selectedNode && (
+        {selectedNode && !isComparing && (
           <EnhancedNodeCard
             node={selectedNode}
             onClose={() => setSelectedNode(null)}
@@ -334,6 +395,8 @@ const OrgChart = ({
         onClose={() => setIsTableSelectionOpen(false)}
         onSelectTable={handleTableSelection}
         folderStructure={folderStructure}
+        currentFolderId={selectedFolderId}
+        isComparingMode={isComparing}
       />
       <FileUploadModal
         isOpen={isUploadOpen}
