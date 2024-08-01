@@ -725,10 +725,10 @@ def handle_exception(e):
     return jsonify({"error": "An unexpected error occurred"}), 500
 
 if __name__ == "__main__":
-    # print("Starting application...")
-    # print(f"Current working directory: {os.getcwd()}")
-    # print(f"Static folder path: {app.static_folder}")
-    # print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
+    print("Starting application...")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Static folder path: {app.static_folder}")
+    print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
     
-    # threading.Thread(target=open_browser).start()
+    threading.Thread(target=open_browser).start()
     app.run(host='0.0.0.0', port=5000, use_reloader=False)
