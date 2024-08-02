@@ -1,15 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiArrowLeft, FiDownload, FiPieChart, FiList, FiMaximize, FiMinimize } from 'react-icons/fi';
+import { ArrowLeft, Download, PieChart, List, ChevronDown, ChevronUp } from 'react-feather';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart as RePieChart, Pie, Cell, Legend
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
+import Button from './Button';
 
 const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
   const [view, setView] = useState('macro');
   const [expandedSection, setExpandedSection] = useState(null);
+
 
   const timeDifference = useMemo(() => {
     if (!comparisonData) return 0;
@@ -34,48 +36,38 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
     }));
   }, [comparisonData]);
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-gray-100 flex items-center justify-center">
-        <div className="text-xl font-semibold text-gray-600">Loading comparison data...</div>
+      <div className="fixed inset-0 bg-white flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-xl font-semibold text-gray-600"
+        >
+          Loading comparison data...
+        </motion.div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="fixed inset-0 bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Error</h2>
-          <p className="text-gray-600">{error}</p>
-          <button
-            onClick={onClose}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200"
-          >
+      <div className="fixed inset-0 bg-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <Button onClick={onClose} icon={ArrowLeft}>
             Go Back
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
   if (!comparisonData) {
-    return (
-      <div className="fixed inset-0 bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">No Data</h2>
-          <p className="text-gray-600">No comparison data available. Please try again.</p>
-          <button
-            onClick={onClose}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200"
-          >
-            Go Back
-          </button>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const {
@@ -87,28 +79,37 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
   } = comparisonData;
 
   const ExpandableSection = ({ title, children, isExpanded, onToggle }) => (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-4">
-      <div 
-        className="flex justify-between items-center px-4 py-2 cursor-pointer bg-blue-50"
+    <motion.div
+      layout
+      className="bg-white rounded-lg shadow-sm overflow-hidden mb-4"
+    >
+      <motion.div 
+        className="flex justify-between items-center px-4 py-3 cursor-pointer bg-gray-50"
         onClick={onToggle}
       >
-        <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
-        {isExpanded ? <FiMinimize size={16} /> : <FiMaximize size={16} />}
-      </div>
-      <AnimatePresence>
+        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+      </motion.div>
+      <AnimatePresence initial={false}>
         {isExpanded && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="p-4"
+            key="content"
+            initial="collapsed"
+            animate="open"
+            exit="collapsed"
+            variants={{
+              open: { opacity: 1, height: "auto" },
+              collapsed: { opacity: 0, height: 0 }
+            }}
+            transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
           >
-            {children}
+            <div className="p-4">
+              {children}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -130,30 +131,30 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
         isExpanded={expandedSection === 'overview'}
         onToggle={() => setExpandedSection(expandedSection === 'overview' ? null : 'overview')}
       >
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-          <div className="bg-blue-100 p-2 rounded">
-            <h4 className="font-semibold text-blue-800">Time Difference</h4>
-            <p className="text-lg font-bold text-blue-900">{timeDifference} days</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <h4 className="font-semibold text-blue-700">Time Difference</h4>
+            <p className="text-2xl font-bold text-blue-800">{timeDifference} days</p>
           </div>
-          <div className="bg-green-100 p-2 rounded">
-            <h4 className="font-semibold text-green-800">Total Changes</h4>
-            <p className="text-lg font-bold text-green-900">{aggregated_report.total_changes}</p>
+          <div className="bg-green-50 p-3 rounded-lg">
+            <h4 className="font-semibold text-green-700">Total Changes</h4>
+            <p className="text-2xl font-bold text-green-800">{aggregated_report.total_changes}</p>
           </div>
-          <div className="bg-yellow-100 p-2 rounded">
-            <h4 className="font-semibold text-yellow-800">Change Percentage</h4>
-            <p className="text-lg font-bold text-yellow-900">{aggregated_report.change_percentage.toFixed(2)}%</p>
+          <div className="bg-yellow-50 p-3 rounded-lg">
+            <h4 className="font-semibold text-yellow-700">Change Percentage</h4>
+            <p className="text-2xl font-bold text-yellow-800">{aggregated_report.change_percentage.toFixed(2)}%</p>
           </div>
-          <div className="bg-purple-100 p-2 rounded">
-            <h4 className="font-semibold text-purple-800">Growth Rate</h4>
-            <p className="text-lg font-bold text-purple-900">{aggregated_report.growth_rate.toFixed(2)}%</p>
+          <div className="bg-purple-50 p-3 rounded-lg">
+            <h4 className="font-semibold text-purple-700">Growth Rate</h4>
+            <p className="text-2xl font-bold text-purple-800">{aggregated_report.growth_rate.toFixed(2)}%</p>
           </div>
-          <div className="bg-red-100 p-2 rounded">
-            <h4 className="font-semibold text-red-800">Role Changes</h4>
-            <p className="text-lg font-bold text-red-900">{aggregated_report.role_changes}</p>
+          <div className="bg-red-50 p-3 rounded-lg">
+            <h4 className="font-semibold text-red-700">Role Changes</h4>
+            <p className="text-2xl font-bold text-red-800">{aggregated_report.role_changes}</p>
           </div>
-          <div className="bg-indigo-100 p-2 rounded">
-            <h4 className="font-semibold text-indigo-800">Structure Changes</h4>
-            <p className="text-lg font-bold text-indigo-900">
+          <div className="bg-indigo-50 p-3 rounded-lg">
+            <h4 className="font-semibold text-indigo-700">Structure Changes</h4>
+            <p className="text-2xl font-bold text-indigo-800">
               {Object.values(aggregated_report.structure_changes).reduce((a, b) => a + b, 0)}
             </p>
           </div>
@@ -221,7 +222,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
         onToggle={() => setExpandedSection(expandedSection === 'detailedStructure' ? null : 'detailedStructure')}
       >
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-xs">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Type</th>
@@ -257,7 +258,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
         onToggle={() => setExpandedSection(expandedSection === 'detailedRoles' ? null : 'detailedRoles')}
       >
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-xs">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Name</th>
@@ -294,30 +295,32 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-100 overflow-hidden flex flex-col">
-      <div className="flex justify-between items-center p-4 bg-white shadow-sm">
-        <h1 className="text-xl font-bold text-gray-800">Comparison Dashboard</h1>
+    <div className="fixed inset-0 bg-gray-50 overflow-hidden flex flex-col">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex justify-between items-center p-4 bg-white shadow-sm"
+      >
+        <h1 className="text-xl font-semibold text-gray-800">Comparison Dashboard</h1>
         <div className="flex space-x-2">
-          <button
-            onClick={onClose}
-            className="flex items-center px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors duration-200 text-sm"
-          >
-            <FiArrowLeft size={16} className="mr-1" />
+          <Button onClick={onClose} icon={ArrowLeft}>
             Back
-          </button>
-          <button
-            onClick={downloadReport}
-            className="flex items-center px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200 text-sm"
-          >
-            <FiDownload size={16} className="mr-1" />
+          </Button>
+          <Button onClick={downloadReport} icon={Download}>
             Download
-          </button>
+          </Button>
         </div>
-      </div>
+      </motion.div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-          <h2 className="text-sm font-semibold text-gray-800 mb-2">Comparison Overview</h2>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="bg-white rounded-lg shadow-sm p-4 mb-4"
+        >
+          <h2 className="text-sm font-semibold text-gray-700 mb-2">Comparison Overview</h2>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-gray-600">
             <p>Table 1: {table1.name}</p>
             <p>Table 2: {table2.name}</p>
@@ -326,28 +329,29 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
             <p>Uploaded: {format(parseISO(table1.upload_date), 'MMM d, yyyy')}</p>
             <p>Uploaded: {format(parseISO(table2.upload_date), 'MMM d, yyyy')}</p>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="flex space-x-2 mb-4">
-          <button
-            onClick={() => setView('macro')}
-            className={`flex items-center px-3 py-1 rounded transition-colors duration-200 text-sm ${
-              view === 'macro' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+          className="flex space-x-2 mb-4"
+        >
+          <Button 
+            onClick={() => setView('macro')} 
+            icon={PieChart}
+            variant={view === 'macro' ? 'primary' : 'secondary'}
           >
-            <FiPieChart size={16} className="mr-1" />
             Macro View
-          </button>
-          <button
-            onClick={() => setView('micro')}
-            className={`flex items-center px-3 py-1 rounded transition-colors duration-200 text-sm ${
-              view === 'micro' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+          </Button>
+          <Button 
+            onClick={() => setView('micro')} 
+            icon={List}
+            variant={view === 'micro' ? 'primary' : 'secondary'}
           >
-            <FiList size={16} className="mr-1" />
             Micro View
-          </button>
-        </div>
+          </Button>
+        </motion.div>
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -355,7 +359,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.3 }}
           >
             {view === 'macro' ? <MacroView /> : <MicroView />}
           </motion.div>

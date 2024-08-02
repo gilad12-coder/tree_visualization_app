@@ -68,8 +68,8 @@ const TableCard = ({ table, onClick }) => {
 };
 
 const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, currentFolderId, isComparingMode }) => {
-  const [step, setStep] = useState(isComparingMode ? 'table' : 'folder');
-  const [selectedFolder, setSelectedFolder] = useState(currentFolderId);
+  const [step, setStep] = useState('folder');
+  const [selectedFolder, setSelectedFolder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortByDate, setSortByDate] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -79,11 +79,19 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, 
   const isFilterActive = dateFilter.start !== null || dateFilter.end !== null;
 
   useEffect(() => {
-    if (isComparingMode && currentFolderId) {
-      setSelectedFolder(currentFolderId);
-      setStep('table');
+    if (isOpen) {
+      if (isComparingMode && currentFolderId) {
+        setSelectedFolder(currentFolderId);
+        setStep('table');
+      } else {
+        setStep('folder');
+        setSelectedFolder(null);
+      }
+      setSearchTerm('');
+      setSortByDate(false);
+      setDateFilter({ start: null, end: null });
     }
-  }, [isComparingMode, currentFolderId]);
+  }, [isOpen, isComparingMode, currentFolderId]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -133,8 +141,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, 
 
   const handleTableSelect = useCallback((tableId) => {
     onSelectTable(tableId, selectedFolder);
-    onClose();
-  }, [onSelectTable, selectedFolder, onClose]);
+  }, [onSelectTable, selectedFolder]);
 
   const renderFolder = useCallback(({ index, style }) => {
     const folder = filteredFolders[index];
@@ -202,7 +209,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, 
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={onClose}
+                  onClick={onClose}  // Changed this line to directly call onClose
                   className="text-black hover:text-gray-700 transition-colors"
                 >
                   <X size={24} />
@@ -220,7 +227,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, 
                 className="p-8 h-[calc(90vh-116px)] flex flex-col"
               >
                 <div className="mb-6 flex space-x-4">
-                  {!isComparingMode && step === 'table' && (
+                  {step === 'table' && (
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
