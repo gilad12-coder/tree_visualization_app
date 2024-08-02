@@ -43,6 +43,7 @@ const OrgChart = ({
   const [isComparing, setIsComparing] = useState(false);
   const [comparisonData, setComparisonData] = useState(null);
   const [isComparisonLoading, setIsComparisonLoading] = useState(false);
+  const [comparisonTableSelected, setComparisonTableSelected] = useState(false);
   
   const dragRef = useRef(null);
   const chartRef = useRef(null);
@@ -113,6 +114,7 @@ const OrgChart = ({
     } catch (error) {
       console.error('Error fetching comparison data:', error);
       setError('Failed to fetch comparison data. Please try again.');
+      setIsComparing(false);
     } finally {
       setIsComparisonLoading(false);
     }
@@ -121,6 +123,7 @@ const OrgChart = ({
   const handleTableSelection = useCallback(async (tableId, folderId) => {
     console.log('Table selected:', { tableId, folderId });
     if (isComparing) {
+      setComparisonTableSelected(true);
       await fetchComparisonData(selectedTableId, tableId);
     } else {
       setSelectedTableId(tableId);
@@ -244,13 +247,27 @@ const OrgChart = ({
   }, [handleCenter, onReturnToLanding]);
 
   const handleCompare = useCallback(() => {
-    setIsComparing(true);
-    setIsTableSelectionOpen(true);
-  }, []);
+    if (selectedFolderId) {
+      setIsComparing(true);
+      setComparisonTableSelected(false);
+      setIsTableSelectionOpen(true);
+    } else {
+      console.log("Please select a folder before comparing tables");
+    }
+  }, [selectedFolderId]);
+
+  const handleCloseTableSelection = useCallback(() => {
+    setIsTableSelectionOpen(false);
+    if (isComparing && !comparisonTableSelected) {
+      setIsComparing(false);
+      setComparisonData(null);
+    }
+  }, [isComparing, comparisonTableSelected]);
 
   const handleCloseComparison = useCallback(() => {
     setIsComparing(false);
     setComparisonData(null);
+    setComparisonTableSelected(false);
   }, []);
 
   if (loading) {
@@ -391,13 +408,13 @@ const OrgChart = ({
         orgData={orgData}
       />
       <TableSelectionModal
-        isOpen={isTableSelectionOpen}
-        onClose={() => setIsTableSelectionOpen(false)}
-        onSelectTable={handleTableSelection}
-        folderStructure={folderStructure}
-        currentFolderId={selectedFolderId}
-        isComparingMode={isComparing}
-      />
+          isOpen={isTableSelectionOpen}
+          onClose={handleCloseTableSelection}
+          onSelectTable={handleTableSelection}
+          folderStructure={folderStructure}
+          currentFolderId={selectedFolderId}
+          isComparingMode={isComparing}
+        />
       <FileUploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
