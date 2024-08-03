@@ -230,14 +230,6 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   <p className="text-sm text-green-600 mb-2">
                     Status: {dbInfo.exists ? 'Connected' : 'Disconnected'}
                   </p>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setStep('initial')}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                  >
-                    Change Database
-                  </motion.button>
                 </div>
               </motion.div>
             )}
