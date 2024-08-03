@@ -7,11 +7,12 @@ import {
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import Button from './Button';
+import DetailedChartInfo from './DetailedChartInfo';
 
 const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
   const [view, setView] = useState('macro');
   const [expandedSection, setExpandedSection] = useState(null);
-
+  const [selectedChartItem, setSelectedChartItem] = useState(null);
 
   const timeDifference = useMemo(() => {
     if (!comparisonData) return 0;
@@ -25,7 +26,12 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
   const structureChangeData = useMemo(() => {
     if (!comparisonData) return [];
     const { aggregated_report } = comparisonData;
-    return Object.entries(aggregated_report.structure_changes).map(([name, value]) => ({ name, value }));
+    const totalChanges = Object.values(aggregated_report.structure_changes).reduce((a, b) => a + b, 0);
+    return Object.entries(aggregated_report.structure_changes).map(([name, value]) => ({
+      name,
+      value,
+      percent: Number((value / totalChanges * 100).toFixed(1))
+    }));
   }, [comparisonData]);
 
   const areaChangeData = useMemo(() => {
@@ -78,6 +84,59 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
     role_changes
   } = comparisonData;
 
+  const handlePieClick = (entry) => {
+    setSelectedChartItem({
+      name: entry.name,
+      value: entry.value,
+      percent: entry.percent,
+      description: `This represents the ${entry.name.toLowerCase()} changes in the organizational structure.`,
+      details: {
+        'Total Changes': aggregated_report.total_changes,
+        'Percentage of Total': `${entry.percent.toFixed(1)}%`
+      }
+    });
+  };
+
+  const CustomPieTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-2 text-xs rounded shadow-md border border-gray-200">
+          <p className="font-semibold">{data.name}</p>
+          <p className="text-blue-600">{`Value: ${data.value}`}</p>
+          <p className="text-gray-600">{`Percentage: ${data.percent.toFixed(1)}%`}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CustomBarTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 rounded shadow-md border border-gray-200">
+          <p className="font-semibold text-sm">{label}</p>
+          <p className="text-sm text-blue-600">{`Value: ${data.value}`}</p>
+          <p className="text-xs text-gray-500 mt-1">Click for more details</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const handleBarClick = (entry) => {
+    setSelectedChartItem({
+      ...entry,
+      percent: (entry.value / areaChangeData.reduce((sum, item) => sum + item.value, 0)) * 100,
+      description: `This area has experienced significant changes, potentially indicating a focus of organizational transformation.`,
+      details: {
+        'Total Affected Areas': areaChangeData.length,
+        'Average Changes per Area': (areaChangeData.reduce((sum, item) => sum + item.value, 0) / areaChangeData.length).toFixed(2)
+      }
+    });
+  };
+
   const ExpandableSection = ({ title, children, isExpanded, onToggle }) => (
     <motion.div
       layout
@@ -112,17 +171,18 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
     </motion.div>
   );
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-2 text-xs rounded shadow-md border border-gray-200">
-          <p className="font-semibold">{label}</p>
-          <p className="text-blue-600">{`Value: ${payload[0].value}`}</p>
+  const StatBox = ({ stat }) => (
+    <div className={`bg-${stat.color}-50 p-3 rounded-lg relative group`}>
+      <h4 className={`font-semibold text-${stat.color}-700`}>{stat.title}</h4>
+      <p className={`text-2xl font-bold text-${stat.color}-800`}>{stat.value}</p>
+      <div className={`absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center`}>
+        <div className="text-center p-3">
+          <h5 className="font-semibold text-gray-800 mb-2">{stat.title}</h5>
+          <p className="text-sm text-gray-600">{stat.description}</p>
         </div>
-      );
-    }
-    return null;
-  };
+      </div>
+    </div>
+  );
 
   const MacroView = () => (
     <div className="space-y-4">
@@ -132,32 +192,15 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
         onToggle={() => setExpandedSection(expandedSection === 'overview' ? null : 'overview')}
       >
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-          <div className="bg-blue-50 p-3 rounded-lg">
-            <h4 className="font-semibold text-blue-700">Time Difference</h4>
-            <p className="text-2xl font-bold text-blue-800">{timeDifference} days</p>
-          </div>
-          <div className="bg-green-50 p-3 rounded-lg">
-            <h4 className="font-semibold text-green-700">Total Changes</h4>
-            <p className="text-2xl font-bold text-green-800">{aggregated_report.total_changes}</p>
-          </div>
-          <div className="bg-yellow-50 p-3 rounded-lg">
-            <h4 className="font-semibold text-yellow-700">Change Percentage</h4>
-            <p className="text-2xl font-bold text-yellow-800">{aggregated_report.change_percentage.toFixed(2)}%</p>
-          </div>
-          <div className="bg-purple-50 p-3 rounded-lg">
-            <h4 className="font-semibold text-purple-700">Growth Rate</h4>
-            <p className="text-2xl font-bold text-purple-800">{aggregated_report.growth_rate.toFixed(2)}%</p>
-          </div>
-          <div className="bg-red-50 p-3 rounded-lg">
-            <h4 className="font-semibold text-red-700">Role Changes</h4>
-            <p className="text-2xl font-bold text-red-800">{aggregated_report.role_changes}</p>
-          </div>
-          <div className="bg-indigo-50 p-3 rounded-lg">
-            <h4 className="font-semibold text-indigo-700">Structure Changes</h4>
-            <p className="text-2xl font-bold text-indigo-800">
-              {Object.values(aggregated_report.structure_changes).reduce((a, b) => a + b, 0)}
-            </p>
-          </div>
+          {[
+            { key: 'timeDifference', title: 'Time Difference', value: `${timeDifference} days`, color: 'blue', description: "The number of days between the two compared organizational snapshots." },
+            { key: 'totalChanges', title: 'Total Changes', value: aggregated_report.total_changes, color: 'green', description: "The total number of changes observed across all categories." },
+            { key: 'growthRate', title: 'Growth Rate', value: `${aggregated_report.growth_rate.toFixed(2)}%`, color: 'purple', description: "The overall growth rate of the organization between the two snapshots." },
+            { key: 'roleChanges', title: 'Role Changes', value: aggregated_report.role_changes, color: 'red', description: "The total number of role changes, including promotions, transfers, and new hires." },
+            { key: 'structureChanges', title: 'Structure Changes', value: Object.values(aggregated_report.structure_changes).reduce((a, b) => a + b, 0), color: 'indigo', description: "The total number of changes to the organizational structure, including new positions and department restructures." }
+          ].map((stat) => (
+            <StatBox key={stat.key} stat={stat} />
+          ))}
         </div>
       </ExpandableSection>
 
@@ -177,13 +220,18 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) => `${name} ${percent.toFixed(1)}%`}
+                onClick={handlePieClick}
               >
                 {structureChangeData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={COLORS[index % COLORS.length]}
+                    style={{ cursor: 'pointer' }}
+                  />
                 ))}
               </Pie>
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomPieTooltip />} />
               <Legend />
             </RePieChart>
           </ResponsiveContainer>
@@ -201,10 +249,18 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" fill="#8884d8">
+              <Tooltip content={<CustomBarTooltip />} />
+              <Bar 
+                dataKey="value" 
+                fill="#8884d8"
+                onClick={handleBarClick}
+              >
                 {areaChangeData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={COLORS[index % COLORS.length]}
+                    style={{ cursor: 'pointer' }}
+                  />
                 ))}
               </Bar>
             </BarChart>
@@ -365,6 +421,15 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {selectedChartItem && (
+          <DetailedChartInfo 
+            data={selectedChartItem} 
+            onClose={() => setSelectedChartItem(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

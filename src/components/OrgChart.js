@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, ChevronUp, Filter, Upload, List, Target, GitBranch, Home } from 'react-feather';
+import { Filter, List, Target, Home, Menu, Upload} from 'react-feather';
 import axios from 'axios';
 import FilterModal from './FilterModal';
 import TreeNode from './TreeNode';
@@ -9,6 +9,9 @@ import Button from './Button';
 import FileUploadModal from './FileUploadModal';
 import TableSelectionModal from './TableSelectionModal';
 import ComparisonDashboard from './ComparisonDashboard';
+import SettingsModal from './SettingsModal';
+import HelpModal from './HelpModal';
+import ToolbarMenu from './ToolbarMenu';
 import { useKeyboardShortcut } from '../Utilities/KeyboardShortcuts';
 import { useOrgChartContext } from './OrgChartContext';
 
@@ -27,7 +30,7 @@ const OrgChart = ({
 
   const [orgData, setOrgData] = useState(null);
   const [folderStructure, setFolderStructure] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
@@ -36,6 +39,9 @@ const OrgChart = ({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isToolbarMenuOpen, setIsToolbarMenuOpen] = useState(false);
   const [expandAll, setExpandAll] = useState(false);
   const [collapseAll, setCollapseAll] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState(initialTableId);
@@ -44,6 +50,11 @@ const OrgChart = ({
   const [comparisonData, setComparisonData] = useState(null);
   const [isComparisonLoading, setIsComparisonLoading] = useState(false);
   const [comparisonTableSelected, setComparisonTableSelected] = useState(false);
+  const [highlightedNodes, setHighlightedNodes] = useState([]);
+  const [settings, setSettings] = useState({
+    moveAmount: 30,
+    zoomAmount: 0.1
+  });
   
   const dragRef = useRef(null);
   const chartRef = useRef(null);
@@ -51,7 +62,7 @@ const OrgChart = ({
   const fetchData = useCallback(async () => {
     if (!dbPath || !selectedTableId) return;
 
-    setLoading(true);
+    setIsLoading(true);
     setError(null);
 
     try {
@@ -66,33 +77,9 @@ const OrgChart = ({
       console.error('Error fetching data:', error);
       setError('Failed to fetch data. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, [dbPath, selectedTableId]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    const updateInitialTransform = () => {
-      if (chartRef.current) {
-        const rect = chartRef.current.getBoundingClientRect();
-        const centerX = window.innerWidth / 2 - rect.width / 2;
-        const centerY = (window.innerHeight / 2 - rect.height / 2) * 0.9; // Slightly above center
-        const initialState = { x: centerX, y: centerY, scale: 1 };
-        setInitialTransform(initialState);
-        setTransform(initialState);
-      }
-    };
-
-    updateInitialTransform();
-    window.addEventListener('resize', updateInitialTransform);
-
-    return () => {
-      window.removeEventListener('resize', updateInitialTransform);
-    };
-  }, [orgData]);
 
   const handleFileUpload = async (uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate) => {
     console.log('File uploaded:', { uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate });
@@ -179,8 +166,8 @@ const OrgChart = ({
     if (isDragging) {
       setTransform(prev => ({
         ...prev,
-        x: prev.x + e.movementX / prev.scale,
-        y: prev.y + e.movementY / prev.scale
+        x: prev.x + e.movementX,
+        y: prev.y + e.movementY
       }));
     }
   }, [isDragging]);
@@ -203,25 +190,17 @@ const OrgChart = ({
     });
   }, []);
 
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    } else {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    }
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, handleMouseMove, handleMouseUp]);
-
   const toggleFilterModal = useCallback(() => {
     setIsFilterOpen(prev => !prev);
   }, []);
 
-  useKeyboardShortcut('f', true, toggleFilterModal);
+  const toggleHelpModal = useCallback(() => {
+    setIsHelpOpen(prev => !prev);
+  }, []);
+
+  const toggleToolbarMenu = useCallback(() => {
+    setIsToolbarMenuOpen(prev => !prev);
+  }, []);
 
   const handleExpandAll = useCallback(() => {
     setExpandAll(true);
@@ -243,7 +222,7 @@ const OrgChart = ({
   const handleHome = useCallback(() => {
     setSelectedNode(null);
     handleCenter();
-    onReturnToLanding(); // This will reset the app to the landing page
+    onReturnToLanding();
   }, [handleCenter, onReturnToLanding]);
 
   const handleCompare = useCallback(() => {
@@ -270,7 +249,107 @@ const OrgChart = ({
     setComparisonTableSelected(false);
   }, []);
 
-  if (loading) {
+  const handleHighlight = useCallback(async (nodeName) => {
+    try {
+      if (highlightedNodes.includes(nodeName)) {
+        setHighlightedNodes([]);
+      } else {
+        const response = await axios.get(`${API_BASE_URL}/highlight-nodes`, {
+          params: { 
+            node_name: nodeName,
+            table_id: selectedTableId 
+          }
+        });
+        setHighlightedNodes(response.data.highlighted_nodes);
+      }
+    } catch (error) {
+      console.error('Error fetching highlighted nodes:', error);
+      setHighlightedNodes([]);
+    }
+  }, [selectedTableId, highlightedNodes]);
+
+  const handleKeyDown = useCallback((e) => {
+    const { moveAmount, zoomAmount } = settings;
+
+    switch (e.key) {
+      case 'ArrowUp':
+        setTransform(prev => ({ ...prev, y: prev.y + moveAmount }));
+        break;
+      case 'ArrowDown':
+        setTransform(prev => ({ ...prev, y: prev.y - moveAmount }));
+        break;
+      case 'ArrowLeft':
+        setTransform(prev => ({ ...prev, x: prev.x + moveAmount }));
+        break;
+      case 'ArrowRight':
+        setTransform(prev => ({ ...prev, x: prev.x - moveAmount }));
+        break;
+      case '+':
+        setTransform(prev => ({ ...prev, scale: Math.min(3, prev.scale + zoomAmount) }));
+        break;
+      case '-':
+        setTransform(prev => ({ ...prev, scale: Math.max(0.1, prev.scale - zoomAmount) }));
+        break;
+      default:
+        break;
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const updateInitialTransform = () => {
+      if (chartRef.current) {
+        const rect = chartRef.current.getBoundingClientRect();
+        const centerX = window.innerWidth / 2 - rect.width / 2;
+        const centerY = (window.innerHeight / 2 - rect.height / 2) * 0.9;
+        const initialState = { x: centerX, y: centerY, scale: 1 };
+        setInitialTransform(initialState);
+        setTransform(initialState);
+      }
+    };
+
+    updateInitialTransform();
+    window.addEventListener('resize', updateInitialTransform);
+
+    return () => {
+      window.removeEventListener('resize', updateInitialTransform);
+    };
+  }, [orgData]);
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
+  useKeyboardShortcut('f', true, toggleFilterModal);
+  useKeyboardShortcut('h', true, toggleHelpModal);
+  useKeyboardShortcut('q', true, () => setIsTableSelectionOpen(true));
+  useKeyboardShortcut('c', true, handleCenter);
+  useKeyboardShortcut('o', true, handleExpandAll);
+  useKeyboardShortcut('l', true, handleCollapseAll);
+  useKeyboardShortcut('u', true, () => setIsUploadOpen(true));
+  useKeyboardShortcut('m', true, handleCompare);
+
+  if (isLoading) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -325,31 +404,36 @@ const OrgChart = ({
         className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100"
       >
         {!isComparing && (
-          <div className="absolute top-4 left-4 z-10 flex space-x-2">
-            <Button onClick={handleHome} icon={Home}>
+          <div className="absolute top-4 left-4 z-10 flex space-x-2 items-center">
+            <Button onClick={handleHome} icon={Home} tooltip="Home">
               Home
             </Button>
-            <Button onClick={handleExpandAll} icon={ChevronDown}>
-              Open All
-            </Button>
-            <Button onClick={handleCollapseAll} icon={ChevronUp}>
-              Collapse All
-            </Button>
-            <Button onClick={handleCenter} icon={Target}>
+            <Button onClick={handleCenter} icon={Target} tooltip="Center (Ctrl+C)">
               Center
             </Button>
-            <Button onClick={toggleFilterModal} icon={Filter}>
-              Filter (Ctrl+F)
+            <Button onClick={toggleFilterModal} icon={Filter} tooltip="Filter (Ctrl+F)">
+              Filter
             </Button>
-            <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
+            <Button onClick={() => setIsTableSelectionOpen(true)} icon={List} tooltip="Change Table (Ctrl+Q)">
               Change Table
             </Button>
-            <Button onClick={() => setIsUploadOpen(true)} icon={Upload}>
-              Upload New Table
+            <Button onClick={toggleToolbarMenu} icon={Menu} tooltip="More Options">
+              More
             </Button>
-            <Button onClick={handleCompare} icon={GitBranch}>
-              Compare Tables
-            </Button>
+            <AnimatePresence>
+              {isToolbarMenuOpen && (
+                <ToolbarMenu
+                  isOpen={isToolbarMenuOpen}
+                  onClose={() => setIsToolbarMenuOpen(false)}
+                  onExpandAll={handleExpandAll}
+                  onCollapseAll={handleCollapseAll}
+                  onUpload={() => setIsUploadOpen(true)}
+                  onCompare={handleCompare}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
+                  onOpenHelp={toggleHelpModal}
+                />
+              )}
+            </AnimatePresence>
           </div>
         )}
         {!isComparing ? (
@@ -377,6 +461,8 @@ const OrgChart = ({
                   filterNode={filterOrgData}
                   folderId={selectedFolderId}
                   tableId={selectedTableId}
+                  highlightedNodes={highlightedNodes}
+                  onHighlight={handleHighlight}
                 />
               </div>
             </div>
@@ -408,18 +494,28 @@ const OrgChart = ({
         orgData={orgData}
       />
       <TableSelectionModal
-          isOpen={isTableSelectionOpen}
-          onClose={handleCloseTableSelection}
-          onSelectTable={handleTableSelection}
-          folderStructure={folderStructure}
-          currentFolderId={selectedFolderId}
-          isComparingMode={isComparing}
-        />
+        isOpen={isTableSelectionOpen}
+        onClose={handleCloseTableSelection}
+        onSelectTable={handleTableSelection}
+        folderStructure={folderStructure}
+        currentFolderId={selectedFolderId}
+        isComparingMode={isComparing}
+      />
       <FileUploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onUpload={handleFileUpload}
         dbPath={dbPath}
+      />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onSettingsChange={setSettings}
+      />
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
       />
     </>
   );

@@ -100,7 +100,7 @@ def compare_trees(tree1, tree2):
     def get_node_set(tree):
         node_set = set()
         def traverse(node):
-            node_set.add((node['name'], node['role']))
+            node_set.add((node['name']))
             for child in node.get('children', []):
                 traverse(child)
         traverse(tree)

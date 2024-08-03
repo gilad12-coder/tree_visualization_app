@@ -578,7 +578,11 @@ def compare_tables(folder_id):
         # Fetch and parse data for both tables
         def get_table_data(table):
             data_entries = session.query(DataEntry).filter_by(table_id=table.id).all()
+            if not data_entries:
+                raise ValueError(f"No data entries found for table {table.id}")
             df = pd.DataFrame([json.loads(entry.data) for entry in data_entries])
+            if df.empty:
+                raise ValueError(f"Empty DataFrame for table {table.id}")
             return parse_org_data(df), df
         
         tree1, df1 = get_table_data(table1)
@@ -610,9 +614,14 @@ def compare_tables(folder_id):
         }
         
         return jsonify(report), 200
+    except ValueError as ve:
+        logger.error(f"ValueError in compare_tables: {str(ve)}")
+        return jsonify({"error": f"Data error: {str(ve)}"}), 400
     except SQLAlchemyError as e:
+        logger.error(f"SQLAlchemyError in compare_tables: {str(e)}")
         return jsonify({"error": f"Database error: {str(e)}"}), 500
     except Exception as e:
+        logger.error(f"Unexpected error in compare_tables: {str(e)}", exc_info=True)
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
     finally:
         session.close()
@@ -621,30 +630,55 @@ def compare_org_structures(tree1, tree2):
     changes = []
     
     def traverse_and_compare(node1, node2, path=""):
-        if not node1 and node2:
-            changes.append({"type": "added", "path": path, "name": node2["name"], "role": node2["role"]})
-        elif node1 and not node2:
-            changes.append({"type": "removed", "path": path, "name": node1["name"], "role": node1["role"]})
-        elif node1["name"] != node2["name"] or node1["role"] != node2["role"]:
+        logger.debug(f"Comparing nodes at path: {path}")
+        logger.debug(f"Node1: {node1}")
+        logger.debug(f"Node2: {node2}")
+
+        if node1 is None and node2 is None:
+            return
+
+        if node1 is None:
+            changes.append({
+                "type": "added",
+                "path": path,
+                "name": node2.get("name", "Unknown"),
+                "role": node2.get("role", "Unknown")
+            })
+            return
+
+        if node2 is None:
+            changes.append({
+                "type": "removed",
+                "path": path,
+                "name": node1.get("name", "Unknown"),
+                "role": node1.get("role", "Unknown")
+            })
+            return
+
+        if node1.get("name") != node2.get("name") or node1.get("role") != node2.get("role"):
             changes.append({
                 "type": "changed",
                 "path": path,
-                "old": {"name": node1["name"], "role": node1["role"]},
-                "new": {"name": node2["name"], "role": node2["role"]}
+                "old": {"name": node1.get("name", "Unknown"), "role": node1.get("role", "Unknown")},
+                "new": {"name": node2.get("name", "Unknown"), "role": node2.get("role", "Unknown")}
             })
-        
-        children1 = {child["name"]: child for child in node1.get("children", [])}
-        children2 = {child["name"]: child for child in node2.get("children", [])}
-        
-        all_children = set(children1.keys()) | set(children2.keys())
-        
-        for child_name in all_children:
-            child1 = children1.get(child_name)
-            child2 = children2.get(child_name)
+
+        children1 = node1.get("children", []) or []
+        children2 = node2.get("children", []) or []
+
+        child_names1 = {child.get("name", f"Unknown{i}") for i, child in enumerate(children1)}
+        child_names2 = {child.get("name", f"Unknown{i}") for i, child in enumerate(children2)}
+
+        all_child_names = child_names1 | child_names2
+
+        for child_name in all_child_names:
+            child1 = next((child for child in children1 if child.get("name") == child_name), None)
+            child2 = next((child for child in children2 if child.get("name") == child_name), None)
             new_path = f"{path}/{child_name}" if path else child_name
             traverse_and_compare(child1, child2, new_path)
-    
+
     traverse_and_compare(tree1, tree2)
+    logger.info(f"Comparison completed. Total changes: {len(changes)}")
     return changes
 
 def analyze_role_changes(df1, df2):
@@ -710,6 +744,53 @@ def generate_aggregated_report(structure_changes, role_changes, tree1, tree2):
         "most_affected_areas": most_affected_areas,
         "growth_rate": ((total_nodes_after - total_nodes_before) / total_nodes_before) * 100 if total_nodes_before > 0 else 0
     }
+    
+@app.route("/highlight-nodes", methods=["GET"])
+def highlight_nodes():
+    node_name = request.args.get('node_name')
+    table_id = request.args.get('table_id')
+    
+    if not node_name or not table_id:
+        return jsonify({"error": "Both node_name and table_id are required"}), 400
+    
+    session = get_session()
+    try:
+        # Fetch the org data for the given table
+        data_entries = session.query(DataEntry).filter_by(table_id=table_id).all()
+        if not data_entries:
+            return jsonify({"error": "No data found for the specified table"}), 404
+
+        data = [json.loads(entry.data) for entry in data_entries]
+        df = pd.DataFrame(data)
+        org_dict = parse_org_data(df)
+
+        # Find the node and its path to the root
+        highlighted_nodes = find_node_path(org_dict, node_name)
+        
+        if highlighted_nodes is None:
+            return jsonify({"error": f"Node '{node_name}' not found in the organization chart"}), 404
+
+        return jsonify({"highlighted_nodes": highlighted_nodes}), 200
+    except SQLAlchemyError as e:
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    finally:
+        session.close()
+
+def find_node_path(node, target_name):
+    def dfs(current_node, path):
+        if current_node['name'] == target_name:
+            return path + [current_node['name']]
+        
+        for child in current_node.get('children', []):
+            result = dfs(child, path + [current_node['name']])
+            if result:
+                return result
+        
+        return None
+
+    return dfs(node, [])
             
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
