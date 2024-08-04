@@ -1,6 +1,6 @@
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, create_engine, inspect
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, DateTime, create_engine, inspect, func
 import glob
 import os
 import logging
@@ -15,6 +15,8 @@ class Folder(Base):
     __tablename__ = 'folders'
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     tables = relationship('Table', back_populates='folder')
 
 class Table(Base):
@@ -29,9 +31,27 @@ class Table(Base):
 class DataEntry(Base):
     __tablename__ = 'data_entries'
     id = Column(Integer, primary_key=True)
-    data = Column(String, nullable=False)
     table_id = Column(Integer, ForeignKey('tables.id'), nullable=False)
+    person_id = Column(Integer, nullable=False)
+    upload_date = Column(Date, nullable=False)
+    
+    # Org Data
+    hierarchical_structure = Column(String, nullable=False)
+    role = Column(String)
+    department = Column(String)
+    
+    # Personal Info
+    birth_date = Column(Date)
+    rank = Column(String)
+    organization_id = Column(String)
+    
     table = relationship('Table', back_populates='data_entries')
+
+    @property
+    def age(self):
+        if self.birth_date:
+            return (self.upload_date - self.birth_date).days // 365
+        return None
 
 # Global variables for engine, session, and db_path
 engine = None
@@ -86,7 +106,7 @@ def dispose_db():
     if Session:
         logger.info("Removing existing session")
         Session.remove()
-    if engine:
+    if Session:
         logger.info("Disposing existing engine")
         engine.dispose()
     engine = None

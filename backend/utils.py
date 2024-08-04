@@ -1,11 +1,12 @@
 import pandas as pd
 from models import Table, DataEntry, get_session
-import json
 import io
 import logging
-import re
+from datetime import datetime
+from sqlalchemy import func
 
 logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 def check_continuation(folder_id, file_content, file_extension):
     session = get_session()
@@ -19,8 +20,8 @@ def check_continuation(folder_id, file_content, file_extension):
 
         # Get the data from the previous table
         previous_data = session.query(DataEntry).filter_by(table_id=previous_table.id).all()
-        previous_df = pd.DataFrame([json.loads(entry.data) for entry in previous_data])
-        previous_tree = parse_org_data(previous_df)
+        previous_df = pd.DataFrame([entry.__dict__ for entry in previous_data])
+        previous_df = previous_df.drop('_sa_instance_state', axis=1, errors='ignore')
 
         # Parse the new file
         if file_extension == 'csv':
@@ -28,47 +29,63 @@ def check_continuation(folder_id, file_content, file_extension):
         else:  # xlsx
             new_df = pd.read_excel(io.BytesIO(file_content))
 
-        new_tree = parse_org_data(new_df)
-
-        # Check if the new tree is a valid continuation of the previous one
-        return is_valid_continuation(new_tree, previous_tree)
+        # Check if the new data is a valid continuation of the previous one
+        return is_valid_continuation(new_df, previous_df)
 
     except Exception as e:
-        print(f"Error in continuation check: {str(e)}")
+        logger.error(f"Error in continuation check: {str(e)}")
         return False
     finally:
         session.close()
 
-def parse_org_data(df, structure_col='Hierarchical_Structure', name_col='Name', role_col='Role'):
+def parse_org_data(df):
     # Sort the DataFrame by the structure column to ensure parents are processed before children
-    df = df.sort_values(structure_col)
+    df = df.sort_values('hierarchical_structure')
 
     # Initialize a dictionary to store all nodes
     nodes = {}
     root = None
 
     def is_rtl(text):
-        # Simple check for RTL: if the string contains Hebrew characters
-        return any('\u0590' <= c <= '\u05FF' for c in text)
+        # Check for RTL: if the string contains Hebrew or Arabic characters
+        return any('\u0590' <= c <= '\u05FF' or '\u0600' <= c <= '\u06FF' for c in text)
 
     def split_structure(structure):
-        if structure.startswith('/'):
-            return structure.split('/')[1:]  # Remove empty string at the beginning
-        elif '\\' in structure:
+        # Handle different structure formats: numeric, forward slash, backward slash, RTL
+        if '\\' in structure:
             return structure.split('\\')
+        elif '/' in structure:
+            return [part for part in structure.split('/') if part]
         else:
             return structure.split('/')
 
     for _, row in df.iterrows():
-        structure = row.get(structure_col, '')
-        name = row.get(name_col, '')
-        role = row.get(role_col, '')
-
+        structure = row.get('hierarchical_structure', '')
         if not structure:
             continue
 
-        # Create the new node
-        new_node = {"name": name, "role": role, "children": []}
+        # Create the new node with all available data
+        new_node = {
+            "name": row.get('name', ''),
+            "role": row.get('role', ''),
+            "person_id": row.get('person_id', None),
+            "department": row.get('department', ''),
+            "birth_date": row.get('birth_date', None),
+            "rank": row.get('rank', ''),
+            "organization_id": row.get('organization_id', ''),
+            "upload_date": datetime.now().date(),
+            "children": []
+        }
+
+        # Calculate age if birth_date is available
+        if new_node['birth_date']:
+            try:
+                birth_date = pd.to_datetime(new_node['birth_date']).date()
+                upload_date = pd.to_datetime(new_node['upload_date']).date()
+                new_node['age'] = (upload_date - birth_date).days // 365
+            except:
+                new_node['age'] = None
+
         nodes[structure] = new_node
 
         parts = split_structure(structure)
@@ -79,12 +96,83 @@ def parse_org_data(df, structure_col='Hierarchical_Structure', name_col='Name', 
             continue
 
         # Find the parent
-        if structure.startswith('/'):
-            parent_structure = '/' + '/'.join(parts[:-1])
-        elif '\\' in structure:
-            parent_structure = '\\'.join(parts[:-1])
-        elif is_rtl(structure):
+        if is_rtl(structure):
             parent_structure = '/'.join(parts[:-1])
+        elif structure.startswith('/') or structure.startswith('\\'):
+            parent_structure = structure[:len(structure) - len(parts[-1]) - 1]
+        else:
+            parent_structure = '/'.join(parts[:-1])
+
+        parent = nodes.get(parent_structure)
+        if parent:
+            parent["children"].append(new_node)
+        else:
+            print(f"Parent not found for node: {structure}")
+
+    return root
+
+def parse_org_data(df):
+    # Sort the DataFrame by the structure column to ensure parents are processed before children
+    df = df.sort_values('hierarchical_structure')
+
+    # Initialize a dictionary to store all nodes
+    nodes = {}
+    root = None
+
+    def is_rtl(text):
+        # Check for RTL: if the string contains Hebrew or Arabic characters
+        return any('\u0590' <= c <= '\u05FF' or '\u0600' <= c <= '\u06FF' for c in text)
+
+    def split_structure(structure):
+        # Handle different structure formats: numeric, forward slash, backward slash, RTL
+        if '\\' in structure:
+            return structure.split('\\')
+        elif '/' in structure:
+            return [part for part in structure.split('/') if part]
+        else:
+            return structure.split('/')
+
+    for _, row in df.iterrows():
+        structure = row.get('hierarchical_structure', '')
+        if not structure:
+            continue
+
+        # Create the new node with all available data
+        new_node = {
+            "name": row.get('name', ''),
+            "role": row.get('role', ''),
+            "person_id": row.get('person_id', None),
+            "department": row.get('department', ''),
+            "birth_date": row.get('birth_date', None),
+            "rank": row.get('rank', ''),
+            "organization_id": row.get('organization_id', ''),
+            "upload_date": datetime.now().date(),
+            "children": []
+        }
+
+        # Calculate age if birth_date is available
+        if new_node['birth_date']:
+            try:
+                birth_date = pd.to_datetime(new_node['birth_date']).date()
+                upload_date = pd.to_datetime(new_node['upload_date']).date()
+                new_node['age'] = (upload_date - birth_date).days // 365
+            except:
+                new_node['age'] = None
+
+        nodes[structure] = new_node
+
+        parts = split_structure(structure)
+
+        # Identify the root node
+        if len(parts) == 1:
+            root = new_node
+            continue
+
+        # Find the parent
+        if is_rtl(structure):
+            parent_structure = '/'.join(parts[:-1])
+        elif structure.startswith('/') or structure.startswith('\\'):
+            parent_structure = structure[:len(structure) - len(parts[-1]) - 1]
         else:
             parent_structure = '/'.join(parts[:-1])
 
@@ -97,27 +185,98 @@ def parse_org_data(df, structure_col='Hierarchical_Structure', name_col='Name', 
     return root
 
 def compare_trees(tree1, tree2):
-    def get_node_set(tree):
-        node_set = set()
+    def get_person_id_set(tree):
+        person_id_set = set()
         def traverse(node):
-            node_set.add((node['name']))
+            for role in node.get('roles', []):
+                person_id_set.add(role['person_id'])
             for child in node.get('children', []):
                 traverse(child)
         traverse(tree)
-        return node_set
+        return person_id_set
 
-    set1 = get_node_set(tree1)
-    set2 = get_node_set(tree2)
+    set1 = get_person_id_set(tree1)
+    set2 = get_person_id_set(tree2)
     
-    shared_nodes = set1.intersection(set2)
-    total_nodes = set1.union(set2)
+    shared_person_ids = set1.intersection(set2)
+    total_person_ids = set1.union(set2)
     
-    if not total_nodes:
+    if not total_person_ids:
         return 0
     
-    similarity_percentage = (len(shared_nodes) / len(total_nodes)) * 100
+    similarity_percentage = (len(shared_person_ids) / len(total_person_ids)) * 100
     return similarity_percentage
 
-def is_valid_continuation(new_tree, previous_tree):
+def is_valid_continuation(new_df, previous_df):
+    new_tree = parse_org_data(new_df)
+    previous_tree = parse_org_data(previous_df)
     similarity = compare_trees(new_tree, previous_tree)
     return similarity >= 50
+
+def process_excel_data(file_content, file_extension):
+    if file_extension == 'csv':
+        df = pd.read_csv(io.BytesIO(file_content))
+    else:  # xlsx
+        df = pd.read_excel(io.BytesIO(file_content))
+    
+    return df
+
+def insert_data_entries(session, table_id, df):
+    upload_date = datetime.now().date()
+    
+    for _, row in df.iterrows():
+        data_entry = DataEntry(
+            table_id=table_id,
+            upload_date=upload_date,
+            **row.to_dict()
+        )
+        session.add(data_entry)
+
+def get_org_chart(table_id):
+    session = get_session()
+    try:
+        data_entries = session.query(DataEntry).filter_by(table_id=table_id).all()
+        df = pd.DataFrame([entry.__dict__ for entry in data_entries])
+        df = df.drop('_sa_instance_state', axis=1, errors='ignore')
+        
+        return parse_org_data(df)
+    finally:
+        session.close()
+
+def get_person_history(person_id):
+    session = get_session()
+    try:
+        entries = session.query(DataEntry).filter_by(person_id=person_id).order_by(DataEntry.upload_date).all()
+        history = []
+        for entry in entries:
+            entry_dict = entry.__dict__
+            entry_dict.pop('_sa_instance_state', None)
+            history.append(entry_dict)
+        return history
+    finally:
+        session.close()
+
+def get_department_structure(table_id, department):
+    session = get_session()
+    try:
+        entries = session.query(DataEntry).filter_by(table_id=table_id, department=department).all()
+        df = pd.DataFrame([entry.__dict__ for entry in entries])
+        df = df.drop('_sa_instance_state', axis=1, errors='ignore')
+        
+        return parse_org_data(df)
+    finally:
+        session.close()
+
+def get_age_distribution(table_id):
+    session = get_session()
+    try:
+        entries = session.query(DataEntry).filter_by(table_id=table_id).all()
+        ages = [entry.age for entry in entries if entry.age is not None]
+        return {
+            'average': sum(ages) / len(ages) if ages else None,
+            'min': min(ages) if ages else None,
+            'max': max(ages) if ages else None,
+            'distribution': pd.Series(ages).value_counts().sort_index().to_dict()
+        }
+    finally:
+        session.close()
