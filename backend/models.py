@@ -44,6 +44,8 @@ class DataEntry(Base):
     birth_date = Column(Date)
     rank = Column(String)
     organization_id = Column(String)
+    name = Column(String)
+    
     
     table = relationship('Table', back_populates='data_entries')
 

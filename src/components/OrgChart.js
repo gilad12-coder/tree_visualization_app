@@ -1,32 +1,30 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Filter, List, Target, Home, Menu, Upload} from 'react-feather';
-import axios from 'axios';
-import FilterModal from './FilterModal';
-import TreeNode from './TreeNode';
-import EnhancedNodeCard from './EnhancedNodeCard';
-import Button from './Button';
-import FileUploadModal from './FileUploadModal';
-import TableSelectionModal from './TableSelectionModal';
-import ComparisonDashboard from './ComparisonDashboard';
-import SettingsModal from './SettingsModal';
-import HelpModal from './HelpModal';
-import ToolbarMenu from './ToolbarMenu';
-import { useKeyboardShortcut } from '../Utilities/KeyboardShortcuts';
-import { useOrgChartContext } from './OrgChartContext';
+// TODO: Fix the use existing DB.
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Filter, List, Target, Home, Menu, Upload } from "react-feather";
+import axios from "axios";
+import FilterModal from "./FilterModal";
+import TreeNode from "./TreeNode";
+import EnhancedNodeCard from "./EnhancedNodeCard";
+import Button from "./Button";
+import FileUploadModal from "./FileUploadModal";
+import TableSelectionModal from "./TableSelectionModal";
+import ComparisonDashboard from "./ComparisonDashboard";
+import SettingsModal from "./SettingsModal";
+import HelpModal from "./HelpModal";
+import ToolbarMenu from "./ToolbarMenu";
+import { useKeyboardShortcut } from "../Utilities/KeyboardShortcuts";
+import { useOrgChartContext } from "./OrgChartContext";
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = "http://localhost:5000";
 
-const OrgChart = ({ 
-  dbPath, 
+const OrgChart = ({
+  dbPath,
   initialTableId,
   initialFolderId,
-  onReturnToLanding
+  onReturnToLanding,
 }) => {
-  const {
-    activeFilters,
-    setActiveFilters,
-  } = useOrgChartContext();
+  const { activeFilters, setActiveFilters } = useOrgChartContext();
 
   const [orgData, setOrgData] = useState(null);
   const [folderStructure, setFolderStructure] = useState([]);
@@ -53,9 +51,9 @@ const OrgChart = ({
   const [highlightedNodes, setHighlightedNodes] = useState([]);
   const [settings, setSettings] = useState({
     moveAmount: 30,
-    zoomAmount: 0.1
+    zoomAmount: 0.1,
   });
-  
+
   const dragRef = useRef(null);
   const chartRef = useRef(null);
 
@@ -67,93 +65,120 @@ const OrgChart = ({
 
     try {
       const [folderResponse, orgDataResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/folder_structure`, { params: { db_path: dbPath } }),
-        axios.get(`${API_BASE_URL}/org-data`, { params: { table_id: selectedTableId, db_path: dbPath } })
+        axios.get(`${API_BASE_URL}/folder_structure`, {
+          params: { db_path: dbPath },
+        }),
+        axios.get(`${API_BASE_URL}/org_data`, {
+          params: { table_id: selectedTableId, db_path: dbPath },
+        }),
       ]);
 
       setFolderStructure(folderResponse.data);
       setOrgData(orgDataResponse.data);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Failed to fetch data. Please try again.');
+      console.error("Error fetching data:", error);
+      setError("Failed to fetch data. Please try again.");
     } finally {
       setIsLoading(false);
     }
   }, [dbPath, selectedTableId]);
 
-  const handleFileUpload = async (uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate) => {
-    console.log('File uploaded:', { uploadedTableId, uploadedFolderId, folderName, fileName, uploadDate });
-    setSelectedTableId(uploadedTableId);
-    setSelectedFolderId(uploadedFolderId);
+  const handleFileUpload = async (uploadedData) => {
+    console.log("File uploaded:", uploadedData);
+    setSelectedTableId(uploadedData.table_id);
+    setSelectedFolderId(uploadedData.folder_id);
     await fetchData();
     setIsUploadOpen(false);
   };
 
-  const fetchComparisonData = useCallback(async (table1Id, table2Id) => {
-    setIsComparisonLoading(true);
-    setError(null);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/compare_tables/${selectedFolderId}`, {
-        params: { table1_id: table1Id, table2_id: table2Id }
-      });
-      setComparisonData(response.data);
-      setIsComparing(true);
-    } catch (error) {
-      console.error('Error fetching comparison data:', error);
-      setError('Failed to fetch comparison data. Please try again.');
-      setIsComparing(false);
-    } finally {
-      setIsComparisonLoading(false);
-    }
-  }, [selectedFolderId]);
-
-  const handleTableSelection = useCallback(async (tableId, folderId) => {
-    console.log('Table selected:', { tableId, folderId });
-    if (isComparing) {
-      setComparisonTableSelected(true);
-      await fetchComparisonData(selectedTableId, tableId);
-    } else {
-      setSelectedTableId(tableId);
-      setSelectedFolderId(folderId);
-      await fetchData();
-    }
-    setIsTableSelectionOpen(false);
-  }, [fetchData, isComparing, selectedTableId, fetchComparisonData]);
-
-  const handleNodeClick = useCallback((node) => {
-    console.log('Node clicked:', node);
-    setSelectedNode(prevNode => ({
-      ...node,
-      folderId: selectedFolderId,
-      tableId: selectedTableId
-    }));
-  }, [selectedFolderId, selectedTableId]);
-
-  const handleFilterChange = useCallback((filters) => {
-    console.log('Filters changed:', filters);
-    setActiveFilters(filters);
-    setIsFilterOpen(false);
-  }, [setActiveFilters]);
-
-  const filterOrgData = useCallback((node) => {
-    const matchesFilter = (n) => {
-      if (activeFilters.length === 0) return true;
-      return activeFilters.some(filter => 
-        n.name.toLowerCase().includes(filter.toLowerCase()) ||
-        n.role.toLowerCase().includes(filter.toLowerCase())
-      );
-    };
-
-    const hasMatchingDescendant = (n) => {
-      if (matchesFilter(n)) return true;
-      if (n.children) {
-        return n.children.some(hasMatchingDescendant);
+  const fetchComparisonData = useCallback(
+    async (table1Id, table2Id) => {
+      setIsComparisonLoading(true);
+      setError(null);
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/compare_tables/${selectedFolderId}`,
+          {
+            params: {
+              table1_id: table1Id,
+              table2_id: table2Id,
+              db_path: dbPath,
+            },
+          }
+        );
+        setComparisonData(response.data);
+        setIsComparing(true);
+      } catch (error) {
+        console.error("Error fetching comparison data:", error);
+        setError("Failed to fetch comparison data. Please try again.");
+        setIsComparing(false);
+      } finally {
+        setIsComparisonLoading(false);
       }
-      return false;
-    };
+    },
+    [selectedFolderId, dbPath]
+  );
 
-    return hasMatchingDescendant(node);
-  }, [activeFilters]);
+  const handleTableSelection = useCallback(
+    async (tableId, folderId) => {
+      console.log("Table selected:", { tableId, folderId });
+      if (isComparing) {
+        setComparisonTableSelected(true);
+        await fetchComparisonData(selectedTableId, tableId);
+      } else {
+        setSelectedTableId(tableId);
+        setSelectedFolderId(folderId);
+        await fetchData();
+      }
+      setIsTableSelectionOpen(false);
+    },
+    [fetchData, isComparing, selectedTableId, fetchComparisonData]
+  );
+
+  const handleNodeClick = useCallback(
+    (node) => {
+      console.log("Node clicked:", node);
+      setSelectedNode((prevNode) => ({
+        ...node,
+        folderId: selectedFolderId,
+        tableId: selectedTableId,
+      }));
+    },
+    [selectedFolderId, selectedTableId]
+  );
+
+  const handleFilterChange = useCallback(
+    (filters) => {
+      console.log("Filters changed:", filters);
+      setActiveFilters(filters);
+      setIsFilterOpen(false);
+    },
+    [setActiveFilters]
+  );
+
+  const filterOrgData = useCallback(
+    (node) => {
+      const matchesFilter = (n) => {
+        if (activeFilters.length === 0) return true;
+        return activeFilters.some(
+          (filter) =>
+            n.name.toLowerCase().includes(filter.toLowerCase()) ||
+            n.role.toLowerCase().includes(filter.toLowerCase())
+        );
+      };
+
+      const hasMatchingDescendant = (n) => {
+        if (matchesFilter(n)) return true;
+        if (n.children) {
+          return n.children.some(hasMatchingDescendant);
+        }
+        return false;
+      };
+
+      return hasMatchingDescendant(node);
+    },
+    [activeFilters]
+  );
 
   const handleMouseDown = useCallback((e) => {
     if (e.button === 0) {
@@ -162,15 +187,18 @@ const OrgChart = ({
     }
   }, []);
 
-  const handleMouseMove = useCallback((e) => {
-    if (isDragging) {
-      setTransform(prev => ({
-        ...prev,
-        x: prev.x + e.movementX,
-        y: prev.y + e.movementY
-      }));
-    }
-  }, [isDragging]);
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (isDragging) {
+        setTransform((prev) => ({
+          ...prev,
+          x: prev.x + e.movementX,
+          y: prev.y + e.movementY,
+        }));
+      }
+    },
+    [isDragging]
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -179,7 +207,7 @@ const OrgChart = ({
   const handleWheel = useCallback((e) => {
     e.preventDefault();
     const scaleFactor = 1 - e.deltaY * 0.001;
-    setTransform(prev => {
+    setTransform((prev) => {
       const newScale = Math.max(0.1, Math.min(3, prev.scale * scaleFactor));
       const scaleDiff = newScale - prev.scale;
       const mouseX = e.clientX - dragRef.current.offsetLeft;
@@ -191,15 +219,15 @@ const OrgChart = ({
   }, []);
 
   const toggleFilterModal = useCallback(() => {
-    setIsFilterOpen(prev => !prev);
+    setIsFilterOpen((prev) => !prev);
   }, []);
 
   const toggleHelpModal = useCallback(() => {
-    setIsHelpOpen(prev => !prev);
+    setIsHelpOpen((prev) => !prev);
   }, []);
 
   const toggleToolbarMenu = useCallback(() => {
-    setIsToolbarMenuOpen(prev => !prev);
+    setIsToolbarMenuOpen((prev) => !prev);
   }, []);
 
   const handleExpandAll = useCallback(() => {
@@ -249,51 +277,63 @@ const OrgChart = ({
     setComparisonTableSelected(false);
   }, []);
 
-  const handleHighlight = useCallback(async (nodeName) => {
-    try {
-      if (highlightedNodes.includes(nodeName)) {
+  const handleHighlight = useCallback(
+    async (nodeName) => {
+      try {
+        if (highlightedNodes.includes(nodeName)) {
+          setHighlightedNodes([]);
+        } else {
+          const response = await axios.get(`${API_BASE_URL}/highlight_nodes`, {
+            params: {
+              node_name: nodeName,
+              table_id: selectedTableId,
+            },
+          });
+          setHighlightedNodes(response.data.highlighted_nodes);
+        }
+      } catch (error) {
+        console.error("Error fetching highlighted nodes:", error);
         setHighlightedNodes([]);
-      } else {
-        const response = await axios.get(`${API_BASE_URL}/highlight-nodes`, {
-          params: { 
-            node_name: nodeName,
-            table_id: selectedTableId 
-          }
-        });
-        setHighlightedNodes(response.data.highlighted_nodes);
       }
-    } catch (error) {
-      console.error('Error fetching highlighted nodes:', error);
-      setHighlightedNodes([]);
-    }
-  }, [selectedTableId, highlightedNodes]);
+    },
+    [selectedTableId, highlightedNodes]
+  );
 
-  const handleKeyDown = useCallback((e) => {
-    const { moveAmount, zoomAmount } = settings;
+  const handleKeyDown = useCallback(
+    (e) => {
+      const { moveAmount, zoomAmount } = settings;
 
-    switch (e.key) {
-      case 'ArrowUp':
-        setTransform(prev => ({ ...prev, y: prev.y + moveAmount }));
-        break;
-      case 'ArrowDown':
-        setTransform(prev => ({ ...prev, y: prev.y - moveAmount }));
-        break;
-      case 'ArrowLeft':
-        setTransform(prev => ({ ...prev, x: prev.x + moveAmount }));
-        break;
-      case 'ArrowRight':
-        setTransform(prev => ({ ...prev, x: prev.x - moveAmount }));
-        break;
-      case '+':
-        setTransform(prev => ({ ...prev, scale: Math.min(3, prev.scale + zoomAmount) }));
-        break;
-      case '-':
-        setTransform(prev => ({ ...prev, scale: Math.max(0.1, prev.scale - zoomAmount) }));
-        break;
-      default:
-        break;
-    }
-  }, [settings]);
+      switch (e.key) {
+        case "ArrowUp":
+          setTransform((prev) => ({ ...prev, y: prev.y + moveAmount }));
+          break;
+        case "ArrowDown":
+          setTransform((prev) => ({ ...prev, y: prev.y - moveAmount }));
+          break;
+        case "ArrowLeft":
+          setTransform((prev) => ({ ...prev, x: prev.x + moveAmount }));
+          break;
+        case "ArrowRight":
+          setTransform((prev) => ({ ...prev, x: prev.x - moveAmount }));
+          break;
+        case "+":
+          setTransform((prev) => ({
+            ...prev,
+            scale: Math.min(3, prev.scale + zoomAmount),
+          }));
+          break;
+        case "-":
+          setTransform((prev) => ({
+            ...prev,
+            scale: Math.max(0.1, prev.scale - zoomAmount),
+          }));
+          break;
+        default:
+          break;
+      }
+    },
+    [settings]
+  );
 
   useEffect(() => {
     fetchData();
@@ -312,42 +352,42 @@ const OrgChart = ({
     };
 
     updateInitialTransform();
-    window.addEventListener('resize', updateInitialTransform);
+    window.addEventListener("resize", updateInitialTransform);
 
     return () => {
-      window.removeEventListener('resize', updateInitialTransform);
+      window.removeEventListener("resize", updateInitialTransform);
     };
   }, [orgData]);
 
   useEffect(() => {
     if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
     } else {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     }
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [handleKeyDown]);
 
-  useKeyboardShortcut('f', true, toggleFilterModal);
-  useKeyboardShortcut('h', true, toggleHelpModal);
-  useKeyboardShortcut('q', true, () => setIsTableSelectionOpen(true));
-  useKeyboardShortcut('c', true, handleCenter);
-  useKeyboardShortcut('o', true, handleExpandAll);
-  useKeyboardShortcut('l', true, handleCollapseAll);
-  useKeyboardShortcut('u', true, () => setIsUploadOpen(true));
-  useKeyboardShortcut('m', true, handleCompare);
+  useKeyboardShortcut("f", true, toggleFilterModal);
+  useKeyboardShortcut("h", true, toggleHelpModal);
+  useKeyboardShortcut("q", true, () => setIsTableSelectionOpen(true));
+  useKeyboardShortcut("c", true, handleCenter);
+  useKeyboardShortcut("o", true, handleExpandAll);
+  useKeyboardShortcut("l", true, handleCollapseAll);
+  useKeyboardShortcut("u", true, () => setIsUploadOpen(true));
+  useKeyboardShortcut("m", true, handleCompare);
 
   if (isLoading) {
     return (
@@ -384,8 +424,14 @@ const OrgChart = ({
         exit={{ opacity: 0 }}
         className="flex flex-col justify-center items-center h-screen"
       >
-        <p className="text-xl mb-4">No data available. Please upload a file or select a table.</p>
-        <Button onClick={() => setIsUploadOpen(true)} icon={Upload} className="mb-4">
+        <p className="text-xl mb-4">
+          No data available. Please upload a file or select a table.
+        </p>
+        <Button
+          onClick={() => setIsUploadOpen(true)}
+          icon={Upload}
+          className="mb-4"
+        >
           Upload File
         </Button>
         <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
@@ -408,16 +454,32 @@ const OrgChart = ({
             <Button onClick={handleHome} icon={Home} tooltip="Home">
               Home
             </Button>
-            <Button onClick={handleCenter} icon={Target} tooltip="Center (Ctrl+C)">
+            <Button
+              onClick={handleCenter}
+              icon={Target}
+              tooltip="Center (Ctrl+C)"
+            >
               Center
             </Button>
-            <Button onClick={toggleFilterModal} icon={Filter} tooltip="Filter (Ctrl+F)">
+            <Button
+              onClick={toggleFilterModal}
+              icon={Filter}
+              tooltip="Filter (Ctrl+F)"
+            >
               Filter
             </Button>
-            <Button onClick={() => setIsTableSelectionOpen(true)} icon={List} tooltip="Change Table (Ctrl+Q)">
+            <Button
+              onClick={() => setIsTableSelectionOpen(true)}
+              icon={List}
+              tooltip="Change Table (Ctrl+Q)"
+            >
               Change Table
             </Button>
-            <Button onClick={toggleToolbarMenu} icon={Menu} tooltip="More Options">
+            <Button
+              onClick={toggleToolbarMenu}
+              icon={Menu}
+              tooltip="More Options"
+            >
               More
             </Button>
             <AnimatePresence>
@@ -442,20 +504,20 @@ const OrgChart = ({
             className="w-full h-full cursor-move"
             onMouseDown={handleMouseDown}
             onWheel={handleWheel}
-            style={{ overflow: 'hidden' }}
+            style={{ overflow: "hidden" }}
           >
             <div
               ref={chartRef}
               style={{
                 transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-                transition: isDragging ? 'none' : 'transform 0.3s ease-out',
-                transformOrigin: '0 0'
+                transition: isDragging ? "none" : "transform 0.3s ease-out",
+                transformOrigin: "0 0",
               }}
             >
               <div className="p-8 pt-20">
-                <TreeNode 
-                  node={orgData} 
-                  onNodeClick={handleNodeClick} 
+                <TreeNode
+                  node={orgData}
+                  onNodeClick={handleNodeClick}
                   expandAll={expandAll}
                   collapseAll={collapseAll}
                   filterNode={filterOrgData}
@@ -513,10 +575,7 @@ const OrgChart = ({
         settings={settings}
         onSettingsChange={setSettings}
       />
-      <HelpModal
-        isOpen={isHelpOpen}
-        onClose={() => setIsHelpOpen(false)}
-      />
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </>
   );
 };

@@ -4,7 +4,7 @@ import pandas as pd
 from models import (Folder, Table, DataEntry, get_session, get_db_path, 
                     dispose_db, create_new_db, init_db, set_db_path, 
                     check_db_schema, is_valid_sqlite_db)
-from utils import (parse_org_data, check_continuation, process_excel_data, 
+from utils import (check_continuation, process_excel_data, 
                    insert_data_entries, get_org_chart, get_person_history, 
                    get_department_structure, get_age_distribution)
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,7 +18,6 @@ from sqlalchemy import func
 import webbrowser
 import threading
 import sys
-import json
 
 def resource_path(relative_path):
     try:
@@ -179,29 +178,35 @@ def upload_file(folder_name, upload_date):
         return jsonify({"error": "Unsupported file type. Please upload CSV or XLSX files."}), 400
 
     with session_scope() as session:
+        # Retrieve the folder by name, or create a new one if it doesn't exist
         folder = session.query(Folder).filter_by(name=folder_name).first()
         if not folder:
             folder = Folder(name=folder_name)
             session.add(folder)
-            session.flush()
-        
+            session.commit()  # Commit to ensure the folder is added to the database and has an ID assigned
+            
         logger.info(f"Using folder: {folder.name} (ID: {folder.id})")
 
         file_content = file.read()
         logger.info(f"File content read, size: {len(file_content)} bytes")
 
+        # Check if the new table is a valid continuation of the previous one
         is_valid_continuation = check_continuation(folder.id, file_content, file_extension)
         if not is_valid_continuation:
             return jsonify({"error": "New table is not a valid continuation of the previous one"}), 400
 
+        # Create a new Table record linked to the folder
         table = Table(name=file.filename, folder_id=folder.id, upload_date=upload_date)
         session.add(table)
-        session.flush()
+        session.commit()  # Commit to ensure the table is added to the database and has an ID assigned
+        
         logger.info(f"Table created: {table.name} (ID: {table.id})")
 
+        # Process the Excel data and insert it into the DataEntry table
         df = process_excel_data(file_content, file_extension)
         insert_data_entries(session, table.id, df)
-        session.flush()
+        session.commit()  # Commit to ensure all data entries are added to the database
+        
         logger.info(f"File processed and data inserted successfully for table ID: {table.id}")
 
         logger.info(f"File upload completed successfully for table ID: {table.id}")
@@ -241,7 +246,7 @@ def view_tables():
         tables = session.query(Table).all()
         return jsonify([{"id": t.id, "name": t.name} for t in tables]), 200
 
-@app.route("/org_data", methods=["GET"])
+@app.route("/org_data", methods=["GET"], endpoint='get_org_data')
 @validate_input(table_id=int)
 def get_org_data(table_id):
     org_chart = get_org_chart(table_id)
@@ -252,7 +257,7 @@ def fetch_person_history(person_id):
     history = get_person_history(person_id)
     return jsonify(history), 200
 
-@app.route("/department_structure", methods=["GET"])
+@app.route("/department_structure", methods=["GET"], endpoint='fetch_department_structure')
 @validate_input(table_id=int, department=str)
 def fetch_department_structure(table_id, department):
     structure = get_department_structure(table_id, department)
@@ -263,6 +268,7 @@ def fetch_age_distribution(table_id):
     distribution = get_age_distribution(table_id)
     return jsonify(distribution), 200
 
+#TODO: Fix the CV part.
 @app.route("/timeline/<int:folder_id>", methods=["GET"])
 def get_timeline(folder_id):
     person_id = request.args.get('person_id')
@@ -335,8 +341,11 @@ def get_timeline(folder_id):
         return jsonify(result), 200
 
 @app.route("/folders", methods=["GET"])
-@validate_input(db_path=str)
-def get_folders_list(db_path):
+def get_folders_list():
+    db_path = request.args.get('db_path')
+    if not db_path:
+        return jsonify({"error": "No database path provided"}), 400
+
     if not os.path.exists(db_path):
         return jsonify({"error": "Database file does not exist"}), 404
 
@@ -347,12 +356,20 @@ def get_folders_list(db_path):
     set_db_path(db_path)
     init_db()
 
-    with session_scope() as session:
+    session = get_session()
+    try:
         folders = session.query(Folder).all()
         folders_list = [{"id": folder.id, "name": folder.name} for folder in folders]
         return jsonify(folders_list), 200
-
-@app.route("/compare_tables/<int:folder_id>", methods=["GET"])
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_folders_list: {str(e)}")
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in get_folders_list: {str(e)}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    finally:
+        session.close()
+@app.route("/compare_tables/<int:folder_id>", methods=["GET"], endpoint='compare_tables')
 @validate_input(table1_id=int, table2_id=int)
 def compare_tables(folder_id, table1_id, table2_id):
     with session_scope() as session:
@@ -385,7 +402,7 @@ def compare_tables(folder_id, table1_id, table2_id):
         
         return jsonify(report), 200
     
-@app.route("/highlight_nodes", methods=["GET"])
+@app.route("/highlight_nodes", methods=["GET"], endpoint='highlight_nodes')
 @validate_input(node_name=str, table_id=int)
 def highlight_nodes(node_name, table_id):
     org_chart = get_org_chart(table_id)
@@ -526,10 +543,10 @@ def check_if_db_has_data():
     return False
 
 if __name__ == "__main__":
-    print("Starting application...")
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Static folder path: {app.static_folder}")
-    print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
+    # print("Starting application...")
+    # print(f"Current working directory: {os.getcwd()}")
+    # print(f"Static folder path: {app.static_folder}")
+    # print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
     
-    threading.Thread(target=open_browser).start()
+    # threading.Thread(target=open_browser).start()
     app.run(host='0.0.0.0', port=5000, use_reloader=False)

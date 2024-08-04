@@ -4,6 +4,7 @@ import io
 import logging
 from datetime import datetime
 from sqlalchemy import func
+from datetime import datetime
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -224,13 +225,25 @@ def process_excel_data(file_content, file_extension):
 def insert_data_entries(session, table_id, df):
     upload_date = datetime.now().date()
     
+    # Convert birth_date from integer to actual date
+    df['birth_date'] = pd.to_datetime(df['birth_date'], unit='D', origin='1970-01-01').dt.date
+    
     for _, row in df.iterrows():
         data_entry = DataEntry(
             table_id=table_id,
+            person_id=row['person_id'],
             upload_date=upload_date,
-            **row.to_dict()
+            hierarchical_structure=row['hierarchical_structure'],
+            role=row.get('role'),  # Optional, can be None
+            department=row.get('department'),  # Optional, can be None
+            birth_date=row.get('birth_date'),  # Converted to date
+            rank=row.get('rank'),  # Optional, can be None
+            organization_id=row.get('organization_id'),  # Optional, can be None
+            name = row.get('name') # Optional, can be None
         )
         session.add(data_entry)
+    
+    session.commit()
 
 def get_org_chart(table_id):
     session = get_session()

@@ -12,6 +12,7 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack }) => {
   const [error, setError] = useState(null);
   const [dataStatus, setDataStatus] = useState('idle');
 
+  // TODO: use the person_id hook
   useEffect(() => {
     const fetchTimelineAndCV = async () => {
       if (!folderId || !tableId) return;
@@ -20,7 +21,7 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack }) => {
       setError(null);
 
       try {
-        const response = await fetch(`http://localhost:5000/timeline/${folderId}?name=${encodeURIComponent(node.name)}&table_id=${tableId}`);
+        const response = await fetch(`http://localhost:5000/timeline/${folderId}?person_id=${encodeURIComponent(node.person_id)}&table_id=${tableId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch timeline and CV data');
         }
@@ -41,7 +42,7 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack }) => {
     };
 
     fetchTimelineAndCV();
-  }, [folderId, node.name, tableId]);
+  }, [folderId, node.name, tableId, node.person_id]);
 
   const handleDownload = useCallback((data, filename) => {
     const jsonString = JSON.stringify(data, null, 2);
