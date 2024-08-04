@@ -1,9 +1,22 @@
-import React from 'react';
-import { X } from 'react-feather';
-import { motion } from 'framer-motion';
+import React from "react";
+import { X } from "react-feather";
+import { motion } from "framer-motion";
 
 const HelpModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
+
+  const shortcuts = [
+    { key: "Ctrl + H", description: "Open this help modal" },
+    { key: "Ctrl + T", description: "Change table" },
+    { key: "Ctrl + F", description: "Filter nodes" },
+    { key: "Ctrl + C", description: "Center the chart" },
+    { key: "Ctrl + O", description: "Open all nodes" },
+    { key: "Ctrl + L", description: "Collapse all nodes" },
+    { key: "Ctrl + U", description: "Upload new table" },
+    { key: "Ctrl + M", description: "Compare tables" },
+    { key: "Arrow keys", description: "Navigate the chart" },
+    { key: "+ / -", description: "Zoom in / out" },
+  ];
 
   return (
     <motion.div
@@ -15,26 +28,28 @@ const HelpModal = ({ isOpen, onClose }) => {
       <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Shortcuts</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
             <X size={24} />
           </button>
         </div>
 
         <div className="space-y-6">
           <section>
-            <h3 className="text-xl font-semibold mb-2">Keyboard Shortcuts</h3>
-            <ul className="list-disc pl-5 space-y-2">
-              <li><strong>Ctrl + H:</strong> Open this help modal</li>
-              <li><strong>Ctrl + T:</strong> Change table</li>
-              <li><strong>Ctrl + F:</strong> Filter nodes</li>
-              <li><strong>Ctrl + C:</strong> Center the chart</li>
-              <li><strong>Ctrl + O:</strong> Open all nodes</li>
-              <li><strong>Ctrl + L:</strong> Collapse all nodes</li>
-              <li><strong>Ctrl + U:</strong> Upload new table</li>
-              <li><strong>Ctrl + M:</strong> Compare tables</li>
-              <li><strong>Arrow keys:</strong> Navigate the chart</li>
-              <li><strong>+ / -:</strong> Zoom in / out</li>
-            </ul>
+            <h3 className="text-xl font-semibold mb-4 text-center">
+              Keyboard Shortcuts
+            </h3>
+            <div className="space-y-3">
+              {shortcuts.map((shortcut, index) => (
+                <div key={index} className="text-center">
+                  <span className="font-bold">{shortcut.key}</span>
+                  <span className="mx-2">-</span>
+                  <span>{shortcut.description}</span>
+                </div>
+              ))}
+            </div>
           </section>
         </div>
       </div>

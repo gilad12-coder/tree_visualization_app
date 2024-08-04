@@ -89,13 +89,14 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
       const utcDate = convertToUTCDate(uploadDate);
       const formattedDate = formatDateForAPI(utcDate);
       formData.append('upload_date', formattedDate);
+      formData.append('db_path', dbPath);
 
       try {
         const response = await axios.post(`${API_BASE_URL}/upload`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         
-        onUpload(response.data.table_id, response.data.folder_id, folderName, selectedFile.name, formattedDate);
+        onUpload(response.data);
         
         setSelectedFile(null);
         setFolderName('');
@@ -106,8 +107,8 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
         toast.success('File uploaded successfully!');
       } catch (error) {
         console.error('Failed to upload file:', error);
-        if (error.response && error.response.data && error.response.data.error === "New table is not a valid continuation of the previous one") {
-          toast.warn('This table is not a valid continuation of the previous one. Please check the data and try again.');
+        if (error.response && error.response.data && error.response.data.error) {
+          toast.error(error.response.data.error);
         } else {
           toast.error('Failed to upload file. Please try again.');
         }
