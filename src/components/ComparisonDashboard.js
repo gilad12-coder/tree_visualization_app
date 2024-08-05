@@ -24,10 +24,10 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
   }, [comparisonData]);
 
   const structureChangeData = useMemo(() => {
-    if (!comparisonData) return [];
+    if (!comparisonData || !comparisonData.aggregated_report) return [];
     const { aggregated_report } = comparisonData;
-    const totalChanges = Object.values(aggregated_report.structure_changes).reduce((a, b) => a + b, 0);
-    return Object.entries(aggregated_report.structure_changes).map(([name, value]) => ({
+    const totalChanges = Object.values(aggregated_report.structure_changes || {}).reduce((a, b) => a + b, 0);
+    return Object.entries(aggregated_report.structure_changes || {}).map(([name, value]) => ({
       name,
       value,
       percent: Number((value / totalChanges * 100).toFixed(1))
@@ -35,8 +35,8 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
   }, [comparisonData]);
 
   const areaChangeData = useMemo(() => {
-    if (!comparisonData) return [];
-    return comparisonData.aggregated_report.most_affected_areas.map(([area, count]) => ({
+    if (!comparisonData || !comparisonData.aggregated_report) return [];
+    return (comparisonData.aggregated_report.most_affected_areas || []).map(([area, count]) => ({
       name: area,
       value: count
     }));
@@ -197,7 +197,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
             { key: 'totalChanges', title: 'Total Changes', value: aggregated_report.total_changes, color: 'green', description: "The total number of changes observed across all categories." },
             { key: 'growthRate', title: 'Growth Rate', value: `${aggregated_report.growth_rate.toFixed(2)}%`, color: 'purple', description: "The overall growth rate of the organization between the two snapshots." },
             { key: 'roleChanges', title: 'Role Changes', value: aggregated_report.role_changes, color: 'red', description: "The total number of role changes, including promotions, transfers, and new hires." },
-            { key: 'structureChanges', title: 'Structure Changes', value: Object.values(aggregated_report.structure_changes).reduce((a, b) => a + b, 0), color: 'indigo', description: "The total number of changes to the organizational structure, including new positions and department restructures." }
+            { key: 'structureChanges', title: 'Structure Changes', value: Object.values(aggregated_report.structure_changes || {}).reduce((a, b) => a + b, 0), color: 'indigo', description: "The total number of changes to the organizational structure, including new positions and department restructures." }
           ].map((stat) => (
             <StatBox key={stat.key} stat={stat} />
           ))}
@@ -287,7 +287,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {structure_changes.map((change, index) => (
+              {(structure_changes || []).map((change, index) => (
                 <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                   <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">{change.type}</td>
                   <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.path}</td>
@@ -323,7 +323,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {role_changes.map((change, index) => (
+              {(role_changes || []).map((change, index) => (
                 <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                   <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">{change.name}</td>
                   <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.old_role || 'N/A'}</td>

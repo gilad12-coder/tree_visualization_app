@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Folder, File, Calendar, Plus } from 'react-feather';
+import { X, Upload, Folder, File, Calendar, Plus, HelpCircle, ChevronDown, Search } from 'react-feather';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/datepicker.css';
@@ -41,6 +41,8 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
   const [folders, setFolders] = useState([]);
   const [selectedFolderId, setSelectedFolderId] = useState('');
   const [folderSelectionType, setFolderSelectionType] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchFolders = useCallback(async () => {
     if (!dbPath) return;
@@ -66,6 +68,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
   const handleFolderSelection = (folderId) => {
     setSelectedFolderId(folderId);
     setFolderName(folders.find(folder => folder.id === folderId).name);
+    setIsDropdownOpen(false);
   };
 
   const handleNewFolderNameChange = (event) => {
@@ -116,6 +119,20 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
     }
   };
 
+  const handleDownloadGuide = () => {
+    const link = document.createElement('a');
+    link.href = process.env.PUBLIC_URL + 'מדריך מפורט להעלאת נתונים.pdf';
+    link.download = 'be-net_file_upload_guide.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+
+  const filteredFolders = folders.filter(folder =>
+    folder.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const isUploadDisabled = !selectedFile || !uploadDate || (folderSelectionType === 'new' && !folderName) || (folderSelectionType === 'existing' && !selectedFolderId);
 
   return (
@@ -155,22 +172,31 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                 </div>
               </div>
               <div className="p-8 space-y-6">
-                <motion.div 
-                  className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4"
-                  whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-                >
-                  <div className="flex items-center space-x-3">
-                    <File size={20} className="text-black" />
-                    <input
-                      type="file"
-                      onChange={handleFileChange}
-                      className="bg-transparent w-full outline-none text-sm text-black file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800"
-                    />
-                  </div>
-                </motion.div>
+                <div className="flex items-center space-x-3">
+                  <motion.div 
+                    className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4 flex-grow"
+                    whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <File size={20} className="text-black" />
+                      <input
+                        type="file"
+                        onChange={handleFileChange}
+                        className="bg-transparent w-full outline-none text-sm text-black file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800"
+                      />
+                    </div>
+                  </motion.div>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={handleDownloadGuide}
+                    className="text-black rounded-xl p-3 hover:bg-opacity-10 transition-colors"
+                  >
+                    <HelpCircle size={24} />
+                  </motion.button>
+                </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800">Select Folder</h3>
                   <div className="flex space-x-4">
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -192,22 +218,49 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                 </div>
 
                 {folderSelectionType === 'existing' && (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-gray-600">Choose an existing folder:</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      {folders.map(folder => (
-                        <motion.button
-                          key={folder.id}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleFolderSelection(folder.id)}
-                          className={`py-2 px-4 rounded-lg text-left ${selectedFolderId === folder.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}
-                        >
-                          <Folder size={16} className="inline mr-2" />
-                          {folder.name}
-                        </motion.button>
-                      ))}
-                    </div>
+                  <div className="relative">
+                    <motion.button
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="w-full px-4 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl transition-colors flex items-center justify-between text-sm font-semibold"
+                      whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                    >
+                      <span>{selectedFolderId ? folders.find(f => f.id === selectedFolderId).name : "Select a folder"}</span>
+                      <ChevronDown size={20} className={`transform transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                    </motion.button>
+                    {isDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute z-10 w-full mt-2 bg-white rounded-xl shadow-lg max-h-60 overflow-hidden"
+                      >
+                        <div className="p-2 border-b">
+                          <div className="flex items-center bg-gray-100 rounded-lg px-3 py-2">
+                            <Search size={16} className="text-gray-500 mr-2" />
+                            <input
+                              type="text"
+                              placeholder="Search folders..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="bg-transparent w-full outline-none text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div className="overflow-y-auto max-h-48">
+                          {filteredFolders.map(folder => (
+                            <motion.button
+                              key={folder.id}
+                              onClick={() => handleFolderSelection(folder.id)}
+                              className="w-full px-4 py-2 text-left hover:bg-blue-100 transition-colors flex items-center space-x-2 text-sm font-semibold"
+                              whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
+                            >
+                              <Folder size={16} />
+                              <span>{folder.name}</span>
+                            </motion.button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
                 )}
 
@@ -223,7 +276,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                         value={folderName}
                         onChange={handleNewFolderNameChange}
                         placeholder="Enter new folder name"
-                        className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
+                        className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500 font-semibold"
                       />
                     </div>
                   </motion.div>
@@ -240,7 +293,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                       onChange={handleUploadDateChange}
                       dateFormat="yyyy-MM-dd"
                       placeholderText="Select upload date"
-                      className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
+                      className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500 font-semibold"
                       showMonthDropdown
                       showYearDropdown
                       dropdownMode="select"
@@ -252,7 +305,6 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                     />
                   </div>
                 </motion.div>
-
                 <motion.button
                   whileHover={!isUploadDisabled ? { scale: 1.02, y: -5 } : {}}
                   whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}
@@ -265,7 +317,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   disabled={isUploadDisabled}
                 >
                   <Upload size={20} />
-                  <span className="font-bold">Upload</span>
+                  <span className="font-bold text-sm">Upload</span>
                 </motion.button>
               </div>
             </motion.div>

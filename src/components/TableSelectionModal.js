@@ -25,6 +25,7 @@ const AnimatedLogo = () => (
 );
 
 const FolderCard = ({ folder, onClick, tablesCount }) => {
+  if (!folder) return null;
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -47,6 +48,7 @@ const FolderCard = ({ folder, onClick, tablesCount }) => {
 };
 
 const TableCard = ({ table, onClick }) => {
+  if (!table) return null;
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -67,7 +69,9 @@ const TableCard = ({ table, onClick }) => {
   );
 };
 
-const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, currentFolderId, isComparingMode }) => {
+const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode }) => {
+  console.log('TableSelectionModal rendered with folderStructure:', folderStructure);
+
   const [step, setStep] = useState('folder');
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -107,22 +111,27 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, 
   }, []);
 
   const filteredFolders = useMemo(() => {
+    if (!Array.isArray(folderStructure)) {
+      console.warn('folderStructure is not an array:', folderStructure);
+      return [];
+    }
     return folderStructure.filter(folder => 
-      folder.name.toLowerCase().includes(searchTerm.toLowerCase())
+      folder && folder.name && folder.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [folderStructure, searchTerm]);
 
   const filteredTables = useMemo(() => {
-    if (!selectedFolder) return [];
-    const folder = folderStructure.find(f => f.id === selectedFolder);
-    if (!folder) return [];
+    if (!selectedFolder || !Array.isArray(folderStructure)) return [];
+    const folder = folderStructure.find(f => f && f.id === selectedFolder);
+    if (!folder || !Array.isArray(folder.tables)) return [];
     
     return folder.tables
       .filter(table => {
+        if (!table || !table.name) return false;
         const nameMatch = table.name.toLowerCase().includes(searchTerm.toLowerCase());
         const dateMatch = 
-          (!dateFilter.start || new Date(table.upload_date) >= dateFilter.start) &&
-          (!dateFilter.end || new Date(table.upload_date) <= dateFilter.end);
+          (!dateFilter.start || (table.upload_date && new Date(table.upload_date) >= dateFilter.start)) &&
+          (!dateFilter.end || (table.upload_date && new Date(table.upload_date) <= dateFilter.end));
         return nameMatch && dateMatch;
       })
       .sort((a, b) => {
@@ -145,12 +154,13 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, 
 
   const renderFolder = useCallback(({ index, style }) => {
     const folder = filteredFolders[index];
+    if (!folder) return null;
     return (
       <div style={style} className="py-2">
         <FolderCard
           folder={folder}
           onClick={() => handleFolderSelect(folder.id)}
-          tablesCount={folder.tables.length}
+          tablesCount={Array.isArray(folder.tables) ? folder.tables.length : 0}
         />
       </div>
     );
@@ -158,6 +168,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, 
 
   const renderTable = useCallback(({ index, style }) => {
     const table = filteredTables[index];
+    if (!table) return null;
     return (
       <div style={style} className="py-2">
         <TableCard
@@ -180,183 +191,183 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure, 
     duration: 0.5
   };
 
+  if (!isOpen) return null;
+
   return (
     <AnimatePresence>
-      {isOpen && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 flex justify-center items-center z-50 p-8 bg-black bg-opacity-50"
+        onClick={onClose}
+      >
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 flex justify-center items-center z-50 p-8 bg-black bg-opacity-50"
-          onClick={onClose}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          transition={{ type: "spring", damping: 20, stiffness: 300 }}
+          className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] overflow-hidden backdrop-filter backdrop-blur-lg"
+          onClick={(e) => e.stopPropagation()}
         >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] overflow-hidden backdrop-filter backdrop-blur-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <AnimatedLogo />
-                  <h2 className="text-3xl font-black text-black tracking-tight">
-                    {isComparingMode ? 'Select Table for Comparison' : (step === 'folder' ? 'Select Folder' : 'Select Table')}
-                  </h2>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={onClose}  // Changed this line to directly call onClose
-                  className="text-black hover:text-gray-700 transition-colors"
-                >
-                  <X size={24} />
-                </motion.button>
+          <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <AnimatedLogo />
+                <h2 className="text-3xl font-black text-black tracking-tight">
+                  {isComparingMode ? 'Select Table for Comparison' : (step === 'folder' ? 'Select Folder' : 'Select Table')}
+                </h2>
               </div>
-            </div>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial="initial"
-                animate="in"
-                exit="out"
-                variants={pageVariants}
-                transition={pageTransition}
-                className="p-8 h-[calc(90vh-116px)] flex flex-col"
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                className="text-black hover:text-gray-700 transition-colors"
               >
-                <div className="mb-6 flex space-x-4">
-                  {step === 'table' && (
+                <X size={24} />
+              </motion.button>
+            </div>
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial="initial"
+              animate="in"
+              exit="out"
+              variants={pageVariants}
+              transition={pageTransition}
+              className="p-8 h-[calc(90vh-116px)] flex flex-col"
+            >
+              <div className="mb-6 flex space-x-4">
+                {step === 'table' && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setStep('folder');
+                      setSelectedFolder(null);
+                      setSearchTerm('');
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 rounded-full bg-blue-100 text-black transition-colors duration-200"
+                  >
+                    <ArrowLeft size={18} />
+                    <span className="text-sm font-medium">Back to Folders</span>
+                  </motion.button>
+                )}
+                <motion.div 
+                  className="flex-grow bg-blue-100 bg-opacity-50 rounded-full py-2 px-4 flex items-center space-x-2"
+                  whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                >
+                  <Search size={18} className="text-black" />
+                  <input
+                    type="text"
+                    placeholder={`Search ${step === 'folder' ? 'folders' : 'tables'}...`}
+                    className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </motion.div>
+                {step === 'table' && (
+                  <>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        setStep('folder');
-                        setSelectedFolder(null);
-                        setSearchTerm('');
-                      }}
-                      className="flex items-center space-x-2 px-4 py-2 rounded-full bg-blue-100 text-black transition-colors duration-200"
+                      onClick={() => setSortByDate(!sortByDate)}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
+                        sortByDate ? 'bg-blue-500 text-white' : 'bg-blue-100 text-black'
+                      } transition-colors duration-200`}
                     >
-                      <ArrowLeft size={18} />
-                      <span className="text-sm font-medium">Back to Folders</span>
+                      {sortByDate ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
+                      <span className="text-sm font-medium">Sort by Date</span>
                     </motion.button>
-                  )}
-                  <motion.div 
-                    className="flex-grow bg-blue-100 bg-opacity-50 rounded-full py-2 px-4 flex items-center space-x-2"
-                    whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-                  >
-                    <Search size={18} className="text-black" />
-                    <input
-                      type="text"
-                      placeholder={`Search ${step === 'folder' ? 'folders' : 'tables'}...`}
-                      className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </motion.div>
-                  {step === 'table' && (
-                    <>
+                    <div className="relative">
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => setSortByDate(!sortByDate)}
+                        onClick={() => setFilterMenuOpen(!filterMenuOpen)}
                         className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
-                          sortByDate ? 'bg-blue-500 text-white' : 'bg-blue-100 text-black'
+                          isFilterActive
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-blue-100 text-black'
                         } transition-colors duration-200`}
                       >
-                        {sortByDate ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
-                        <span className="text-sm font-medium">Sort by Date</span>
+                        <Filter size={18} />
+                        <span className="text-sm font-medium">Filter</span>
                       </motion.button>
-                      <div className="relative">
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                          className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
-                            isFilterActive
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-blue-100 text-black'
-                          } transition-colors duration-200`}
-                        >
-                          <Filter size={18} />
-                          <span className="text-sm font-medium">Filter</span>
-                        </motion.button>
-                        <AnimatePresence>
-                          {filterMenuOpen && (
-                            <motion.div
-                              ref={filterMenuRef}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: 10 }}
-                              className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg p-4 z-10"
-                            >
-                              <h3 className="text-lg font-semibold mb-2">Date Filter</h3>
-                              <div className="space-y-2">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700">Start Date</label>
-                                  <DatePicker
-                                    selected={dateFilter.start}
-                                    onChange={(date) => setDateFilter(prev => ({ ...prev, start: date }))}
-                                    dateFormat="yyyy-MM-dd"
-                                    placeholderText="Select start date"
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                    showMonthDropdown
-                                    showYearDropdown
-                                    dropdownMode="select"
-                                    isClearable
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700">End Date</label>
-                                  <DatePicker
-                                    selected={dateFilter.end}
-                                    onChange={(date) => setDateFilter(prev => ({ ...prev, end: date }))}
-                                    dateFormat="yyyy-MM-dd"
-                                    placeholderText="Select end date"
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                    showMonthDropdown
-                                    showYearDropdown
-                                    dropdownMode="select"
-                                    isClearable
-                                  />
-                                </div>
+                      <AnimatePresence>
+                        {filterMenuOpen && (
+                          <motion.div
+                            ref={filterMenuRef}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg p-4 z-10"
+                          >
+                            <h3 className="text-lg font-semibold mb-2">Date Filter</h3>
+                            <div className="space-y-2">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                                <DatePicker
+                                  selected={dateFilter.start}
+                                  onChange={(date) => setDateFilter(prev => ({ ...prev, start: date }))}
+                                  dateFormat="yyyy-MM-dd"
+                                  placeholderText="Select start date"
+                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                  showMonthDropdown
+                                  showYearDropdown
+                                  dropdownMode="select"
+                                  isClearable
+                                />
                               </div>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => setDateFilter({ start: null, end: null })}
-                                className="mt-4 w-full bg-red-500 text-white rounded-md py-2 text-sm font-medium"
-                              >
-                                Clear Filter
-                              </motion.button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700">End Date</label>
+                                <DatePicker
+                                  selected={dateFilter.end}
+                                  onChange={(date) => setDateFilter(prev => ({ ...prev, end: date }))}
+                                  dateFormat="yyyy-MM-dd"
+                                  placeholderText="Select end date"
+                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                  showMonthDropdown
+                                  showYearDropdown
+                                  dropdownMode="select"
+                                  isClearable
+                                />
+                              </div>
+                            </div>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => setDateFilter({ start: null, end: null })}
+                              className="mt-4 w-full bg-red-500 text-white rounded-md py-2 text-sm font-medium"
+                            >
+                              Clear Filter
+                            </motion.button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex-grow overflow-hidden">
+                <AutoSizer>
+                  {({ height, width }) => (
+                    <List
+                      className="scrollbar-thin scrollbar-thumb-blue-500 scrollbar-track-blue-100"
+                      height={height}
+                      itemCount={step === 'folder' ? filteredFolders.length : filteredTables.length}
+                      itemSize={80}
+                      width={width}
+                    >
+                      {step === 'folder' ? renderFolder : renderTable}
+                    </List>
                   )}
-                </div>
-                <div className="flex-grow overflow-hidden">
-                  <AutoSizer>
-                    {({ height, width }) => (
-                      <List
-                        className="scrollbar-thin scrollbar-thumb-blue-500 scrollbar-track-blue-100"
-                        height={height}
-                        itemCount={step === 'folder' ? filteredFolders.length : filteredTables.length}
-                        itemSize={80}
-                        width={width}
-                      >
-                        {step === 'folder' ? renderFolder : renderTable}
-                      </List>
-                    )}
-                  </AutoSizer>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </motion.div>
+                </AutoSizer>
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </motion.div>
-      )}
+      </motion.div>
     </AnimatePresence>
   );
 };

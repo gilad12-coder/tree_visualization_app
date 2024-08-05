@@ -1,4 +1,3 @@
-// TODO: Fix the use existing DB.
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -103,6 +102,19 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   const [dbInfo, setDbInfo] = useState(null);
   const [folderStructure, setFolderStructure] = useState([]);
 
+  const fetchFolderStructure = useCallback(async (path) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/folder_structure`, {
+        params: { db_path: path },
+      });
+      console.log("Folder structure response:", response.data);
+      setFolderStructure(response.data);
+    } catch (error) {
+      console.error("Error fetching folder structure:", error);
+      setFolderStructure([]);
+    }
+  }, []);
+
   const fetchDbInfo = useCallback(async () => {
     if (!dbPath) return;
 
@@ -111,6 +123,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       const response = await axios.post(`${API_BASE_URL}/check_existing_db`, {
         db_path: dbPath,
       });
+      console.log("Database check response:", response.data);
       if (response.data.exists) {
         setDbInfo({
           path: response.data.path,
@@ -118,24 +131,23 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
           hasData: response.data.hasData,
         });
         if (response.data.hasData) {
-          const folderResponse = await axios.get(`${API_BASE_URL}/folders`, {
-            params: { db_path: response.data.path },
-          });
-          setFolderStructure(folderResponse.data);
+          await fetchFolderStructure(response.data.path);
           setStep("ready");
         } else {
           setStep("upload");
         }
       } else {
         setDbInfo(null);
+        setFolderStructure([]);
       }
     } catch (error) {
       console.error("Error fetching database info:", error);
       setDbInfo(null);
+      setFolderStructure([]);
     } finally {
       setIsLoading(false);
     }
-  }, [dbPath]);
+  }, [dbPath, fetchFolderStructure]);
 
   useEffect(() => {
     fetchDbInfo();
@@ -147,6 +159,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       const response = await axios.post(`${API_BASE_URL}/check_existing_db`, {
         db_path: existingDbPath,
       });
+      console.log("Use existing DB response:", response.data);
       setDbPath(response.data.path);
       await fetchDbInfo();
     } catch (error) {
@@ -163,6 +176,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       const response = await axios.post(`${API_BASE_URL}/create_new_db`, {
         db_path: folderPath,
       });
+      console.log("Create new DB response:", response.data);
       if (response.data.error) {
         alert(response.data.error);
       } else {
@@ -179,6 +193,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
 
   const handleUploadFile = async (uploadedData) => {
     try {
+      console.log("File uploaded:", uploadedData);
       await fetchDbInfo();
       onDatabaseReady(dbPath, uploadedData.table_id, uploadedData.folder_id);
     } catch (error) {
@@ -189,11 +204,17 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
 
   const handleTableSelection = async (tableId, folderId) => {
     try {
+      console.log("Table selected:", { tableId, folderId });
       onDatabaseReady(dbPath, tableId, folderId);
     } catch (error) {
       console.error("Error after table selection:", error);
       alert("Error processing table selection. Please try again.");
     }
+  };
+
+  const handleOpenTableSelection = () => {
+    console.log("Opening table selection modal with folder structure:", folderStructure);
+    setIsTableSelectionOpen(true);
   };
 
   if (isLoading) {
@@ -409,7 +430,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setIsTableSelectionOpen(true)}
+                    onClick={handleOpenTableSelection}
                     className="w-full px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-between"
                   >
                     <span className="flex items-center">

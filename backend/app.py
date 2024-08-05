@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import pandas as pd
 from models import (Folder, Table, DataEntry, get_session, get_db_path, 
                     dispose_db, create_new_db, init_db, set_db_path, 
                     check_db_schema, is_valid_sqlite_db)
@@ -271,74 +270,102 @@ def fetch_age_distribution(table_id):
 #TODO: Fix the CV part.
 @app.route("/timeline/<int:folder_id>", methods=["GET"])
 def get_timeline(folder_id):
+    """
+    Generate a timeline and CV for a person based on organizational data.
+    
+    Args:
+    folder_id (int): The ID of the folder containing the data tables
+    
+    Query Parameters:
+    person_id (str): The ID of the person to generate the timeline/CV for
+    table_id (str): Optional. If provided, only process up to this table ID
+    
+    Returns:
+    JSON: A dictionary containing the timeline and CV data
+    """
     person_id = request.args.get('person_id')
     table_id = request.args.get('table_id')
     
-    with session_scope() as session:
-        tables = (
-            session.query(Table)
-            .filter_by(folder_id=folder_id)
-            .order_by(Table.upload_date)
-            .all()
-        )
-        
-        if table_id:
-            table_id = int(table_id)
-            if table_id not in [table.id for table in tables]:
-                return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
-        
-        logger.info(f"Processing {len(tables)} tables")
-        
-        timeline = []
-        cv = []
-        current_role = None
-        
-        for table in tables:
-            org_tree = get_org_chart(table.id)
+    try:
+        with session_scope() as session:
+            tables = (
+                session.query(Table)
+                .filter_by(folder_id=folder_id)
+                .order_by(Table.upload_date)
+                .all()
+            )
             
-            timeline_entry = {
-                "table_id": table.id,
-                "name": table.name,
-                "upload_date": table.upload_date.isoformat(),
-                "org_tree": org_tree,
-            }
+            if not tables:
+                return jsonify({"error": f"No tables found in folder {folder_id}"}), 404
             
-            if person_id:
-                person_node = find_person_in_tree(org_tree, person_id)
-                if person_node:
-                    person_role = next((role for role in person_node.get('roles', []) if str(role.get('person_id')) == person_id), None)
-                    if person_role:
-                        if current_role is None or current_role['role'] != person_role['role']:
+            if table_id:
+                table_id = int(table_id)
+                if table_id not in [table.id for table in tables]:
+                    return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
+            
+            logger.info(f"Processing {len(tables)} tables for folder {folder_id}")
+            
+            timeline = []
+            cv = []
+            current_role = None
+            
+            for table in tables:
+                org_tree = get_org_chart(table.id)  # Assuming this function exists and returns the org tree
+                
+                timeline_entry = {
+                    "table_id": table.id,
+                    "name": table.name,
+                    "upload_date": table.upload_date.isoformat(),
+                    "org_tree": org_tree,
+                }
+                
+                if person_id:
+                    person_node = find_person_in_tree(org_tree, person_id)
+                    if person_node:
+                        timeline_entry["person_info"] = {
+                            "name": person_node.get('name'),
+                            "role": person_node.get('role'),
+                            "department": person_node.get('department'),
+                            "rank": person_node.get('rank')
+                        }
+                        
+                        if current_role is None or current_role['role'] != person_node['role']:
                             if current_role:
                                 cv.append({
                                     "role": current_role['role'],
+                                    "department": current_role['department'],
                                     "startDate": current_role['start_date'],
                                     "endDate": table.upload_date.isoformat()
                                 })
                             current_role = {
-                                "role": person_role['role'],
+                                "role": person_node['role'],
+                                "department": person_node['department'],
                                 "start_date": table.upload_date.isoformat()
                             }
-                        timeline_entry["person_info"] = person_role
+                
+                timeline.append(timeline_entry)
+                
+                if table_id and table.id == table_id:
+                    break
             
-            timeline.append(timeline_entry)
+            if current_role:
+                cv.append({
+                    "role": current_role['role'],
+                    "department": current_role['department'],
+                    "startDate": current_role['start_date'],
+                    "endDate": None
+                })
             
-            if table_id and table.id == table_id:
-                break
-        
-        if current_role:
-            cv.append({
-                "role": current_role['role'],
-                "startDate": current_role['start_date'],
-                "endDate": None
-            })
-        
-        result = {
-            "timeline": timeline,
-            "cv": cv if person_id else None
-        }
-        
-        return jsonify(result), 200
+            result = {
+                "timeline": timeline,
+                "cv": cv if person_id else None
+            }
+            
+            return jsonify(result), 200
+    
+    except Exception as e:
+        logger.error(f"Error processing timeline for folder {folder_id}: {str(e)}")
+        return jsonify({"error": "An unexpected error occurred while processing the timeline"}), 500
 
 @app.route("/folders", methods=["GET"])
 def get_folders_list():
@@ -422,14 +449,25 @@ def serve(path):
     else:
         return send_from_directory(app.static_folder, 'index.html')
 
-def find_person_in_tree(node, person_id):
-    for role in node.get('roles', []):
-        if str(role['person_id']) == str(person_id):
-            return node
+def find_person_in_tree(node, target_person_id):
+    """
+    Recursively search for a person in the organization tree.
+    
+    Args:
+    node (dict): The current node in the org tree
+    target_person_id (str): The ID of the person to find
+    
+    Returns:
+    dict: The node containing the person, or None if not found
+    """
+    if str(node.get('person_id')) == str(target_person_id):
+        return node
+    
     for child in node.get('children', []):
-        result = find_person_in_tree(child, person_id)
+        result = find_person_in_tree(child, target_person_id)
         if result:
             return result
+    
     return None
 
 def find_node_path(node, target_name):
@@ -543,10 +581,10 @@ def check_if_db_has_data():
     return False
 
 if __name__ == "__main__":
-    # print("Starting application...")
-    # print(f"Current working directory: {os.getcwd()}")
-    # print(f"Static folder path: {app.static_folder}")
-    # print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
+    print("Starting application...")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Static folder path: {app.static_folder}")
+    print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
     
-    # threading.Thread(target=open_browser).start()
+    threading.Thread(target=open_browser).start()
     app.run(host='0.0.0.0', port=5000, use_reloader=False)
