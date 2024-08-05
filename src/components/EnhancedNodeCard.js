@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, ArrowRight } from 'react-feather';
+import { X, ArrowRight, User } from 'react-feather';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 import DirectReportsSection from './DirectReportsSection';
 import CVTimelineSection from './CVTimelineSection';
+import PersonalInfoSection from './PersonalInfoSection';
 import '../styles/fonts.css';
 
 const MotionPath = motion.path;
@@ -56,15 +57,16 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
           </span>
         </motion.div>
       )}
-      {node.email && (
-        <motion.div
-          className="bg-blue-100 rounded-xl py-3 px-4 flex items-center justify-center"
-          whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-        >
-          <span className="text-gray-800 text-center">{node.email}</span>
-        </motion.div>
-      )}
       <DirectReportsSection node={node} />
+      <motion.button
+        onClick={() => setActiveScreen('personal')}
+        className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <span className="font-bold">View Personal Info</span>
+        <User size={20} />
+      </motion.button>
       <motion.button
         onClick={() => setActiveScreen('cv')}
         className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
@@ -118,7 +120,7 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
             </motion.button>
           </div>
           <AnimatePresence mode="wait">
-            {activeScreen === 'main' ? (
+            {activeScreen === 'main' && (
               <motion.div
                 key="main"
                 initial={{ opacity: 0, x: -50 }}
@@ -128,7 +130,22 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
               >
                 {renderMainScreen()}
               </motion.div>
-            ) : (
+            )}
+            {activeScreen === 'personal' && (
+              <motion.div
+                key="personal"
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
+              >
+                <PersonalInfoSection
+                  node={node}
+                  onBack={() => setActiveScreen('main')}
+                />
+              </motion.div>
+            )}
+            {activeScreen === 'cv' && (
               <motion.div
                 key="cv"
                 initial={{ opacity: 0, x: 50 }}
