@@ -17,7 +17,6 @@ const TreeNode = ({
   depth = 0, 
   expandAll, 
   collapseAll, 
-  filterNode, 
   folderId, 
   tableId,
   highlightedNodes,
@@ -76,14 +75,8 @@ const TreeNode = ({
     }
   }, [hasChildren]);
 
-  const nodeMatchesFilter = filterNode(node);
-
-  if (!nodeMatchesFilter) return null;
-
-  const visibleChildren = hasChildren ? node.children.filter(filterNode) : [];
-
   return (
-    <div className="flex flex-col items-center relative">
+    <div className="flex flex-col items-center">
       <motion.div
         ref={nodeRef}
         whileHover={{ scale: 1.02 }}
@@ -112,7 +105,7 @@ const TreeNode = ({
           >
             {node.name}
           </h3>
-          {visibleChildren.length > 0 && (
+          {hasChildren && (
             <motion.div
               animate={{ rotate: isExpanded ? 90 : 0 }}
               transition={{ duration: 0.3 }}
@@ -137,7 +130,7 @@ const TreeNode = ({
         </div>
       </motion.div>
       <AnimatePresence initial={false}>
-        {visibleChildren.length > 0 && isExpanded && (
+        {hasChildren && isExpanded && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -145,35 +138,26 @@ const TreeNode = ({
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="relative mt-4 pt-8 w-full"
           >
-            <div 
-              className="absolute left-1/2 -translate-x-px w-1 bg-gray-400 h-8 top-0"
-            />
+            <div className="absolute left-1/2 -translate-x-px w-1 bg-gray-400 h-8 top-0" />
             <div className="relative flex justify-center">
-              {visibleChildren.map((child, index, array) => (
+              {node.children.map((child, index, array) => (
                 <div key={child.name || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
                   {index === 0 && array.length > 1 && (
-                    <div 
-                      className="absolute w-1/2 h-1 bg-gray-400 right-0 top-0"
-                    />
+                    <div className="absolute w-1/2 h-1 bg-gray-400 right-0 top-0" />
                   )}
                   {index === array.length - 1 && array.length > 1 && (
-                    <div 
-                      className="absolute w-1/2 h-1 bg-gray-400 left-0 top-0"
-                    />
+                    <div className="absolute w-1/2 h-1 bg-gray-400 left-0 top-0" />
                   )}
                   {index > 0 && index < array.length - 1 && (
                     <div className="absolute w-full h-1 bg-gray-400 top-0" />
                   )}
-                  <div 
-                    className="w-1 bg-gray-400 h-8 mb-4"
-                  />
+                  <div className="w-1 bg-gray-400 h-8 mb-4" />
                   <TreeNode 
                     node={child} 
                     onNodeClick={onNodeClick} 
                     depth={depth + 1} 
                     expandAll={expandAll}
                     collapseAll={collapseAll}
-                    filterNode={filterNode}
                     folderId={folderId || node.folderId}
                     tableId={tableId || node.tableId}
                     highlightedNodes={highlightedNodes}
