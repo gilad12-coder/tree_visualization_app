@@ -1,4 +1,3 @@
-// TODO: Fix the use existing DB.
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Filter, List, Target, Home, Menu, Upload } from "react-feather";
@@ -27,6 +26,7 @@ const OrgChart = ({
   const { activeFilters, setActiveFilters } = useOrgChartContext();
 
   const [orgData, setOrgData] = useState(null);
+  const [filteredOrgData, setFilteredOrgData] = useState(null);
   const [folderStructure, setFolderStructure] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -75,15 +75,80 @@ const OrgChart = ({
 
       setFolderStructure(folderResponse.data);
       setOrgData(orgDataResponse.data);
+      setFilteredOrgData(orgDataResponse.data);
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("Failed to fetch data. Please try again.");
       setFolderStructure([]);
       setOrgData(null);
+      setFilteredOrgData(null);
     } finally {
       setIsLoading(false);
     }
   }, [dbPath, selectedTableId]);
+
+  const filterOrgData = useCallback((node, filters) => {
+    const matchesFilter = (n) => {
+      if (filters.length === 0) return true;
+      return filters.some(
+        (filter) =>
+          n.name.toLowerCase().includes(filter.toLowerCase()) ||
+          n.role.toLowerCase().includes(filter.toLowerCase())
+      );
+    };
+  
+    const filterNode = (n, depth = 0, matchDepth = -1) => {
+      if (!n) return { node: null, matchDepth: -1 };
+      
+      const currentNodeMatch = matchesFilter(n);
+      const newNode = { ...n };
+      
+      if (currentNodeMatch) {
+        // If this node matches, we've found our target depth
+        matchDepth = depth;
+        // Include all children of matching node
+        if (n.children) {
+          newNode.children = n.children.map(child => ({ ...child, children: child.children }));
+        }
+        return { node: newNode, matchDepth };
+      }
+      
+      if (n.children) {
+        const childResults = n.children.map(child => filterNode(child, depth + 1, matchDepth));
+        const newMatchDepth = childResults.reduce((max, result) => Math.max(max, result.matchDepth), matchDepth);
+        
+        if (newMatchDepth !== -1) {
+          // We found a match in a descendant
+          if (depth === newMatchDepth - 1) {
+            // This is the parent of the matching node, include all children
+            newNode.children = n.children.map(child => {
+              const childResult = childResults.find(result => result.node && result.node.name === child.name);
+              return childResult ? childResult.node : { ...child, children: null };
+            });
+          } else {
+            // This is an ancestor, only include the path to the match
+            newNode.children = childResults
+              .filter(result => result.node !== null)
+              .map(result => result.node);
+          }
+          return { node: newNode, matchDepth: newMatchDepth };
+        }
+      }
+      
+      return { node: null, matchDepth: -1 };
+    };
+  
+    const result = filterNode(node);
+    return result.node;
+  }, []);
+  
+  useEffect(() => {
+    if (orgData) {
+      const filtered = filterOrgData(orgData, activeFilters);
+      setFilteredOrgData(filtered);
+      setExpandAll(activeFilters.length > 0);
+    }
+  }, [orgData, activeFilters, filterOrgData]);
 
   const handleFileUpload = async (uploadedData) => {
     console.log("File uploaded:", uploadedData);
@@ -156,30 +221,6 @@ const OrgChart = ({
       setIsFilterOpen(false);
     },
     [setActiveFilters]
-  );
-
-  const filterOrgData = useCallback(
-    (node) => {
-      const matchesFilter = (n) => {
-        if (activeFilters.length === 0) return true;
-        return activeFilters.some(
-          (filter) =>
-            n.name.toLowerCase().includes(filter.toLowerCase()) ||
-            n.role.toLowerCase().includes(filter.toLowerCase())
-        );
-      };
-
-      const hasMatchingDescendant = (n) => {
-        if (matchesFilter(n)) return true;
-        if (n.children) {
-          return n.children.some(hasMatchingDescendant);
-        }
-        return false;
-      };
-
-      return hasMatchingDescendant(node);
-    },
-    [activeFilters]
   );
 
   const handleMouseDown = useCallback((e) => {
@@ -418,7 +459,7 @@ const OrgChart = ({
     );
   }
 
-  if (!dbPath || !selectedTableId || !orgData) {
+  if (!dbPath || !selectedTableId || !filteredOrgData) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -518,11 +559,10 @@ const OrgChart = ({
             >
               <div className="p-8 pt-20">
                 <TreeNode
-                  node={orgData}
+                  node={filteredOrgData}
                   onNodeClick={handleNodeClick}
                   expandAll={expandAll}
                   collapseAll={collapseAll}
-                  filterNode={filterOrgData}
                   folderId={selectedFolderId}
                   tableId={selectedTableId}
                   highlightedNodes={highlightedNodes}
