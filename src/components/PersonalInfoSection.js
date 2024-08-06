@@ -1,11 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Award, Briefcase } from 'lucide-react';
+import { ArrowLeft, Calendar, Award, Briefcase, User } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 import '../styles/fonts.css';
 
 const PersonalInfoSection = ({ node, onBack }) => {
   const calculateAge = (birthDate) => {
+    if (!birthDate) return null;
     const today = new Date();
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
@@ -25,19 +26,25 @@ const PersonalInfoSection = ({ node, onBack }) => {
     { 
       icon: Calendar, 
       label: "Birth Date & Age", 
-      value: `${new Date(node.birth_date).toLocaleDateString()} (Age: ${age})`,
+      value: node.birth_date ? `${new Date(node.birth_date).toLocaleDateString()} (Age: ${age})` : 'Not available',
       language: 'en' // Assuming birth date is always in English format
+    },
+    {
+      icon: User,
+      label: "Person ID",
+      value: node.person_id || 'Not specified',
+      language: 'en' // Assuming person_id is always in English format
     },
     { 
       icon: Award, 
       label: "Rank", 
-      value: node.rank,
+      value: node.rank || 'Not specified',
       language: rankLanguage
     },
     { 
       icon: Briefcase, 
       label: "Organization ID", 
-      value: node.organization_id,
+      value: node.organization_id || 'Not specified',
       language: orgIdLanguage
     },
   ];
@@ -77,15 +84,23 @@ const PersonalInfoSection = ({ node, onBack }) => {
                     {item.label}
                   </h4>
                   <p 
-                    className={`text-sm text-black ${getFontClass(item.language)}`}  // Changed from text-base to text-sm
+                    className={`text-sm text-black ${getFontClass(item.language)}`}
                     dir={getTextDirection(item.language)}
                   >
-                    <span className="block text-sm font-medium text-gray-700">
-                      {new Date(node.birth_date).toLocaleDateString()}
-                    </span>
-                    <span className="block text-xs text-gray-600">
-                      Age: {age}
-                    </span>
+                    {item.label === "Birth Date & Age" && node.birth_date ? (
+                      <>
+                        <span className="block text-sm font-medium text-gray-700">
+                          {new Date(node.birth_date).toLocaleDateString()}
+                        </span>
+                        <span className="block text-xs text-gray-600">
+                          Age: {age}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="block text-sm font-medium text-gray-700">
+                        {item.value}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
