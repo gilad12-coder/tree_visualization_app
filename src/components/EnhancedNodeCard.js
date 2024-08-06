@@ -30,6 +30,7 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
 
   const nameLanguage = getLanguage(node.name);
   const roleLanguage = getLanguage(node.role);
+  const departmentLanguage = getLanguage(node.department);
 
   const renderMainScreen = () => (
     <div className="p-6 space-y-4">
@@ -41,22 +42,20 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
           className={`text-gray-800 ${getFontClass(roleLanguage)} text-center font-semibold`}
           dir={getTextDirection(roleLanguage)}
         >
-          {node.role}
+          {node.role || 'Role not specified'}
         </span>
       </motion.div>
-      {node.department && (
-        <motion.div
-          className="bg-blue-100 rounded-xl py-3 px-4 flex items-center justify-center"
-          whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+      <motion.div
+        className="bg-blue-100 rounded-xl py-3 px-4 flex items-center justify-center"
+        whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+      >
+        <span
+          className={`text-gray-800 ${getFontClass(departmentLanguage)} text-center`}
+          dir={getTextDirection(departmentLanguage)}
         >
-          <span
-            className={`text-gray-800 ${getFontClass(getLanguage(node.department))} text-center`}
-            dir={getTextDirection(getLanguage(node.department))}
-          >
-            {node.department}
-          </span>
-        </motion.div>
-      )}
+          {node.department || 'Department not specified'}
+        </span>
+      </motion.div>
       <DirectReportsSection node={node} />
       <motion.button
         onClick={() => setActiveScreen('personal')}
@@ -108,7 +107,7 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
               className={`text-3xl font-black text-gray-800 tracking-tight ${getFontClass(nameLanguage)} text-center mt-8`}
               dir={getTextDirection(nameLanguage)}
             >
-              {node.name}
+              {node.name || 'Name not provided'}
             </h2>
             <motion.button
               whileHover={{ scale: 1.1 }}

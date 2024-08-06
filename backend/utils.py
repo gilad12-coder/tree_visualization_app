@@ -142,25 +142,36 @@ def process_excel_data(file_content, file_extension):
     
     return df
 
+
 def insert_data_entries(session, table_id, df):
     upload_date = datetime.now().date()
     
-    # Ensure birth_date is in date format; handle missing or incorrectly formatted dates
+    # Ensure required columns are present
+    required_columns = ['person_id', 'hierarchical_structure', 'name', 'role']
+    for col in required_columns:
+        if col not in df.columns:
+            raise ValueError(f"Required column '{col}' is missing from the DataFrame")
+    
+    # Convert birth_date to datetime
     df['birth_date'] = pd.to_datetime(df['birth_date'], errors='coerce').dt.date
     
     for _, row in df.iterrows():
-        data_entry = DataEntry(
-            table_id=table_id,
-            person_id=row['person_id'],
-            upload_date=upload_date,
-            hierarchical_structure=row['hierarchical_structure'],
-            role=row.get('role'),  # Optional, can be None
-            department=row.get('department'),  # Optional, can be None
-            birth_date=row.get('birth_date'),  # Already converted to date
-            rank=row.get('rank'),  # Optional, can be None
-            organization_id=row.get('organization_id'),  # Optional, can be None
-            name=row.get('name')  # Optional, can be None
-        )
+        # Prepare a dictionary with all fields
+        data_entry_dict = {
+            'table_id': table_id,
+            'name': row["name"] if pd.notna(row["name"]) else None,
+            'role': row["role"] if pd.notna(row["role"]) else None,
+            'person_id': row['person_id'],
+            'upload_date': upload_date,
+            'hierarchical_structure': row['hierarchical_structure'],
+            'department': row['department'] if pd.notna(row['department']) else None,
+            'birth_date': row['birth_date'] if pd.notna(row['birth_date']) else None,
+            'rank': row['rank'] if pd.notna(row['rank']) else None,
+            'organization_id': row['organization_id'] if pd.notna(row['organization_id']) else None
+        }
+        
+        # Create the DataEntry object with the prepared dictionary
+        data_entry = DataEntry(**data_entry_dict)
         session.add(data_entry)
     
     session.commit()
