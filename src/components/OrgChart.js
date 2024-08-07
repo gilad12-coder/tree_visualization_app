@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Filter, List, Target, Home, Menu, Upload } from "react-feather";
 import axios from "axios";
@@ -89,66 +89,65 @@ const OrgChart = ({
 
   const filterOrgData = useCallback((node, filters) => {
     const matchesFilter = (n) => {
-      if (filters.length === 0) return true;
-      return filters.some(
-        (filter) =>
-          n.name.toLowerCase().includes(filter.toLowerCase()) ||
-          n.role.toLowerCase().includes(filter.toLowerCase())
-      );
+        if (filters.length === 0) return true;
+        return filters.every(filter => {
+            const value = n[filter.type];
+            return value !== null && value.toString().toLowerCase().includes(filter.value.toLowerCase());
+        });
     };
-  
+
     const filterNode = (n, depth = 0, matchDepth = -1) => {
-      if (!n) return { node: null, matchDepth: -1 };
-      
-      const currentNodeMatch = matchesFilter(n);
-      const newNode = { ...n };
-      
-      if (currentNodeMatch) {
-        // If this node matches, we've found our target depth
-        matchDepth = depth;
-        // Include all children of matching node
+        if (!n) return { node: null, matchDepth: -1 };
+
+        const currentNodeMatch = matchesFilter(n);
+        const newNode = { ...n };
+
+        if (currentNodeMatch) {
+            // If this node matches, we've found our target depth
+            matchDepth = depth;
+            // Include all children of the matching node
+            if (n.children) {
+                newNode.children = n.children.map(child => ({ ...child, children: child.children }));
+            }
+            return { node: newNode, matchDepth };
+        }
+
         if (n.children) {
-          newNode.children = n.children.map(child => ({ ...child, children: child.children }));
+            const childResults = n.children.map(child => filterNode(child, depth + 1, matchDepth));
+            const newMatchDepth = childResults.reduce((max, result) => Math.max(max, result.matchDepth), matchDepth);
+
+            if (newMatchDepth !== -1) {
+                // We found a match in a descendant
+                if (depth === newMatchDepth - 1) {
+                    // This is the parent of the matching node, include all children
+                    newNode.children = n.children.map(child => {
+                        const childResult = childResults.find(result => result.node && result.node.name === child.name);
+                        return childResult ? childResult.node : { ...child, children: null };
+                    });
+                } else {
+                    // This is an ancestor, only include the path to the match
+                    newNode.children = childResults
+                        .filter(result => result.node !== null)
+                        .map(result => result.node);
+                }
+                return { node: newNode, matchDepth: newMatchDepth };
+            }
         }
-        return { node: newNode, matchDepth };
-      }
-      
-      if (n.children) {
-        const childResults = n.children.map(child => filterNode(child, depth + 1, matchDepth));
-        const newMatchDepth = childResults.reduce((max, result) => Math.max(max, result.matchDepth), matchDepth);
-        
-        if (newMatchDepth !== -1) {
-          // We found a match in a descendant
-          if (depth === newMatchDepth - 1) {
-            // This is the parent of the matching node, include all children
-            newNode.children = n.children.map(child => {
-              const childResult = childResults.find(result => result.node && result.node.name === child.name);
-              return childResult ? childResult.node : { ...child, children: null };
-            });
-          } else {
-            // This is an ancestor, only include the path to the match
-            newNode.children = childResults
-              .filter(result => result.node !== null)
-              .map(result => result.node);
-          }
-          return { node: newNode, matchDepth: newMatchDepth };
-        }
-      }
-      
-      return { node: null, matchDepth: -1 };
+
+        return { node: null, matchDepth: -1 };
     };
-  
+
     const result = filterNode(node);
     return result.node;
-  }, []);
-  
-  useEffect(() => {
+}, []);
+
+useEffect(() => {
     if (orgData) {
-      const filtered = filterOrgData(orgData, activeFilters);
-      setFilteredOrgData(filtered);
-      setExpandAll(activeFilters.length > 0);
+        const filtered = activeFilters.length > 0 ? filterOrgData(orgData, activeFilters) : orgData;
+        setFilteredOrgData(filtered);
+        setExpandAll(activeFilters.length > 0);
     }
-  }, [orgData, activeFilters, filterOrgData]);
+}, [orgData, activeFilters, filterOrgData]);
 
   const handleFileUpload = async (uploadedData) => {
     console.log("File uploaded:", uploadedData);
