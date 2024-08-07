@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, Search, Trash2, Filter } from 'react-feather';
-import { extractNamesAndRoles } from '../Utilities/orgChartUtils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Trash2, Filter, ChevronDown, Calendar, Briefcase, User, Hash, Award, UserCheck, Lock, Unlock } from 'react-feather';
+import { extractAllData } from '../Utilities/orgChartUtils';
+import Button from './Button';
 
 const MotionPath = motion.path;
 
@@ -20,51 +21,81 @@ const AnimatedLogo = () => (
 );
 
 const FilterModal = ({ isOpen, onClose, onApplyFilters, activeFilters, orgData }) => {
+  const [selectedType, setSelectedType] = useState(null);
+  const [filters, setFilters] = useState({});
   const [searchInput, setSearchInput] = useState('');
-  const [selectedFilters, setSelectedFilters] = useState(activeFilters);
+  const [isLocked, setIsLocked] = useState(false);
 
-  const bgOpacity = useMotionValue(0);
-  const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
+  const allData = useMemo(() => extractAllData(orgData), [orgData]);
 
-  const allNames = useMemo(() => {
-    if (orgData && typeof orgData === 'object') {
-      const { names } = extractNamesAndRoles(orgData);
-      return names;
-    }
-    return [];
-  }, [orgData]);
-
-  const filteredNames = useMemo(() => {
-    if (searchInput.trim() === '') return allNames;
-    return allNames.filter(name => 
-      name.toLowerCase().includes(searchInput.toLowerCase())
-    );
-  }, [allNames, searchInput]);
+  const filterTypes = [
+    { key: 'birth_date', label: 'Birth Date', Icon: Calendar },
+    { key: 'department', label: 'Department', Icon: Briefcase },
+    { key: 'name', label: 'Name', Icon: User },
+    { key: 'organization_id', label: 'Organization', Icon: Briefcase },
+    { key: 'person_id', label: 'Person ID', Icon: Hash },
+    { key: 'rank', label: 'Rank', Icon: Award },
+    { key: 'role', label: 'Role', Icon: UserCheck },
+  ];
 
   useEffect(() => {
-    setSelectedFilters(activeFilters);
+    const initialFilters = {};
+    activeFilters.forEach(filter => {
+      initialFilters[filter.type] = filter.value.split(',');
+    });
+    setFilters(initialFilters);
   }, [activeFilters]);
 
-  const handleSearchInputChange = (e) => {
-    setSearchInput(e.target.value);
-  };
-
-  const handleNameToggle = (name) => {
-    setSelectedFilters(prev => 
-      prev.includes(name) 
-        ? prev.filter(f => f !== name)
-        : [...prev, name]
-    );
+  const handleInputChange = (type, value) => {
+    setFilters(prev => {
+      const updatedValues = prev[type] ? [...prev[type]] : [];
+      const valueIndex = updatedValues.indexOf(value);
+      if (valueIndex === -1) {
+        updatedValues.push(value);
+      } else {
+        updatedValues.splice(valueIndex, 1);
+      }
+      return { ...prev, [type]: updatedValues };
+    });
   };
 
   const handleClearAllFilters = () => {
-    setSelectedFilters([]);
+    setFilters({});
+    setSelectedType(null);
     setSearchInput('');
+    setIsLocked(false);
   };
 
   const handleApply = () => {
-    onApplyFilters(selectedFilters);
+    const appliedFilters = Object.entries(filters)
+      .filter(([_, value]) => value.length > 0)
+      .map(([type, value]) => ({ type, value: value.join(',') }));
+    onApplyFilters(appliedFilters);
     onClose();
+  };
+
+  const filteredOptions = useMemo(() => {
+    if (!selectedType) return [];
+    return allData[`${selectedType}s`].filter(item => 
+      item && item.toString().toLowerCase().includes(searchInput.toLowerCase())
+    );
+  }, [allData, selectedType, searchInput]);
+
+  const SelectedTypeIcon = selectedType ? filterTypes.find(ft => ft.key === selectedType)?.Icon : null;
+
+  const handleTypeChange = (e) => {
+    const newType = e.target.value;
+    setSelectedType(newType);
+    setIsLocked(newType !== '');
+    setSearchInput('');
+  };
+
+  const handleLockToggle = () => {
+    if (isLocked) {
+      setSelectedType(null);
+      setSearchInput('');
+    }
+    setIsLocked(!isLocked);
   };
 
   return (
@@ -74,27 +105,22 @@ const FilterModal = ({ isOpen, onClose, onApplyFilters, activeFilters, orgData }
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 flex justify-center items-center z-50 p-8"
+          className="fixed inset-0 flex justify-center items-center z-50 p-4 bg-black bg-opacity-50"
           onClick={onClose}
-          style={{
-            backgroundColor: `rgba(0, 0, 0, ${bgOpacity.get()})`,
-            backdropFilter: `blur(${bgBlur.get()}px)`,
-          }}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden backdrop-filter backdrop-blur-lg"
+            className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden backdrop-filter backdrop-blur-lg"
             onClick={(e) => e.stopPropagation()}
-            onAnimationComplete={() => bgOpacity.set(0.5)}
           >
-            <div className="p-8 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
+            <div className="p-6 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <AnimatedLogo />
-                  <h2 className="text-3xl font-black text-black tracking-tight">Filter Org Chart</h2>
+                  <h2 className="text-2xl font-black text-black tracking-tight">Filter Org Chart</h2>
                 </div>
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -106,79 +132,117 @@ const FilterModal = ({ isOpen, onClose, onApplyFilters, activeFilters, orgData }
                 </motion.button>
               </div>
             </div>
-            <div className="p-8 space-y-6">
-              <motion.div 
-                className="bg-blue-500 bg-opacity-20 rounded-xl py-3 px-4 flex items-center space-x-3"
-                whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-              >
-                <Search size={20} className="text-black" />
-                <input
-                  type="text"
-                  value={searchInput}
-                  onChange={handleSearchInputChange}
-                  placeholder="Search names"
-                  className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500"
-                />
-              </motion.div>
-              <div className="bg-blue-500 bg-opacity-20 rounded-xl p-4 max-h-60 overflow-y-auto">
-                {filteredNames.map((name, index) => (
-                  <motion.label
-                    key={index}
-                    className="flex items-center p-2 hover:bg-blue-600 hover:bg-opacity-20 cursor-pointer rounded-lg"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <div className="mb-4 flex space-x-2">
+                <div className="flex-grow relative">
+                  <select
+                    value={selectedType || ''}
+                    onChange={handleTypeChange}
+                    disabled={isLocked}
+                    className="w-full appearance-none bg-blue-100 bg-opacity-50 rounded-l-xl py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="">Select filter type</option>
+                    {filterTypes.map(({ key, label }) => (
+                      <option key={key} value={key}>{label}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                    <ChevronDown size={18} className="text-gray-500" />
+                  </div>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleLockToggle}
+                  disabled={!selectedType}
+                  className={`p-2 rounded-r-xl ${isLocked ? 'bg-blue-500' : 'bg-gray-300'} ${selectedType ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                >
+                  <motion.div
+                    initial={{ rotateY: 0 }}
+                    animate={{ rotateY: isLocked ? 180 : 0 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    {isLocked ? <Lock size={24} className="text-white" /> : <Unlock size={24} className="text-gray-600" />}
+                  </motion.div>
+                </motion.button>
+              </div>
+              {selectedType && (
+                <div className="mb-4">
+                  <div className="relative">
                     <input
-                      type="checkbox"
-                      checked={selectedFilters.includes(name)}
-                      onChange={() => handleNameToggle(name)}
-                      className="mr-2"
+                      type="text"
+                      placeholder={`Search ${selectedType.replace('_', ' ')}...`}
+                      className="w-full bg-blue-100 bg-opacity-50 rounded-xl py-2 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
                     />
-                    <span className="text-black">{name}</span>
-                  </motion.label>
-                ))}
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-semibold text-lg text-black">Selected Filters:</h3>
-                  <motion.button
-                    onClick={handleClearAllFilters}
-                    className="px-3 py-1 bg-red-500 bg-opacity-20 text-red-600 rounded-full hover:bg-opacity-30 transition-colors flex items-center space-x-1"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Trash2 size={14} />
-                    <span className="text-sm font-medium">Clear All</span>
-                  </motion.button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedFilters.map((filter, index) => (
-                    <motion.div
-                      key={index}
-                      className="flex items-center p-2 bg-blue-500 bg-opacity-20 text-black rounded-full"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <span className="mr-1">{filter}</span>
-                      <button
-                        onClick={() => handleNameToggle(filter)}
-                        className="text-black hover:text-gray-700 transition-colors"
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+                      {SelectedTypeIcon && <SelectedTypeIcon size={18} className="text-blue-500" />}
+                    </div>
+                  </div>
+                  <div className="mt-2 bg-blue-100 bg-opacity-50 rounded-xl p-3 max-h-48 overflow-y-auto">
+                    {filteredOptions.map((item, index) => (
+                      <motion.div
+                        key={index}
+                        className="flex items-center p-2 hover:bg-blue-200 hover:bg-opacity-50 cursor-pointer rounded-lg"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleInputChange(selectedType, item)}
                       >
-                        <X size={14} />
-                      </button>
-                    </motion.div>
+                        <input
+                          type="checkbox"
+                          checked={filters[selectedType]?.includes(item)}
+                          onChange={() => {}}
+                          className="mr-2"
+                        />
+                        <span className="text-black">{item}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="mb-4">
+                <h3 className="font-semibold text-lg text-black mb-2">Active Filters:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(filters).map(([type, values]) => (
+                    values.map((value, index) => (
+                      <motion.div
+                        key={`${type}-${index}`}
+                        className="bg-blue-500 bg-opacity-20 rounded-full px-3 py-1 flex items-center space-x-2"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <span className="text-sm font-medium text-black capitalize">{type.replace('_', ' ')}: {value}</span>
+                        <button
+                          onClick={() => handleInputChange(type, value)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X size={14} />
+                        </button>
+                      </motion.div>
+                    ))
                   ))}
+                  {Object.keys(filters).length === 0 && (
+                    <p className="text-gray-500 text-sm italic">No active filters</p>
+                  )}
                 </div>
               </div>
-              <motion.button
-                onClick={handleApply}
-                className="w-full px-4 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-600 hover:bg-opacity-30 transition-colors flex items-center justify-center space-x-2"
-                whileHover={{ scale: 1.02, y: -5 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Filter size={20} />
-                <span className="font-bold">Apply Filters</span>
-              </motion.button>
+              <div className="flex justify-between">
+                <Button
+                  onClick={handleClearAllFilters}
+                  icon={Trash2}
+                  variant="danger"
+                >
+                  Clear All
+                </Button>
+                <Button
+                  onClick={handleApply}
+                  icon={Filter}
+                  variant="primary"
+                >
+                  Apply Filters
+                </Button>
+              </div>
             </div>
           </motion.div>
         </motion.div>
