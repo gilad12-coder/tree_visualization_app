@@ -17,6 +17,9 @@ from sqlalchemy import func
 import webbrowser
 import threading
 import sys
+import re
+from sqlalchemy import and_, or_
+from datetime import datetime
 
 def resource_path(relative_path):
     try:
@@ -579,6 +582,133 @@ def check_if_db_has_data():
             if session.query(table).first():
                 return True
     return False
+
+@app.route("/search/<int:folder_id>/<int:table_id>", methods=["GET"])
+def search_nodes(folder_id, table_id):
+    """
+    Search for nodes in organizational data based on keywords and operators.
+    
+    Args:
+    folder_id (int): The ID of the folder containing the data tables
+    table_id (int): The ID of the table to search within
+    
+    Query Parameters:
+    query (str): The search query with keywords and operators
+    column (str): The name of the column to search in
+    
+    Returns:
+    JSON: A dictionary containing the search results
+    """
+    query = request.args.get('query')
+    column = request.args.get('column')
+
+    if not query or not column:
+        return jsonify({"error": "Query and column are required"}), 400
+
+    try:
+        with session_scope() as session:
+            table = (
+                session.query(Table)
+                .filter_by(id=table_id, folder_id=folder_id)
+                .first()
+            )
+            
+            if not table:
+                return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
+            
+            logger.info(f"Searching table {table_id} in folder {folder_id} for column {column}")
+            
+            results = search_table(session, table_id, query, column)
+            
+            return jsonify({
+                "results": results,
+                "total_results": len(results),
+                "query": query,
+                "column_searched": column,
+                "folder_id": folder_id,
+                "table_id": table_id
+            }), 200
+    
+    except Exception as e:
+        logger.error(f"Error searching in folder {folder_id}, table {table_id}: {str(e)}")
+        return jsonify({"error": "An unexpected error occurred while searching"}), 500
+
+def search_table(session, table_id, query, column):
+    # Parse the query into keywords and operators
+    parsed_query = parse_query(query)
+    
+    # Build the SQLAlchemy query
+    base_query = session.query(DataEntry).filter(DataEntry.table_id == table_id)
+    
+    conditions = []
+    for item in parsed_query:
+        if isinstance(item, list):  # AND group
+            and_conditions = []
+            for keyword in item:
+                and_conditions.append(getattr(DataEntry, column).ilike(f'%{keyword}%'))
+            conditions.append(and_conditions)
+        elif item.lower() == 'or':
+            continue  # Skip 'or', it's handled by combining conditions with or_()
+        else:  # Single keyword
+            conditions.append([getattr(DataEntry, column).ilike(f'%{item}%')])
+    
+    # Combine all conditions with OR
+    final_condition = or_(*[and_(*condition_group) for condition_group in conditions])
+    results = base_query.filter(final_condition).all()
+    
+    # Prepare the results
+    search_results = []
+    for entry in results:
+        result = {
+            'person_id': entry.person_id,
+            'name': entry.name,
+            'role': entry.role,
+            'department': entry.department,
+            'matched_terms': get_matched_terms(getattr(entry, column), parsed_query),
+            'hierarchical_structure': entry.hierarchical_structure
+        }
+        search_results.append(result)
+    
+    return search_results
+
+def parse_query(query):
+    # Split the query into words, preserving quoted phrases
+    words = re.findall(r'"[^"]*"|\S+', query)
+    
+    parsed = []
+    current_and_group = []
+    
+    for word in words:
+        if word.lower() == 'or':
+            if current_and_group:
+                parsed.append(current_and_group)
+                current_and_group = []
+            parsed.append(word)
+        elif word.startswith('"') and word.endswith('"'):
+            current_and_group.append(word[1:-1])  # Remove quotes
+        elif word == '+':
+            continue  # Skip '+' as it's implied in AND groups
+        else:
+            current_and_group.append(word)
+    
+    if current_and_group:
+        parsed.append(current_and_group)
+    
+    return parsed
+
+def get_matched_terms(text, parsed_query):
+    matched = []
+    text_lower = text.lower()
+    
+    for item in parsed_query:
+        if isinstance(item, list):  # AND group
+            if all(keyword.lower() in text_lower for keyword in item):
+                matched.extend(item)
+        elif item.lower() != 'or':  # Single keyword
+            if item.lower() in text_lower:
+                matched.append(item)
+    
+    return list(set(matched))  # Remove duplicates
 
 if __name__ == "__main__":
     print("Starting application...")

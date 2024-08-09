@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { OrgChartProvider } from './components/OrgChartContext';
 import OrgChart from './components/OrgChart';
 import LandingPage from './components/LandingPage';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import './styles/fonts.css';
 
@@ -39,6 +41,7 @@ function App() {
           />
         )}
       </OrgChartProvider>
+      <ToastContainer />
     </div>
   );
 }

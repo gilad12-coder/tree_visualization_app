@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef} from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Filter, List, Target, Home, Menu, Upload } from "react-feather";
 import axios from "axios";
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { useOrgChartContext } from "./OrgChartContext";
 import FilterModal from "./FilterModal";
 import TreeNode from "./TreeNode";
 import EnhancedNodeCard from "./EnhancedNodeCard";
@@ -13,7 +16,6 @@ import SettingsModal from "./SettingsModal";
 import HelpModal from "./HelpModal";
 import ToolbarMenu from "./ToolbarMenu";
 import { useKeyboardShortcut } from "../Utilities/KeyboardShortcuts";
-import { useOrgChartContext } from "./OrgChartContext";
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -23,10 +25,11 @@ const OrgChart = ({
   initialFolderId,
   onReturnToLanding,
 }) => {
-  const { activeFilters, setActiveFilters } = useOrgChartContext();
+  const { activeFilters, setActiveFilters, expandAll, setExpandAll } = useOrgChartContext();
 
   const [orgData, setOrgData] = useState(null);
   const [filteredOrgData, setFilteredOrgData] = useState(null);
+  const [searchResults, setSearchResults] = useState(null);
   const [folderStructure, setFolderStructure] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,7 +43,6 @@ const OrgChart = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isToolbarMenuOpen, setIsToolbarMenuOpen] = useState(false);
-  const [expandAll, setExpandAll] = useState(false);
   const [collapseAll, setCollapseAll] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState(initialTableId);
   const [selectedFolderId, setSelectedFolderId] = useState(initialFolderId);
@@ -89,66 +91,159 @@ const OrgChart = ({
 
   const filterOrgData = useCallback((node, filters) => {
     const matchesFilter = (n) => {
-        if (filters.length === 0) return true;
-        return filters.every(filter => {
-            const value = n[filter.type];
-            return value !== null && value.toString().toLowerCase().includes(filter.value.toLowerCase());
-        });
+      if (filters.length === 0) return true;
+      return filters.every(filter => {
+        const value = n[filter.type];
+        return value !== null && value.toString().toLowerCase().includes(filter.value.toLowerCase());
+      });
     };
 
     const filterNode = (n, depth = 0, matchDepth = -1) => {
-        if (!n) return { node: null, matchDepth: -1 };
+      if (!n) return { node: null, matchDepth: -1 };
 
-        const currentNodeMatch = matchesFilter(n);
-        const newNode = { ...n };
+      const currentNodeMatch = matchesFilter(n);
+      const newNode = { ...n };
 
-        if (currentNodeMatch) {
-            // If this node matches, we've found our target depth
-            matchDepth = depth;
-            // Include all children of the matching node
-            if (n.children) {
-                newNode.children = n.children.map(child => ({ ...child, children: child.children }));
-            }
-            return { node: newNode, matchDepth };
-        }
-
+      if (currentNodeMatch) {
+        matchDepth = depth;
         if (n.children) {
-            const childResults = n.children.map(child => filterNode(child, depth + 1, matchDepth));
-            const newMatchDepth = childResults.reduce((max, result) => Math.max(max, result.matchDepth), matchDepth);
-
-            if (newMatchDepth !== -1) {
-                // We found a match in a descendant
-                if (depth === newMatchDepth - 1) {
-                    // This is the parent of the matching node, include all children
-                    newNode.children = n.children.map(child => {
-                        const childResult = childResults.find(result => result.node && result.node.name === child.name);
-                        return childResult ? childResult.node : { ...child, children: null };
-                    });
-                } else {
-                    // This is an ancestor, only include the path to the match
-                    newNode.children = childResults
-                        .filter(result => result.node !== null)
-                        .map(result => result.node);
-                }
-                return { node: newNode, matchDepth: newMatchDepth };
-            }
+          newNode.children = n.children.map(child => ({ ...child, children: child.children }));
         }
+        return { node: newNode, matchDepth };
+      }
 
-        return { node: null, matchDepth: -1 };
+      if (n.children) {
+        const childResults = n.children.map(child => filterNode(child, depth + 1, matchDepth));
+        const newMatchDepth = childResults.reduce((max, result) => Math.max(max, result.matchDepth), matchDepth);
+
+        if (newMatchDepth !== -1) {
+          if (depth === newMatchDepth - 1) {
+            newNode.children = n.children.map(child => {
+              const childResult = childResults.find(result => result.node && result.node.name === child.name);
+              return childResult ? childResult.node : { ...child, children: null };
+            });
+          } else {
+            newNode.children = childResults
+              .filter(result => result.node !== null)
+              .map(result => result.node);
+          }
+          return { node: newNode, matchDepth: newMatchDepth };
+        }
+      }
+
+      return { node: null, matchDepth: -1 };
     };
 
     const result = filterNode(node);
     return result.node;
-}, []);
+  }, []);
 
-useEffect(() => {
-    if (orgData) {
-        const filtered = activeFilters.length > 0 ? filterOrgData(orgData, activeFilters) : orgData;
-        setFilteredOrgData(filtered);
-        setExpandAll(activeFilters.length > 0);
+  const findNodesInTree = useCallback((originalTree, searchResults) => {
+    console.log("Starting findNodesInTree with:", { originalTree, searchResults });
+    if (!originalTree || !searchResults || searchResults.length === 0) {
+      console.log("Returning original tree due to invalid input");
+      return originalTree;
     }
-}, [orgData, activeFilters, filterOrgData]);
 
+    const markNodesInPath = (node, targetId, path = []) => {
+      console.log("Marking nodes in path:", { nodeId: node.person_id, targetId, path });
+      if (!node) return false;
+
+      if (node.person_id.toString() === targetId.toString()) {
+        console.log("Target node found:", node.person_id);
+        node.visible = true;
+        return true;
+      }
+
+      if (node.children) {
+        for (let child of node.children) {
+          if (markNodesInPath(child, targetId, [...path, node.person_id])) {
+            node.visible = true;
+            console.log("Parent node marked visible:", node.person_id);
+            return true;
+          }
+        }
+      }
+
+      return false;
+    };
+
+    const cloneTree = (node) => {
+      if (!node) return null;
+      const newNode = { ...node, visible: false };
+      if (node.children) {
+        newNode.children = node.children.map(child => cloneTree(child));
+      }
+      return newNode;
+    };
+
+    const newTree = cloneTree(originalTree);
+    console.log("Cloned tree:", newTree);
+
+    searchResults.forEach(result => {
+      console.log("Processing search result:", result);
+      markNodesInPath(newTree, result.person_id);
+    });
+
+    const filterVisibleNodes = (node) => {
+      if (!node) return null;
+      if (!node.visible) {
+        console.log("Node filtered out:", node.person_id);
+        return null;
+      }
+      const filteredNode = { ...node };
+      delete filteredNode.visible;
+      if (node.children) {
+        filteredNode.children = node.children
+          .map(filterVisibleNodes)
+          .filter(Boolean);
+      }
+      console.log("Node kept in filtered tree:", filteredNode.person_id);
+      return filteredNode;
+    };
+
+    const filteredTree = filterVisibleNodes(newTree);
+    console.log("Final filtered tree:", filteredTree);
+    return filteredTree;
+  }, []);
+
+  useEffect(() => {
+    if (orgData) {
+      console.log("useEffect triggered with:", { orgData, searchResults, activeFilters });
+      if (searchResults && searchResults.length > 0) {
+        console.log("Applying search results");
+        const searchedData = findNodesInTree(orgData, searchResults);
+        if (searchedData) {
+          console.log("Search results applied successfully");
+          setFilteredOrgData(searchedData);
+          setExpandAll(true);
+        } else {
+          console.log("Failed to apply search results");
+          toast.warning("The search results couldn't be rendered in the tree view. Please try a different search.");
+          setFilteredOrgData(orgData);
+          setExpandAll(false);
+        }
+      } else if (activeFilters.length > 0) {
+        console.log("Applying active filters");
+        const filtered = filterOrgData(orgData, activeFilters);
+        if (filtered === null) {
+          console.log("Failed to apply filters");
+          toast.warning("The current filter couldn't be rendered in the tree view. Please adjust your filter criteria.");
+          setFilteredOrgData(orgData);
+          setExpandAll(false);
+        } else {
+          console.log("Filters applied successfully");
+          setFilteredOrgData(filtered);
+          setExpandAll(true);
+        }
+      } else {
+        console.log("No search or filters active, using original data");
+        setFilteredOrgData(orgData);
+        setExpandAll(false);
+      }
+    }
+  }, [orgData, activeFilters, searchResults, filterOrgData, setExpandAll, findNodesInTree]);
+  
   const handleFileUpload = async (uploadedData) => {
     console.log("File uploaded:", uploadedData);
     setSelectedTableId(uploadedData.table_id);
@@ -217,10 +312,27 @@ useEffect(() => {
     (filters) => {
       console.log("Filters changed:", filters);
       setActiveFilters(filters);
+      setSearchResults(null);
       setIsFilterOpen(false);
     },
     [setActiveFilters]
   );
+
+  const handleSearch = useCallback(
+    (results) => {
+      console.log("Search results received:", results);
+      setSearchResults(results);
+      setActiveFilters([]);
+    },
+    [setActiveFilters]
+  );
+
+  const handleClearSearch = useCallback(() => {
+    console.log("Clearing search");
+    setSearchResults(null);
+    setFilteredOrgData(orgData);
+    setExpandAll(false);
+  }, [orgData, setExpandAll]);
 
   const handleMouseDown = useCallback((e) => {
     if (e.button === 0) {
@@ -275,13 +387,13 @@ useEffect(() => {
   const handleExpandAll = useCallback(() => {
     setExpandAll(true);
     setCollapseAll(false);
-  }, []);
+  }, [setExpandAll]);
 
   const handleCollapseAll = useCallback(() => {
     setExpandAll(false);
     setCollapseAll(true);
     setTimeout(() => setCollapseAll(false), 100);
-  }, []);
+  }, [setExpandAll]);
 
   const handleCenter = useCallback(() => {
     if (initialTransform) {
@@ -352,7 +464,7 @@ useEffect(() => {
         case "ArrowDown":
           setTransform((prev) => ({ ...prev, y: prev.y - moveAmount }));
           break;
-        case "ArrowLeft":
+          case "ArrowLeft":
           setTransform((prev) => ({ ...prev, x: prev.x + moveAmount }));
           break;
         case "ArrowRight":
@@ -593,8 +705,12 @@ useEffect(() => {
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         onApplyFilters={handleFilterChange}
+        onSearch={handleSearch}
+        onClearSearch={handleClearSearch}
         activeFilters={activeFilters}
         orgData={orgData}
+        folderId={selectedFolderId}
+        tableId={selectedTableId}
       />
       <TableSelectionModal
         isOpen={isTableSelectionOpen}
