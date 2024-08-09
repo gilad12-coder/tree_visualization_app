@@ -225,3 +225,27 @@ def get_age_distribution(table_id):
         }
     finally:
         session.close()
+        
+def export_excel_data(session, table_id):
+    data_entries = session.query(DataEntry).filter_by(table_id=table_id).all()
+    
+    df = pd.DataFrame([
+        {
+            "Person ID": entry.person_id,
+            "Name": entry.name,
+            "Role": entry.role,
+            "Department": entry.department,
+            "Birth Date": entry.birth_date,
+            "Rank": entry.rank,
+            "Organization ID": entry.organization_id,
+            "Hierarchical Structure": entry.hierarchical_structure
+        }
+        for entry in data_entries
+    ])
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Org Data', index=False)
+    
+    output.seek(0)
+    return output
