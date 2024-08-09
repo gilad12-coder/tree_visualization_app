@@ -1,11 +1,11 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
-from models import (Folder, Table, DataEntry, get_session, get_db_path, 
+from models import (Folder, Table, DataEntry, get_session, 
                     dispose_db, create_new_db, init_db, set_db_path, 
                     check_db_schema, is_valid_sqlite_db)
 from utils import (check_continuation, process_excel_data, 
                    insert_data_entries, get_org_chart, get_person_history, 
-                   get_department_structure, get_age_distribution)
+                   get_department_structure, get_age_distribution, export_excel_data)
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 import logging
@@ -709,6 +709,27 @@ def get_matched_terms(text, parsed_query):
                 matched.append(item)
     
     return list(set(matched))  # Remove duplicates
+
+@app.route("/export_excel/<int:table_id>", methods=["GET"])
+def export_excel(table_id):
+    try:
+        with session_scope() as session:
+            table = session.query(Table).filter_by(id=table_id).first()
+            if not table:
+                return jsonify({"error": f"Table with id {table_id} not found"}), 404
+            
+            excel_data = export_excel_data(session, table_id)
+            
+            return send_file(
+                excel_data,
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                as_attachment=True,
+                download_name=f"org_data_table_{table_id}.xlsx"
+            )
+    
+    except Exception as e:
+        logger.error(f"Error exporting Excel for table {table_id}: {str(e)}")
+        return jsonify({"error": "An unexpected error occurred while exporting the Excel file"}), 500
 
 if __name__ == "__main__":
     print("Starting application...")

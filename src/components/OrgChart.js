@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Filter, List, Target, Home, Menu, Upload } from "react-feather";
+import { Filter, List, Target, Home, Menu, Upload,Download, Camera, FileText} from "react-feather";
 import axios from "axios";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -16,6 +16,7 @@ import SettingsModal from "./SettingsModal";
 import HelpModal from "./HelpModal";
 import ToolbarMenu from "./ToolbarMenu";
 import { useKeyboardShortcut } from "../Utilities/KeyboardShortcuts";
+import html2canvas from 'html2canvas'; 
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -51,6 +52,7 @@ const OrgChart = ({
   const [isComparisonLoading, setIsComparisonLoading] = useState(false);
   const [comparisonTableSelected, setComparisonTableSelected] = useState(false);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [settings, setSettings] = useState({
     moveAmount: 30,
     zoomAmount: 0.1,
@@ -88,6 +90,81 @@ const OrgChart = ({
       setIsLoading(false);
     }
   }, [dbPath, selectedTableId]);
+
+  const handleExportExcel = useCallback(() => {
+    axios({
+      url: `${API_BASE_URL}/export_excel/${selectedTableId}`,
+      method: 'GET',
+      responseType: 'blob',
+    }).then((response) => {
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `org_data_table_${selectedTableId}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }).catch((error) => {
+      console.error("Error exporting Excel:", error);
+      toast.error("Failed to export as Excel. Please try again.");
+    });
+  }, [selectedTableId]);
+
+  const handleExportImage = useCallback(() => {
+    if (chartRef.current) {
+      const scaleFactor = 3; // Increase this for higher resolution
+      const element = chartRef.current;
+  
+      // Define the desired width and height for the screenshot
+      const desiredWidth = element.scrollWidth * 1.5; // Increase by 50%
+      const desiredHeight = element.scrollHeight; // Keep the original height
+  
+      // Create a canvas with the desired dimensions
+      const canvas = document.createElement('canvas');
+      canvas.width = desiredWidth * scaleFactor;
+      canvas.height = desiredHeight * scaleFactor;
+      const ctx = canvas.getContext('2d');
+  
+      // Scale the context to improve quality
+      ctx.scale(scaleFactor, scaleFactor);
+  
+      // Temporarily modify the element's style to ensure all content is rendered
+      const originalStyle = element.style.cssText;
+      element.style.width = `${desiredWidth}px`;
+      element.style.height = `${desiredHeight}px`;
+      element.style.transform = 'none';
+      element.style.transition = 'none';
+  
+      // Capture the element with html2canvas
+      html2canvas(element, {
+        canvas: canvas,
+        scale: 1, // We're handling scaling manually
+        width: desiredWidth,
+        height: desiredHeight,
+        scrollX: 0,
+        scrollY: 0,
+        useCORS: true, // If you have images that need CORS handling
+      }).then((canvas) => {
+        // Restore the original style
+        element.style.cssText = originalStyle;
+  
+        // Convert canvas to blob
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'org_chart.png';
+          link.click();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      }).catch((error) => {
+        console.error('Error capturing image', error);
+        // Restore the original style even if there's an error
+        element.style.cssText = originalStyle;
+      });
+    }
+  }, []);
+  
 
   const filterOrgData = useCallback((node, filters) => {
     const matchesFilter = (n) => {
@@ -604,53 +681,95 @@ const OrgChart = ({
         className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100"
       >
         {!isComparing && (
-          <div className="absolute top-4 left-4 z-10 flex space-x-2 items-center">
-            <Button onClick={handleHome} icon={Home} tooltip="Home">
-              Home
-            </Button>
-            <Button
-              onClick={handleCenter}
-              icon={Target}
-              tooltip="Center (Ctrl+C)"
-            >
-              Center
-            </Button>
-            <Button
-              onClick={toggleFilterModal}
-              icon={Filter}
-              tooltip="Filter (Ctrl+F)"
-            >
-              Filter
-            </Button>
-            <Button
-              onClick={() => setIsTableSelectionOpen(true)}
-              icon={List}
-              tooltip="Change Table (Ctrl+Q)"
-            >
-              Change Table
-            </Button>
-            <Button
-              onClick={toggleToolbarMenu}
-              icon={Menu}
-              tooltip="More Options"
-            >
-              More
-            </Button>
-            <AnimatePresence>
-              {isToolbarMenuOpen && (
-                <ToolbarMenu
-                  isOpen={isToolbarMenuOpen}
-                  onClose={() => setIsToolbarMenuOpen(false)}
-                  onExpandAll={handleExpandAll}
-                  onCollapseAll={handleCollapseAll}
-                  onUpload={() => setIsUploadOpen(true)}
-                  onCompare={handleCompare}
-                  onOpenSettings={() => setIsSettingsOpen(true)}
-                  onOpenHelp={toggleHelpModal}
-                />
-              )}
-            </AnimatePresence>
-          </div>
+          <>
+            <div className="absolute top-4 left-4 z-10 flex space-x-2 items-center">
+              <Button onClick={handleHome} icon={Home} tooltip="Home">
+                Home
+              </Button>
+              <Button
+                onClick={handleCenter}
+                icon={Target}
+                tooltip="Center (Ctrl+C)"
+              >
+                Center
+              </Button>
+              <Button
+                onClick={toggleFilterModal}
+                icon={Filter}
+                tooltip="Filter (Ctrl+F)"
+              >
+                Filter
+              </Button>
+              <Button
+                onClick={() => setIsTableSelectionOpen(true)}
+                icon={List}
+                tooltip="Change Table (Ctrl+Q)"
+              >
+                Change Table
+              </Button>
+              <Button
+                onClick={toggleToolbarMenu}
+                icon={Menu}
+                tooltip="More Options"
+              >
+                More
+              </Button>
+              <AnimatePresence>
+                {isToolbarMenuOpen && (
+                  <ToolbarMenu
+                    isOpen={isToolbarMenuOpen}
+                    onClose={() => setIsToolbarMenuOpen(false)}
+                    onExpandAll={handleExpandAll}
+                    onCollapseAll={handleCollapseAll}
+                    onUpload={() => setIsUploadOpen(true)}
+                    onCompare={handleCompare}
+                    onOpenSettings={() => setIsSettingsOpen(true)}
+                    onOpenHelp={toggleHelpModal}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+            <div className="absolute top-4 right-4 z-10">
+              <div className="relative">
+                <Button
+                  onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                  icon={Download}
+                  tooltip="Export Options"
+                >
+                  Export
+                </Button>
+                <AnimatePresence>
+                  {isExportMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+                    >
+                      <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                        <button
+                          onClick={handleExportExcel}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left"
+                          role="menuitem"
+                        >
+                          <FileText className="inline-block mr-2" size={16} />
+                          Export as Excel
+                        </button>
+                        <button
+                          onClick={handleExportImage}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left"
+                          role="menuitem"
+                        >
+                          <Camera className="inline-block mr-2" size={16} />
+                          Capture Tree Image
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </>
         )}
         {!isComparing ? (
           <div

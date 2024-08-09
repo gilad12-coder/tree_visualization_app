@@ -14,6 +14,7 @@ import {
   Lock,
   Unlock,
   Search,
+  Eye,
 } from "react-feather";
 import { extractAllData } from "../Utilities/orgChartUtils";
 import Button from "./Button";
@@ -51,7 +52,7 @@ const FilterModal = ({
   const [searchInput, setSearchInput] = useState("");
   const [isLocked, setIsLocked] = useState(false);
   const [activeTab, setActiveTab] = useState("filter");
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState(null);
   const [searchColumn, setSearchColumn] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
@@ -93,7 +94,7 @@ const FilterModal = ({
     setSelectedType(null);
     setSearchInput("");
     setIsLocked(false);
-    setSearchResults([]);
+    setSearchResults(null);
     setSearchColumn("");
     onClearSearch();
   };
@@ -104,28 +105,36 @@ const FilterModal = ({
         .filter(([_, value]) => value.length > 0)
         .map(([type, value]) => ({ type, value: value.join(",") }));
       onApplyFilters(appliedFilters);
+      onClose();
     } else {
-      if (!searchColumn || !searchInput) return;
-      setIsSearching(true);
-      try {
-        const response = await axios.get(
-          `http://localhost:5000/search/${folderId}/${tableId}`,
-          {
-            params: {
-              query: searchInput,
-              column: searchColumn,
-            },
-          }
-        );
-        setSearchResults(response.data.results);
-        onSearch(response.data.results);
-      } catch (error) {
-        console.error("Error performing search:", error);
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
+      await performSearch();
     }
+  };
+
+  const performSearch = async () => {
+    if (!searchColumn || !searchInput) return;
+    setIsSearching(true);
+    try {
+      const response = await axios.get(
+        `http://localhost:5000/search/${folderId}/${tableId}`,
+        {
+          params: {
+            query: searchInput,
+            column: searchColumn,
+          },
+        }
+      );
+      setSearchResults(response.data.results);
+    } catch (error) {
+      console.error("Error performing search:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleViewResults = () => {
+    onSearch(searchResults);
     onClose();
   };
 
@@ -339,28 +348,34 @@ const FilterModal = ({
                   ))}
                 </div>
               )}
-              {activeTab === "search" && searchResults.length > 0 && (
+              {activeTab === "search" && searchResults !== null && (
                 <div className="mt-2 bg-blue-100 bg-opacity-50 rounded-xl p-3 max-h-48 overflow-y-auto">
-                  {searchResults.map((result, index) => (
-                    <div
-                      key={index}
-                      className="mb-2 p-2 bg-white bg-opacity-50 rounded-lg"
-                    >
-                      <p className="font-medium">
-                        <strong>Name:</strong> {result.name}
-                      </p>
-                      <p>
-                        <strong>Role:</strong> {result.role}
-                      </p>
-                      <p>
-                        <strong>Department:</strong> {result.department || "N/A"}
-                      </p>
-                      <p>
-                        <strong>Matched Terms:</strong>{" "}
-                        {result.matched_terms.join(", ")}
-                      </p>
+                  {searchResults.length > 0 ? (
+                    searchResults.map((result, index) => (
+                      <div
+                        key={index}
+                        className="mb-2 p-2 bg-white bg-opacity-50 rounded-lg"
+                      >
+                        <p className="font-medium">
+                          <strong>Name:</strong> {result.name}
+                        </p>
+                        <p>
+                          <strong>Role:</strong> {result.role}
+                        </p>
+                        <p>
+                          <strong>Department:</strong> {result.department || "N/A"}
+                        </p>
+                        <p>
+                          <strong>Matched Terms:</strong>{" "}
+                          {result.matched_terms.join(", ")}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-gray-500">No results found</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
               {activeTab === "filter" && (
@@ -405,19 +420,36 @@ const FilterModal = ({
                 >
                   Clear All
                 </Button>
-                <Button
-                  onClick={handleApply}
-                  icon={activeTab === "filter" ? Filter : Search}
-                  variant="primary"
-                  disabled={
-                    activeTab === "search" &&
-                    (!searchColumn || !searchInput || isSearching)
-                  }
-                >
-                  {isSearching
-                    ? "Searching..."
-                    : `Apply ${activeTab === "filter" ? "Filters" : "Search"}`}
-                </Button>
+                {activeTab === "filter" ? (
+                  <Button
+                    onClick={handleApply}
+                    icon={Filter}
+                    variant="primary"
+                  >
+                    Apply Filters
+                  </Button>
+                ) : (
+                  <>
+                    {searchResults === null ? (
+                      <Button
+                        onClick={performSearch}
+                        icon={Search}
+                        variant="primary"
+                        disabled={!searchColumn || !searchInput || isSearching}
+                      >
+                        {isSearching ? "Searching..." : "Search"}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleViewResults}
+                        icon={Eye}
+                        variant="primary"
+                      >
+                        View Results
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
