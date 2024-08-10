@@ -110,61 +110,122 @@ const OrgChart = ({
     });
   }, [selectedTableId]);
 
+  const handleCenter = useCallback(() => {
+    if (initialTransform) {
+      setTransform(initialTransform);
+    }
+  }, [initialTransform]);
+
+  const handleCollapseAll = useCallback(() => {
+    setExpandAll(false);
+    setCollapseAll(true);
+    setTimeout(() => setCollapseAll(false), 100);
+  }, [setExpandAll]);
+  
   const handleExportImage = useCallback(() => {
     if (chartRef.current) {
-      const scaleFactor = 3; // Increase this for higher resolution
       const element = chartRef.current;
+      const scaleFactor = 2; // Adjust based on desired quality
   
-      // Define the desired width and height for the screenshot
-      const desiredWidth = element.scrollWidth * 1.5; // Increase by 50%
-      const desiredHeight = element.scrollHeight; // Keep the original height
+      console.log("Starting image export process");
   
-      // Create a canvas with the desired dimensions
-      const canvas = document.createElement('canvas');
-      canvas.width = desiredWidth * scaleFactor;
-      canvas.height = desiredHeight * scaleFactor;
-      const ctx = canvas.getContext('2d');
+      // Store the original className
+      const originalClassName = element.className;
   
-      // Scale the context to improve quality
-      ctx.scale(scaleFactor, scaleFactor);
+      // Dynamically add the required classes to the element
+      element.className += ' inline-block min-w-full min-h-full chart-container';
   
-      // Temporarily modify the element's style to ensure all content is rendered
-      const originalStyle = element.style.cssText;
-      element.style.width = `${desiredWidth}px`;
-      element.style.height = `${desiredHeight}px`;
-      element.style.transform = 'none';
-      element.style.transition = 'none';
+      setExpandAll(true);
   
-      // Capture the element with html2canvas
-      html2canvas(element, {
-        canvas: canvas,
-        scale: 1, // We're handling scaling manually
-        width: desiredWidth,
-        height: desiredHeight,
-        scrollX: 0,
-        scrollY: 0,
-        useCORS: true, // If you have images that need CORS handling
-      }).then((canvas) => {
-        // Restore the original style
-        element.style.cssText = originalStyle;
+      // Wait for nodes to expand and re-render
+      setTimeout(() => {
+        // Store original styles
+        const originalTransform = element.style.transform;
+        const originalTransition = element.style.transition;
+        const originalWidth = element.style.width;
+        const originalHeight = element.style.height;
   
-        // Convert canvas to blob
-        canvas.toBlob((blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'org_chart.png';
-          link.click();
-          URL.revokeObjectURL(url);
-        }, 'image/png');
-      }).catch((error) => {
-        console.error('Error capturing image', error);
-        // Restore the original style even if there's an error
-        element.style.cssText = originalStyle;
-      });
+        // Reset positioning and scaling
+        element.style.transform = 'none';
+        element.style.transition = 'none';
+        element.style.width = 'auto';
+        element.style.height = 'auto';
+  
+        // Force layout recalculation without triggering ESLint warning
+        const forceReflow = element.offsetHeight;
+        console.log("Forced reflow, element height:", forceReflow);
+  
+        // Get the actual content size after expansion
+        const rect = element.getBoundingClientRect();
+        const contentSize = {
+          width: rect.width,
+          height: rect.height
+        };
+  
+        console.log("Chart content size:", contentSize);
+  
+        // Create a canvas with the full content size
+        const canvas = document.createElement('canvas');
+        canvas.width = contentSize.width * scaleFactor;
+        canvas.height = contentSize.height * scaleFactor;
+        const ctx = canvas.getContext('2d');
+  
+        // Scale the context
+        ctx.scale(scaleFactor, scaleFactor);
+  
+        console.log("Canvas created and context scaled");
+  
+        // Capture the element with html2canvas
+        html2canvas(element, {
+          canvas: canvas,
+          scale: 1, // We're handling scaling manually
+          width: contentSize.width,
+          height: contentSize.height,
+          scrollX: 0,
+          scrollY: 0,
+          useCORS: true,
+          logging: true, // Enable logging for debugging
+        }).then((canvas) => {
+          console.log("html2canvas capture completed");
+  
+          // Restore original styles
+          element.style.transform = originalTransform;
+          element.style.transition = originalTransition;
+          element.style.width = originalWidth;
+          element.style.height = originalHeight;
+  
+          // Restore original className after capture
+          element.className = originalClassName;
+  
+          // Convert canvas to blob
+          canvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'org_chart.png';
+            link.click();
+            URL.revokeObjectURL(url);
+  
+            console.log("Image download initiated");
+  
+          }, 'image/png');
+        }).catch((error) => {
+          console.error('Error capturing image', error);
+  
+          // Restore original className even if there's an error
+          element.className = originalClassName;
+  
+          // Restore original styles even if there's an error
+          element.style.transform = originalTransform;
+          element.style.transition = originalTransition;
+          element.style.width = originalWidth;
+          element.style.height = originalHeight;
+  
+        });
+      }, 1000); // Adjust timeout as needed to ensure DOM updates are complete
     }
-  }, []);
-  
+    handleCenter();
+  }, [setExpandAll, handleCenter]);  
 
   const filterOrgData = useCallback((node, filters) => {
     const matchesFilter = (n) => {
@@ -465,18 +526,6 @@ const OrgChart = ({
     setExpandAll(true);
     setCollapseAll(false);
   }, [setExpandAll]);
-
-  const handleCollapseAll = useCallback(() => {
-    setExpandAll(false);
-    setCollapseAll(true);
-    setTimeout(() => setCollapseAll(false), 100);
-  }, [setExpandAll]);
-
-  const handleCenter = useCallback(() => {
-    if (initialTransform) {
-      setTransform(initialTransform);
-    }
-  }, [initialTransform]);
 
   const handleHome = useCallback(() => {
     setSelectedNode(null);
