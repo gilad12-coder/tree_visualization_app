@@ -19,7 +19,7 @@ import threading
 import sys
 import re
 from sqlalchemy import and_, or_
-from datetime import datetime
+from datetime import datetime, date
 
 def resource_path(relative_path):
     try:
@@ -406,7 +406,7 @@ def get_folders_list():
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
     finally:
         session.close()
-        
+
 @app.route("/compare_tables/<int:folder_id>", methods=["GET"], endpoint='compare_tables')
 @validate_input(table1_id=int, table2_id=int)
 def compare_tables(folder_id, table1_id, table2_id):
@@ -539,12 +539,27 @@ def summarize_changes(changes):
 def compare_age_distributions(data1, data2):
     def get_age_distribution(data):
         current_year = datetime.now().year
-        ages = [current_year - datetime.strptime(entry.birth_date, "%Y-%m-%d").year for entry in data]
+        ages = []
+        for entry in data:
+            if isinstance(entry.birth_date, str):
+                try:
+                    birth_year = datetime.strptime(entry.birth_date, "%Y-%m-%d").year
+                except ValueError:
+                    continue  # Skip if the string is not in the correct format
+            elif isinstance(entry.birth_date, date):
+                birth_year = entry.birth_date.year
+            else:
+                continue  # Skip if birth_date is neither string nor date
+            ages.append(current_year - birth_year)
+        
+        if not ages:
+            return {"average": 0, "min": 0, "max": 0, "median": 0}
+        
         return {
-            "average": sum(ages) / len(ages) if ages else 0,
-            "min": min(ages) if ages else 0,
-            "max": max(ages) if ages else 0,
-            "median": sorted(ages)[len(ages) // 2] if ages else 0
+            "average": sum(ages) / len(ages),
+            "min": min(ages),
+            "max": max(ages),
+            "median": sorted(ages)[len(ages) // 2]
         }
     
     dist1 = get_age_distribution(data1)
@@ -591,11 +606,12 @@ def compare_department_sizes(data1, data2):
         before = sizes1.get(dept, 0)
         after = sizes2.get(dept, 0)
         if before != after:
+            percent_change = ((after - before) / before * 100) if before > 0 else None
             changes[dept] = {
                 "before": before,
                 "after": after,
                 "change": after - before,
-                "percent_change": ((after - before) / before * 100) if before > 0 else float('inf')
+                "percent_change": percent_change
             }
     
     return changes
@@ -669,6 +685,7 @@ def entry_to_dict(entry):
         "rank": entry.rank,
         "hierarchical_structure": entry.hierarchical_structure
     }
+
     
 @app.route("/highlight_nodes", methods=["GET"], endpoint='highlight_nodes')
 @validate_input(node_name=str, table_id=int)
