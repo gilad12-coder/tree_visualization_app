@@ -405,7 +405,20 @@ const OrgChart = ({
             },
           }
         );
-        setComparisonData(response.data);
+        // Ensure the response data has the expected structure
+        const processedData = {
+          ...response.data,
+          aggregated_report: {
+            ...response.data.aggregated_report,
+            department_changes: response.data.aggregated_report.department_changes || { total: 0, details: {} },
+            role_changes: response.data.aggregated_report.role_changes || { total: 0, details: {} },
+            rank_changes: response.data.aggregated_report.rank_changes || { total: 0, details: {} },
+            reporting_line_changes: response.data.aggregated_report.reporting_line_changes || { total: 0, details: {} },
+            total_employees: response.data.aggregated_report.total_employees || { before: 0, after: 0 },
+            department_size_changes: response.data.aggregated_report.department_size_changes || {},
+          },
+        };
+        setComparisonData(processedData);
         setIsComparing(true);
       } catch (error) {
         console.error("Error fetching comparison data:", error);
@@ -856,6 +869,8 @@ const OrgChart = ({
             onClose={handleCloseComparison}
             isLoading={isComparisonLoading}
             error={error}
+            onExportExcel={handleExportExcel}
+            onExportImage={handleExportImage}
           />
         )}
       </motion.div>
