@@ -45,20 +45,6 @@ const DetailedChartInfo = ({ data, onClose }) => {
           </div>
         )}
 
-        {data.details && (
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-700 mb-3">Additional Details</h4>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.entries(data.details).map(([key, value]) => (
-                <div key={key} className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm text-gray-600 font-medium">{key}</p>
-                  <p className="text-lg font-semibold text-gray-800">{value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {data.trends && (
           <div>
             <h4 className="text-lg font-semibold text-gray-700 mb-3">Trends</h4>

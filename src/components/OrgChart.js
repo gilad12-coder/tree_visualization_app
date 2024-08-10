@@ -406,6 +406,7 @@ const OrgChart = ({
           }
         );
         // Ensure the response data has the expected structure
+        console.log(response.data.aggregated_report)
         const processedData = {
           ...response.data,
           aggregated_report: {
