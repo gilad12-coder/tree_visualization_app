@@ -5,11 +5,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart as RePieChart, Pie, Cell, Legend
 } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import Button from './Button';
 import DetailedChartInfo from './DetailedChartInfo';
 
-const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
+const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExportExcel, onExportImage }) => {
   const [view, setView] = useState('macro');
   const [expandedSection, setExpandedSection] = useState(null);
   const [selectedChartItem, setSelectedChartItem] = useState(null);
@@ -18,6 +18,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
     if (!comparisonData) return 0;
     const date1 = parseISO(comparisonData.table1.upload_date);
     const date2 = parseISO(comparisonData.table2.upload_date);
+    if (!isValid(date1) || !isValid(date2)) return 0;
     const diffTime = Math.abs(date2 - date1);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
@@ -25,20 +26,28 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
 
   const structureChangeData = useMemo(() => {
     if (!comparisonData || !comparisonData.aggregated_report) return [];
-    const { aggregated_report } = comparisonData;
-    const totalChanges = Object.values(aggregated_report.structure_changes || {}).reduce((a, b) => a + b, 0);
-    return Object.entries(aggregated_report.structure_changes || {}).map(([name, value]) => ({
-      name,
-      value,
-      percent: Number((value / totalChanges * 100).toFixed(1))
-    }));
+    const { department_changes, role_changes, rank_changes, reporting_line_changes } = comparisonData.aggregated_report;
+    const totalChanges = 
+      (department_changes?.total || 0) + 
+      (role_changes?.total || 0) + 
+      (rank_changes?.total || 0) + 
+      (reporting_line_changes?.total || 0);
+    return [
+      { name: 'Department', value: department_changes?.total || 0, percent: totalChanges ? ((department_changes?.total || 0) / totalChanges * 100).toFixed(1) : '0.0' },
+      { name: 'Role', value: role_changes?.total || 0, percent: totalChanges ? ((role_changes?.total || 0) / totalChanges * 100).toFixed(1) : '0.0' },
+      { name: 'Rank', value: rank_changes?.total || 0, percent: totalChanges ? ((rank_changes?.total || 0) / totalChanges * 100).toFixed(1) : '0.0' },
+      { name: 'Reporting Line', value: reporting_line_changes?.total || 0, percent: totalChanges ? ((reporting_line_changes?.total || 0) / totalChanges * 100).toFixed(1) : '0.0' }
+    ];
   }, [comparisonData]);
 
-  const areaChangeData = useMemo(() => {
+  const departmentSizeData = useMemo(() => {
     if (!comparisonData || !comparisonData.aggregated_report) return [];
-    return (comparisonData.aggregated_report.most_affected_areas || []).map(([area, count]) => ({
-      name: area,
-      value: count
+    const { department_size_changes } = comparisonData.aggregated_report;
+    return Object.entries(department_size_changes || {}).map(([dept, data]) => ({
+      name: dept || 'Unknown',
+      before: data.before || 0,
+      after: data.after || 0,
+      change: data.change || 0
     }));
   }, [comparisonData]);
 
@@ -80,8 +89,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
     table1,
     table2,
     aggregated_report,
-    structure_changes,
-    role_changes
+    changes
   } = comparisonData;
 
   const handlePieClick = (entry) => {
@@ -91,8 +99,8 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
       percent: entry.percent,
       description: `This represents the ${entry.name.toLowerCase()} changes in the organizational structure.`,
       details: {
-        'Total Changes': aggregated_report.total_changes,
-        'Percentage of Total': `${entry.percent.toFixed(1)}%`
+        'Total Changes': entry.value,
+        'Percentage of Total': `${entry.percent}%`
       }
     });
   };
@@ -104,7 +112,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
         <div className="bg-white p-2 text-xs rounded shadow-md border border-gray-200">
           <p className="font-semibold">{data.name}</p>
           <p className="text-blue-600">{`Value: ${data.value}`}</p>
-          <p className="text-gray-600">{`Percentage: ${data.percent.toFixed(1)}%`}</p>
+          <p className="text-gray-600">{`Percentage: ${data.percent}%`}</p>
         </div>
       );
     }
@@ -113,11 +121,12 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
 
   const CustomBarTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
       return (
         <div className="bg-white p-3 rounded shadow-md border border-gray-200">
           <p className="font-semibold text-sm">{label}</p>
-          <p className="text-sm text-blue-600">{`Value: ${data.value}`}</p>
+          <p className="text-sm text-blue-600">{`Before: ${payload[0].value}`}</p>
+          <p className="text-sm text-green-600">{`After: ${payload[1].value}`}</p>
+          <p className="text-sm text-purple-600">{`Change: ${payload[2].value}`}</p>
           <p className="text-xs text-gray-500 mt-1">Click for more details</p>
         </div>
       );
@@ -126,13 +135,17 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
   };
 
   const handleBarClick = (entry) => {
+    const departmentData = aggregated_report.department_size_changes[entry.name] || {};
     setSelectedChartItem({
-      ...entry,
-      percent: (entry.value / areaChangeData.reduce((sum, item) => sum + item.value, 0)) * 100,
-      description: `This area has experienced significant changes, potentially indicating a focus of organizational transformation.`,
+      name: entry.name,
+      value: entry.after,
+      percent: entry.before ? ((entry.after - entry.before) / entry.before * 100).toFixed(1) : 'N/A',
+      description: `This shows the change in size for the ${entry.name} department.`,
       details: {
-        'Total Affected Areas': areaChangeData.length,
-        'Average Changes per Area': (areaChangeData.reduce((sum, item) => sum + item.value, 0) / areaChangeData.length).toFixed(2)
+        'Before': departmentData.before || 0,
+        'After': departmentData.after || 0,
+        'Change': departmentData.change || 0,
+        'Percent Change': departmentData.percent_change ? `${departmentData.percent_change.toFixed(1)}%` : 'N/A'
       }
     });
   };
@@ -194,10 +207,11 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           {[
             { key: 'timeDifference', title: 'Time Difference', value: `${timeDifference} days`, color: 'blue', description: "The number of days between the two compared organizational snapshots." },
-            { key: 'totalChanges', title: 'Total Changes', value: aggregated_report.total_changes, color: 'green', description: "The total number of changes observed across all categories." },
-            { key: 'growthRate', title: 'Growth Rate', value: `${aggregated_report.growth_rate.toFixed(2)}%`, color: 'purple', description: "The overall growth rate of the organization between the two snapshots." },
-            { key: 'roleChanges', title: 'Role Changes', value: aggregated_report.role_changes, color: 'red', description: "The total number of role changes, including promotions, transfers, and new hires." },
-            { key: 'structureChanges', title: 'Structure Changes', value: Object.values(aggregated_report.structure_changes || {}).reduce((a, b) => a + b, 0), color: 'indigo', description: "The total number of changes to the organizational structure, including new positions and department restructures." }
+            { key: 'totalEmployees', title: 'Total Employees', value: `${aggregated_report.total_employees?.before || 0} → ${aggregated_report.total_employees?.after || 0}`, color: 'green', description: "The change in total number of employees." },
+            { key: 'newEmployees', title: 'New Employees', value: aggregated_report.new_employees || 0, color: 'purple', description: "The number of new employees added." },
+            { key: 'departedEmployees', title: 'Departed Employees', value: aggregated_report.departed_employees || 0, color: 'red', description: "The number of employees who have left." },
+            { key: 'promotionRate', title: 'Promotion Rate', value: `${(aggregated_report.promotion_rate || 0).toFixed(2)}%`, color: 'indigo', description: "The percentage of employees who received a promotion." },
+            { key: 'turnoverRate', title: 'Turnover Rate', value: `${(aggregated_report.turnover_rate || 0).toFixed(2)}%`, color: 'yellow', description: "The employee turnover rate between the two snapshots." }
           ].map((stat) => (
             <StatBox key={stat.key} stat={stat} />
           ))}
@@ -220,7 +234,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${percent.toFixed(1)}%`}
+                label={({ name, percent }) => `${name} ${percent}%`}
                 onClick={handlePieClick}
               >
                 {structureChangeData.map((entry, index) => (
@@ -239,30 +253,20 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
       </ExpandableSection>
 
       <ExpandableSection 
-        title="Most Affected Areas"
-        isExpanded={expandedSection === 'areas'}
-        onToggle={() => setExpandedSection(expandedSection === 'areas' ? null : 'areas')}
+        title="Department Size Changes"
+        isExpanded={expandedSection === 'departmentSizes'}
+        onToggle={() => setExpandedSection(expandedSection === 'departmentSizes' ? null : 'departmentSizes')}
       >
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={areaChangeData}>
+            <BarChart data={departmentSizeData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip content={<CustomBarTooltip />} />
-              <Bar 
-                dataKey="value" 
-                fill="#8884d8"
-                onClick={handleBarClick}
-              >
-                {areaChangeData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={COLORS[index % COLORS.length]}
-                    style={{ cursor: 'pointer' }}
-                  />
-                ))}
-              </Bar>
+              <Bar dataKey="before" fill="#8884d8" />
+              <Bar dataKey="after" fill="#82ca9d" />
+              <Bar dataKey="change" fill="#ffc658" onClick={handleBarClick} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -273,33 +277,50 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
   const MicroView = () => (
     <div className="space-y-4">
       <ExpandableSection 
-        title="Structure Changes"
-        isExpanded={expandedSection === 'detailedStructure'}
-        onToggle={() => setExpandedSection(expandedSection === 'detailedStructure' ? null : 'detailedStructure')}
+        title="Detailed Changes"
+        isExpanded={expandedSection === 'detailedChanges'}
+        onToggle={() => setExpandedSection(expandedSection === 'detailedChanges' ? null : 'detailedChanges')}
       >
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Path</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Details</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {(structure_changes || []).map((change, index) => (
+              {(changes?.changed || []).map((change, index) => (
                 <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                  <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">{change.type}</td>
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.path}</td>
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-500">
-                    {change.type === 'changed' ? (
-                      <>
-                        <p>Old: {change.old.name} ({change.old.role})</p>
-                        <p>New: {change.new.name} ({change.new.role})</p>
-                      </>
-                    ) : (
-                      <p>{change.name} ({change.role})</p>
-                    )}
+                  <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">Changed</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.name}</td>
+                  <td className="px-3 py-2 text-gray-500">
+                    {Object.entries(change.changes || {}).map(([field, [oldValue, newValue]]) => (
+                      <p key={field}>{`${field}: ${oldValue || 'N/A'} → ${newValue || 'N/A'}`}</p>
+                    ))}
+                  </td>
+                </tr>
+              ))}
+              {(changes?.added || []).map((change, index) => (
+                <tr key={`added-${index}`} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                  <td className="px-3 py-2 whitespace-nowrap font-medium text-green-600">Added</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.name}</td>
+                  <td className="px-3 py-2 text-gray-500">
+                    <p>{`Role: ${change.role || 'N/A'}`}</p>
+                    <p>{`Department: ${change.department || 'N/A'}`}</p>
+                    <p>{`Rank: ${change.rank || 'N/A'}`}</p>
+                  </td>
+                </tr>
+              ))}
+              {(changes?.removed || []).map((change, index) => (
+                <tr key={`removed-${index}`} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                  <td className="px-3 py-2 whitespace-nowrap font-medium text-red-600">Removed</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.name}</td>
+                  <td className="px-3 py-2 text-gray-500">
+                    <p>{`Role: ${change.role || 'N/A'}`}</p>
+                    <p>{`Department: ${change.department || 'N/A'}`}</p>
+                    <p>{`Rank: ${change.rank || 'N/A'}`}</p>
                   </td>
                 </tr>
               ))}
@@ -310,8 +331,8 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
 
       <ExpandableSection 
         title="Role Changes"
-        isExpanded={expandedSection === 'detailedRoles'}
-        onToggle={() => setExpandedSection(expandedSection === 'detailedRoles' ? null : 'detailedRoles')}
+        isExpanded={expandedSection === 'roleChanges'}
+        onToggle={() => setExpandedSection(expandedSection === 'roleChanges' ? null : 'roleChanges')}
       >
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -323,11 +344,11 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {(role_changes || []).map((change, index) => (
-                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                  <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">{change.name}</td>
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.old_role || 'N/A'}</td>
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.new_role || 'N/A'}</td>
+              {Object.entries(aggregated_report.role_changes?.details || {}).map(([personId, change], index) => (
+                <tr key={personId} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                  <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">{change.name || 'N/A'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.old || 'N/A'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-gray-500">{change.new || 'N/A'}</td>
                 </tr>
               ))}
             </tbody>

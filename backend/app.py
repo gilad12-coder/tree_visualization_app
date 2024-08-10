@@ -79,6 +79,13 @@ def session_scope():
         raise
     finally:
         session.close()
+        
+def check_if_db_has_data():
+    with session_scope() as session:
+        for table in [Folder, Table, DataEntry]:
+            if session.query(table).first():
+                return True
+    return False
 
 @app.route("/check_existing_db", methods=["POST"])
 def check_existing_db():
@@ -399,6 +406,7 @@ def get_folders_list():
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
     finally:
         session.close()
+        
 @app.route("/compare_tables/<int:folder_id>", methods=["GET"], endpoint='compare_tables')
 @validate_input(table1_id=int, table2_id=int)
 def compare_tables(folder_id, table1_id, table2_id):
@@ -409,11 +417,11 @@ def compare_tables(folder_id, table1_id, table2_id):
         if not table1 or not table2:
             return jsonify({"error": "One or both tables not found in the specified folder"}), 404
         
-        tree1 = get_org_chart(table1.id)
-        tree2 = get_org_chart(table2.id)
+        data1 = session.query(DataEntry).filter_by(table_id=table1.id).all()
+        data2 = session.query(DataEntry).filter_by(table_id=table2.id).all()
         
-        changes = compare_org_structures(tree1, tree2)
-        aggregated_report = generate_aggregated_report(changes, tree1, tree2)
+        changes = compare_org_data(data1, data2)
+        aggregated_report = generate_aggregated_report(changes, data1, data2)
         
         report = {
             "table1": {
@@ -426,11 +434,241 @@ def compare_tables(folder_id, table1_id, table2_id):
                 "name": table2.name,
                 "upload_date": table2.upload_date.isoformat()
             },
-            "structure_changes": changes,
+            "changes": changes,
             "aggregated_report": aggregated_report
         }
         
         return jsonify(report), 200
+
+def compare_org_data(data1, data2):
+    changes = {
+        "added": [],
+        "removed": [],
+        "changed": [],
+        "department_changes": {},
+        "role_changes": {},
+        "rank_changes": {},
+        "reporting_line_changes": {}
+    }
+    
+    data1_dict = {entry.person_id: entry for entry in data1}
+    data2_dict = {entry.person_id: entry for entry in data2}
+    
+    for person_id, entry2 in data2_dict.items():
+        if person_id not in data1_dict:
+            changes["added"].append(entry_to_dict(entry2))
+        else:
+            entry1 = data1_dict[person_id]
+            if entry1.department != entry2.department:
+                changes["department_changes"][person_id] = {
+                    "name": entry2.name,
+                    "old": entry1.department,
+                    "new": entry2.department
+                }
+            if entry1.role != entry2.role:
+                changes["role_changes"][person_id] = {
+                    "name": entry2.name,
+                    "old": entry1.role,
+                    "new": entry2.role
+                }
+            if entry1.rank != entry2.rank:
+                changes["rank_changes"][person_id] = {
+                    "name": entry2.name,
+                    "old": entry1.rank,
+                    "new": entry2.rank
+                }
+            if entry1.hierarchical_structure != entry2.hierarchical_structure:
+                changes["reporting_line_changes"][person_id] = {
+                    "name": entry2.name,
+                    "old": entry1.hierarchical_structure,
+                    "new": entry2.hierarchical_structure
+                }
+            if any([
+                entry1.department != entry2.department,
+                entry1.role != entry2.role,
+                entry1.rank != entry2.rank,
+                entry1.hierarchical_structure != entry2.hierarchical_structure
+            ]):
+                changes["changed"].append({
+                    "person_id": person_id,
+                    "name": entry2.name,
+                    "changes": {
+                        "department": (entry1.department, entry2.department),
+                        "role": (entry1.role, entry2.role),
+                        "rank": (entry1.rank, entry2.rank),
+                        "hierarchical_structure": (entry1.hierarchical_structure, entry2.hierarchical_structure)
+                    }
+                })
+    
+    for person_id, entry1 in data1_dict.items():
+        if person_id not in data2_dict:
+            changes["removed"].append(entry_to_dict(entry1))
+    
+    return changes
+
+def generate_aggregated_report(changes, data1, data2):
+    return {
+        "total_employees": {
+            "before": len(data1),
+            "after": len(data2),
+            "difference": len(data2) - len(data1)
+        },
+        "department_changes": summarize_changes(changes["department_changes"]),
+        "role_changes": summarize_changes(changes["role_changes"]),
+        "rank_changes": summarize_changes(changes["rank_changes"]),
+        "reporting_line_changes": summarize_changes(changes["reporting_line_changes"]),
+        "structural_changes": len(changes["changed"]),
+        "new_employees": len(changes["added"]),
+        "departed_employees": len(changes["removed"]),
+        "age_distribution_change": compare_age_distributions(data1, data2),
+        "rank_distribution_change": compare_rank_distributions(data1, data2),
+        "department_size_changes": compare_department_sizes(data1, data2),
+        "role_diversity": compare_role_diversity(data1, data2),
+        "org_depth_analysis": compare_org_depths(data1, data2),
+        "span_of_control_changes": compare_span_of_control(data1, data2),
+        "turnover_rate": calculate_turnover_rate(changes, data1),
+        "promotion_rate": calculate_promotion_rate(changes, data1)
+    }
+
+def summarize_changes(changes):
+    return {
+        "total": len(changes),
+        "details": changes
+    }
+
+def compare_age_distributions(data1, data2):
+    def get_age_distribution(data):
+        current_year = datetime.now().year
+        ages = [current_year - datetime.strptime(entry.birth_date, "%Y-%m-%d").year for entry in data]
+        return {
+            "average": sum(ages) / len(ages) if ages else 0,
+            "min": min(ages) if ages else 0,
+            "max": max(ages) if ages else 0,
+            "median": sorted(ages)[len(ages) // 2] if ages else 0
+        }
+    
+    dist1 = get_age_distribution(data1)
+    dist2 = get_age_distribution(data2)
+    
+    return {
+        "before": dist1,
+        "after": dist2,
+        "average_change": dist2["average"] - dist1["average"],
+        "median_change": dist2["median"] - dist1["median"]
+    }
+
+def compare_rank_distributions(data1, data2):
+    def get_rank_distribution(data):
+        ranks = [entry.rank for entry in data]
+        return {rank: ranks.count(rank) for rank in set(ranks)}
+    
+    dist1 = get_rank_distribution(data1)
+    dist2 = get_rank_distribution(data2)
+    
+    all_ranks = set(list(dist1.keys()) + list(dist2.keys()))
+    
+    changes = {}
+    for rank in all_ranks:
+        before = dist1.get(rank, 0)
+        after = dist2.get(rank, 0)
+        if before != after:
+            changes[rank] = after - before
+    
+    return changes
+
+def compare_department_sizes(data1, data2):
+    def get_department_sizes(data):
+        departments = [entry.department for entry in data]
+        return {dept: departments.count(dept) for dept in set(departments)}
+    
+    sizes1 = get_department_sizes(data1)
+    sizes2 = get_department_sizes(data2)
+    
+    all_departments = set(list(sizes1.keys()) + list(sizes2.keys()))
+    
+    changes = {}
+    for dept in all_departments:
+        before = sizes1.get(dept, 0)
+        after = sizes2.get(dept, 0)
+        if before != after:
+            changes[dept] = {
+                "before": before,
+                "after": after,
+                "change": after - before,
+                "percent_change": ((after - before) / before * 100) if before > 0 else float('inf')
+            }
+    
+    return changes
+
+def compare_role_diversity(data1, data2):
+    def get_role_diversity(data):
+        roles = [entry.role for entry in data]
+        unique_roles = len(set(roles))
+        return {
+            "unique_roles": unique_roles,
+            "role_to_employee_ratio": unique_roles / len(data) if data else 0
+        }
+    
+    div1 = get_role_diversity(data1)
+    div2 = get_role_diversity(data2)
+    
+    return {
+        "before": div1,
+        "after": div2,
+        "unique_roles_change": div2["unique_roles"] - div1["unique_roles"],
+        "ratio_change": div2["role_to_employee_ratio"] - div1["role_to_employee_ratio"]
+    }
+
+def compare_org_depths(data1, data2):
+    def get_max_depth(data):
+        return max(len(entry.hierarchical_structure.split('/')) for entry in data)
+    
+    depth1 = get_max_depth(data1)
+    depth2 = get_max_depth(data2)
+    
+    return {
+        "before": depth1,
+        "after": depth2,
+        "change": depth2 - depth1
+    }
+
+def compare_span_of_control(data1, data2):
+    def get_avg_span(data):
+        manager_counts = {}
+        for entry in data:
+            manager = '/'.join(entry.hierarchical_structure.split('/')[:-1])
+            if manager:
+                manager_counts[manager] = manager_counts.get(manager, 0) + 1
+        return sum(manager_counts.values()) / len(manager_counts) if manager_counts else 0
+    
+    span1 = get_avg_span(data1)
+    span2 = get_avg_span(data2)
+    
+    return {
+        "before": span1,
+        "after": span2,
+        "change": span2 - span1
+    }
+
+def calculate_turnover_rate(changes, data1):
+    departed = len(changes["removed"])
+    total_before = len(data1)
+    return (departed / total_before) * 100 if total_before > 0 else 0
+
+def calculate_promotion_rate(changes, data1):
+    promotions = sum(1 for change in changes["rank_changes"].values() if change["old"] < change["new"])
+    total_before = len(data1)
+    return (promotions / total_before) * 100 if total_before > 0 else 0
+
+def entry_to_dict(entry):
+    return {
+        "person_id": entry.person_id,
+        "name": entry.name,
+        "role": entry.role,
+        "department": entry.department,
+        "rank": entry.rank,
+        "hierarchical_structure": entry.hierarchical_structure
+    }
     
 @app.route("/highlight_nodes", methods=["GET"], endpoint='highlight_nodes')
 @validate_input(node_name=str, table_id=int)
@@ -486,102 +724,6 @@ def find_node_path(node, target_name):
         return None
 
     return dfs(node, [])
-
-def compare_org_structures(tree1, tree2):
-    changes = []
-    
-    def traverse_and_compare(node1, node2, path=""):
-        if node1 is None and node2 is None:
-            return
-
-        if node1 is None:
-            changes.append({
-                "type": "added",
-                "path": path,
-                "name": node2.get("name", "Unknown"),
-                "roles": node2.get("roles", [])
-            })
-            return
-
-        if node2 is None:
-            changes.append({
-                "type": "removed",
-                "path": path,
-                "name": node1.get("name", "Unknown"),
-                "roles": node1.get("roles", [])
-            })
-            return
-
-        if node1.get("name") != node2.get("name") or node1.get("roles") != node2.get("roles"):
-            changes.append({
-                "type": "changed",
-                "path": path,
-                "old": {"name": node1.get("name", "Unknown"), "roles": node1.get("roles", [])},
-                "new": {"name": node2.get("name", "Unknown"), "roles": node2.get("roles", [])}
-            })
-
-        children1 = node1.get("children", []) or []
-        children2 = node2.get("children", []) or []
-
-        child_names1 = {child.get("name", f"Unknown{i}") for i, child in enumerate(children1)}
-        child_names2 = {child.get("name", f"Unknown{i}") for i, child in enumerate(children2)}
-
-        all_child_names = child_names1 | child_names2
-
-        for child_name in all_child_names:
-            child1 = next((child for child in children1 if child.get("name") == child_name), None)
-            child2 = next((child for child in children2 if child.get("name") == child_name), None)
-            new_path = f"{path}/{child_name}" if path else child_name
-            traverse_and_compare(child1, child2, new_path)
-
-    traverse_and_compare(tree1, tree2)
-    return changes
-
-def generate_aggregated_report(changes, tree1, tree2):
-    def count_nodes(tree):
-        count = 1  # Count the root
-        for child in tree.get("children", []):
-            count += count_nodes(child)
-        return count
-
-    total_nodes_before = count_nodes(tree1)
-    total_nodes_after = count_nodes(tree2)
-
-    structure_change_count = {
-        "added": sum(1 for change in changes if change["type"] == "added"),
-        "removed": sum(1 for change in changes if change["type"] == "removed"),
-        "changed": sum(1 for change in changes if change["type"] == "changed")
-    }
-
-    total_changes = sum(structure_change_count.values())
-    change_percentage = (total_changes / total_nodes_before) * 100 if total_nodes_before > 0 else 0
-
-    area_changes = {}
-    for change in changes:
-        area = change["path"].split("/")[0] if "/" in change["path"] else "Root"
-        area_changes[area] = area_changes.get(area, 0) + 1
-
-    most_affected_areas = sorted(area_changes.items(), key=lambda x: x[1], reverse=True)[:5]
-
-    return {
-        "total_nodes": {
-            "before": total_nodes_before,
-            "after": total_nodes_after,
-            "difference": total_nodes_after - total_nodes_before
-        },
-        "structure_changes": structure_change_count,
-        "total_changes": total_changes,
-        "change_percentage": change_percentage,
-        "most_affected_areas": most_affected_areas,
-        "growth_rate": ((total_nodes_after - total_nodes_before) / total_nodes_before) * 100 if total_nodes_before > 0 else 0
-    }
-
-def check_if_db_has_data():
-    with session_scope() as session:
-        for table in [Folder, Table, DataEntry]:
-            if session.query(table).first():
-                return True
-    return False
 
 @app.route("/search/<int:folder_id>/<int:table_id>", methods=["GET"])
 def search_nodes(folder_id, table_id):

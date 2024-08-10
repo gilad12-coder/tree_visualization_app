@@ -15,6 +15,7 @@ import {
   Unlock,
   Search,
   Eye,
+  FileText,
 } from "react-feather";
 import { extractAllData } from "../Utilities/orgChartUtils";
 import Button from "./Button";
@@ -55,6 +56,7 @@ const FilterModal = ({
   const [searchResults, setSearchResults] = useState(null);
   const [searchColumn, setSearchColumn] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [totalResults, setTotalResults] = useState(0);
 
   const allData = useMemo(() => extractAllData(orgData), [orgData]);
 
@@ -96,6 +98,7 @@ const FilterModal = ({
     setIsLocked(false);
     setSearchResults(null);
     setSearchColumn("");
+    setTotalResults(0);
     onClearSearch();
   };
 
@@ -125,9 +128,11 @@ const FilterModal = ({
         }
       );
       setSearchResults(response.data.results);
+      setTotalResults(response.data.results.length);
     } catch (error) {
       console.error("Error performing search:", error);
       setSearchResults([]);
+      setTotalResults(0);
     } finally {
       setIsSearching(false);
     }
@@ -351,26 +356,47 @@ const FilterModal = ({
               {activeTab === "search" && searchResults !== null && (
                 <div className="mt-2 bg-blue-100 bg-opacity-50 rounded-xl p-3 max-h-48 overflow-y-auto">
                   {searchResults.length > 0 ? (
-                    searchResults.map((result, index) => (
-                      <div
-                        key={index}
-                        className="mb-2 p-2 bg-white bg-opacity-50 rounded-lg"
+                    <>
+                      <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                        className="mb-3 p-2 bg-blue-500 bg-opacity-20 rounded-lg flex items-center justify-between"
                       >
-                        <p className="font-medium">
-                          <strong>Name:</strong> {result.name}
-                        </p>
-                        <p>
-                          <strong>Role:</strong> {result.role}
-                        </p>
-                        <p>
-                          <strong>Department:</strong> {result.department || "N/A"}
-                        </p>
-                        <p>
-                          <strong>Matched Terms:</strong>{" "}
-                          {result.matched_terms.join(", ")}
-                        </p>
-                      </div>
-                    ))
+                        <div className="flex items-center">
+                          <FileText size={18} className="text-blue-600 mr-2" />
+                          <span className="font-semibold text-blue-800">
+                            Total Results:
+                          </span>
+                        </div>
+                        <span className="text-2xl font-bold text-blue-600">
+                          {totalResults}
+                        </span>
+                      </motion.div>
+                      {searchResults.map((result, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5, delay: index * 0.1 }}
+                          className="mb-2 p-2 bg-white bg-opacity-50 rounded-lg"
+                          >
+                          <p className="font-medium">
+                            <strong>Name:</strong> {result.name}
+                          </p>
+                          <p>
+                            <strong>Role:</strong> {result.role}
+                          </p>
+                          <p>
+                            <strong>Department:</strong> {result.department || "N/A"}
+                          </p>
+                          <p>
+                            <strong>Matched Terms:</strong>{" "}
+                            {result.matched_terms.join(", ")}
+                          </p>
+                        </motion.div>
+                      ))}
+                    </>
                   ) : (
                     <div className="text-center py-4">
                       <p className="text-gray-500">No results found</p>
@@ -429,17 +455,16 @@ const FilterModal = ({
                     Apply Filters
                   </Button>
                 ) : (
-                  <>
-                    {searchResults === null ? (
-                      <Button
-                        onClick={performSearch}
-                        icon={Search}
-                        variant="primary"
-                        disabled={!searchColumn || !searchInput || isSearching}
-                      >
-                        {isSearching ? "Searching..." : "Search"}
-                      </Button>
-                    ) : (
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={performSearch}
+                      icon={Search}
+                      variant="primary"
+                      disabled={!searchColumn || !searchInput || isSearching}
+                    >
+                      {isSearching ? "Searching..." : "Search"}
+                    </Button>
+                    {searchResults !== null && (
                       <Button
                         onClick={handleViewResults}
                         icon={Eye}
@@ -448,7 +473,7 @@ const FilterModal = ({
                         View Results
                       </Button>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             </div>

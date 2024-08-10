@@ -35,9 +35,15 @@ const DetailedChartInfo = ({ data, onClose }) => {
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
             <p className="text-sm text-green-600 font-semibold">Percentage</p>
-            <p className="text-3xl font-bold text-green-800">{data.percent.toFixed(1)}%</p>
+            <p className="text-3xl font-bold text-green-800">{data.percent}%</p>
           </div>
         </div>
+
+        {data.description && (
+          <div className="mb-6">
+            <p className="text-gray-600">{data.description}</p>
+          </div>
+        )}
 
         {data.details && (
           <div className="mb-6">
@@ -61,7 +67,7 @@ const DetailedChartInfo = ({ data, onClose }) => {
                 <div key={key} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                   <div>
                     <p className="text-sm text-gray-600 font-medium">{key}</p>
-                    <p className="text-lg font-semibold text-gray-800">{value.toFixed(2)}%</p>
+                    <p className="text-lg font-semibold text-gray-800">{typeof value === 'number' ? value.toFixed(2) : value}%</p>
                   </div>
                   {getTrendIcon(value)}
                 </div>
