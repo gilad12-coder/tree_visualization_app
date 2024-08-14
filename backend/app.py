@@ -175,6 +175,7 @@ def create_new_db_route():
 @app.route("/upload", methods=["POST"])
 @validate_input(folder_name=str, upload_date=datetime)
 def upload_file(folder_name, upload_date):
+    logger.info(f"Starting upload process for folder: {folder_name}")
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
     file = request.files["file"]
@@ -186,44 +187,64 @@ def upload_file(folder_name, upload_date):
     if file_extension not in ["csv", "xlsx"]:
         return jsonify({"error": "Unsupported file type. Please upload CSV or XLSX files."}), 400
 
+    new_folder_created = False
+    new_folder_id = None
     with session_scope() as session:
-        # Retrieve the folder by name, or create a new one if it doesn't exist
-        folder = session.query(Folder).filter_by(name=folder_name).first()
-        if not folder:
-            folder = Folder(name=folder_name)
-            session.add(folder)
-            session.commit()  # Commit to ensure the folder is added to the database and has an ID assigned
+        try:
+            # Attempt to retrieve or create the folder
+            logger.info(f"Checking for existing folder: {folder_name}")
+            folder = session.query(Folder).filter_by(name=folder_name).first()
+            if not folder:
+                logger.info(f"Folder {folder_name} not found. Creating new folder.")
+                folder = Folder(name=folder_name)
+                session.add(folder)
+                session.flush()  # Flush to get the folder ID
+                new_folder_created = True
+                new_folder_id = folder.id
+            logger.info(f"Using folder: {folder.name} (ID: {folder.id}), new folder created: {new_folder_created}")
+
+            # Process file and create table
+            file_content = file.read()
+            logger.info(f"File content read, size: {len(file_content)} bytes")
+
+            table = Table(name=file.filename, folder_id=folder.id, upload_date=upload_date)
+            session.add(table)
+            session.flush()  # Flush to get the table ID
+            logger.info(f"Table created: {table.name} (ID: {table.id})")
+
+            # Process the data and insert entries
+            df = process_excel_data(file_content, file_extension)
+            insert_data_entries(session, table.id, df)
             
-        logger.info(f"Using folder: {folder.name} (ID: {folder.id})")
+            logger.info(f"File processed and data inserted successfully for table ID: {table.id}")
+            session.commit()
+            logger.info(f"Upload completed successfully for folder: {folder_name}, table ID: {table.id}")
+            
+            return jsonify({
+                "message": "File uploaded and processed successfully",
+                "table_id": table.id,
+                "folder_id": folder.id
+            }), 200
 
-        file_content = file.read()
-        logger.info(f"File content read, size: {len(file_content)} bytes")
-
-        # Check if the new table is a valid continuation of the previous one
-        is_valid_continuation = check_continuation(folder.id, file_content, file_extension)
-        if not is_valid_continuation:
-            return jsonify({"error": "New table is not a valid continuation of the previous one"}), 400
-
-        # Create a new Table record linked to the folder
-        table = Table(name=file.filename, folder_id=folder.id, upload_date=upload_date)
-        session.add(table)
-        session.commit()  # Commit to ensure the table is added to the database and has an ID assigned
-        
-        logger.info(f"Table created: {table.name} (ID: {table.id})")
-
-        # Process the Excel data and insert it into the DataEntry table
-        df = process_excel_data(file_content, file_extension)
-        insert_data_entries(session, table.id, df)
-        session.commit()  # Commit to ensure all data entries are added to the database
-        
-        logger.info(f"File processed and data inserted successfully for table ID: {table.id}")
-
-        logger.info(f"File upload completed successfully for table ID: {table.id}")
-        return jsonify({
-            "message": "File uploaded and processed successfully",
-            "table_id": table.id,
-            "folder_id": folder.id
-        }), 200
+        except Exception as e:
+            logger.error(f"Error during file upload: {str(e)}")
+            session.rollback()
+            
+            if new_folder_created and new_folder_id:
+                try:
+                    # Start a new session to delete the folder
+                    with session_scope() as new_session:
+                        folder_to_delete = new_session.query(Folder).get(new_folder_id)
+                        if folder_to_delete:
+                            new_session.delete(folder_to_delete)
+                            new_session.commit()
+                            logger.info(f"Newly created folder removed: {folder_name} (ID: {new_folder_id})")
+                        else:
+                            logger.warning(f"Folder not found for deletion: {folder_name} (ID: {new_folder_id})")
+                except Exception as delete_error:
+                    logger.error(f"Error while attempting to delete folder: {str(delete_error)}")
+            
+            return jsonify({"error": str(e)}), 500
 
 @app.route("/folder_structure", methods=["GET"])
 def fetch_folder_structure():
@@ -868,7 +889,6 @@ def get_matched_terms(text, parsed_query):
                 matched.append(item)
     
     return list(set(matched))  # Remove duplicates
-
 @app.route("/export_excel/<int:table_id>", methods=["GET"])
 def export_excel(table_id):
     try:
@@ -889,6 +909,137 @@ def export_excel(table_id):
     except Exception as e:
         logger.error(f"Error exporting Excel for table {table_id}: {str(e)}")
         return jsonify({"error": "An unexpected error occurred while exporting the Excel file"}), 500
+    
+@app.route("/update_node/<int:folder_id>", methods=["POST"])
+def update_node_data(folder_id):
+    data = request.json
+    table_ids = data.get('table_ids')
+    search_query = data.get('search_query')
+    search_column = data.get('search_column')
+    updates = data.get('updates')
+
+    if not table_ids or not search_query or not search_column or not updates:
+        return jsonify({"error": "Missing required parameters"}), 400
+
+    if not isinstance(table_ids, list):
+        return jsonify({"error": "table_ids must be a list"}), 400
+
+    try:
+        with session_scope() as session:
+            # Verify the folder exists
+            folder = session.query(Folder).filter_by(id=folder_id).first()
+            if not folder:
+                return jsonify({"error": f"Folder with id {folder_id} not found"}), 404
+
+            # Verify all tables exist and belong to the folder
+            tables = session.query(Table).filter(Table.id.in_(table_ids), Table.folder_id == folder_id).all()
+            if len(tables) != len(table_ids):
+                return jsonify({"error": "One or more tables not found or don't belong to the specified folder"}), 404
+
+            update_results = []
+
+            for table in tables:
+                # Search for the node in each table
+                search_results = search_table(session, table.id, search_query, search_column)
+
+                if not search_results:
+                    update_results.append({
+                        "table_id": table.id,
+                        "status": "error",
+                        "message": "No matching nodes found"
+                    })
+                    continue
+
+                if len(search_results) > 1:
+                    update_results.append({
+                        "table_id": table.id,
+                        "status": "error",
+                        "message": "Multiple matching nodes found. Please refine your search."
+                    })
+                    continue
+
+                # Get the single matching node
+                node = search_results[0]
+
+                # Update the node data using the update_person_data function
+                updated_data = update_person_data(session, table.id, node['person_id'], updates)
+
+                if updated_data is None:
+                    update_results.append({
+                        "table_id": table.id,
+                        "status": "error",
+                        "message": "Failed to update node data"
+                    })
+                else:
+                    update_results.append({
+                        "table_id": table.id,
+                        "status": "success",
+                        "updated_data": updated_data
+                    })
+
+            return jsonify({
+                "message": "Update operation completed",
+                "results": update_results
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Error updating nodes in folder {folder_id}: {str(e)}")
+        return jsonify({"error": "An unexpected error occurred while updating the nodes"}), 500
+
+def update_person_data(session, table_id, person_id, updates):
+    """
+    Update a person's data in a specific table.
+
+    Args:
+    session (Session): The database session.
+    table_id (int): The ID of the table containing the person's data.
+    person_id (int): The ID of the person to update.
+    updates (dict): A dictionary containing the fields to update and their new values.
+
+    Returns:
+    dict: The updated person data or None if the person was not found.
+    """
+    try:
+        # Find the person's data entry
+        data_entry = session.query(DataEntry).filter_by(
+            table_id=table_id,
+            person_id=person_id
+        ).first()
+
+        if not data_entry:
+            logger.warning(f"Person with ID {person_id} not found in table {table_id}")
+            return None
+
+        # Update fields
+        for key, value in updates.items():
+            if hasattr(data_entry, key) and key != 'hierarchical_structure':
+                setattr(data_entry, key, value)
+
+        # Commit the changes
+        session.commit()
+
+        # Refresh the data entry to get the updated values
+        session.refresh(data_entry)
+
+        # Prepare the updated data to return
+        updated_data = {
+            "person_id": data_entry.person_id,
+            "name": data_entry.name,
+            "role": data_entry.role,
+            "department": data_entry.department,
+            "rank": data_entry.rank,
+            "birth_date": data_entry.birth_date.isoformat() if data_entry.birth_date else None,
+            "organization_id": data_entry.organization_id,
+            "hierarchical_structure": data_entry.hierarchical_structure
+        }
+
+        logger.info(f"Successfully updated data for person {person_id} in table {table_id}")
+        return updated_data
+
+    except Exception as e:
+        logger.error(f"Error updating data for person {person_id} in table {table_id}: {str(e)}")
+        session.rollback()
+        raise
 
 if __name__ == "__main__":
     print("Starting application...")

@@ -144,37 +144,52 @@ def process_excel_data(file_content, file_extension):
 
 
 def insert_data_entries(session, table_id, df):
+    if table_id is None:
+        raise ValueError("table_id cannot be None")
+
     upload_date = datetime.now().date()
     
-    # Ensure required columns are present
-    required_columns = ['person_id', 'hierarchical_structure', 'name', 'role']
-    for col in required_columns:
-        if col not in df.columns:
-            raise ValueError(f"Required column '{col}' is missing from the DataFrame")
+    # Convert all column names to lowercase for case-insensitive matching
+    df.columns = df.columns.str.lower()
     
-    # Convert birth_date to datetime
-    df['birth_date'] = pd.to_datetime(df['birth_date'], errors='coerce').dt.date
+    # Ensure required columns are present (case-insensitive)
+    required_columns = ['person_id', 'hierarchical_structure', 'name', 'role']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Required column(s) {', '.join(missing_columns)} are missing from the DataFrame")
+    
+    # Convert birth_date to datetime if the column exists
+    if 'birth_date' in df.columns:
+        df['birth_date'] = pd.to_datetime(df['birth_date'], errors='coerce').dt.date
+    
+    # Define a mapping of expected column names to DataEntry attribute names
+    column_mapping = {
+        'person_id': 'person_id',
+        'name': 'name',
+        'role': 'role',
+        'hierarchical_structure': 'hierarchical_structure',
+        'department': 'department',
+        'birth_date': 'birth_date',
+        'rank': 'rank',
+        'organization_id': 'organization_id'
+    }
     
     for _, row in df.iterrows():
         # Prepare a dictionary with all fields
         data_entry_dict = {
             'table_id': table_id,
-            'name': row["name"] if pd.notna(row["name"]) else None,
-            'role': row["role"] if pd.notna(row["role"]) else None,
-            'person_id': row['person_id'],
-            'upload_date': upload_date,
-            'hierarchical_structure': row['hierarchical_structure'],
-            'department': row['department'] if pd.notna(row['department']) else None,
-            'birth_date': row['birth_date'] if pd.notna(row['birth_date']) else None,
-            'rank': row['rank'] if pd.notna(row['rank']) else None,
-            'organization_id': row['organization_id'] if pd.notna(row['organization_id']) else None
+            'upload_date': upload_date
         }
+        
+        # Populate the dictionary using the column mapping
+        for df_col, entry_attr in column_mapping.items():
+            if df_col in df.columns:
+                value = row[df_col]
+                data_entry_dict[entry_attr] = value if pd.notna(value) else None
         
         # Create the DataEntry object with the prepared dictionary
         data_entry = DataEntry(**data_entry_dict)
         session.add(data_entry)
-    
-    session.commit()
 
 def get_org_chart(table_id):
     session = get_session()
