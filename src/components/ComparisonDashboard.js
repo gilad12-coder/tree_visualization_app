@@ -1,16 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Download, PieChart, List, ChevronDown, ChevronUp } from 'react-feather';
+import { ArrowLeft, Download, PieChart, ChevronUp, ChevronDown, List} from 'react-feather';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart as RePieChart, Pie, Cell, Legend
+  PieChart as RePieChart, Pie, Cell, Legend, Label
 } from 'recharts';
 import { format, parseISO, isValid } from 'date-fns';
 import Button from './Button';
 import DetailedChartInfo from './DetailedChartInfo';
 
 const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExportExcel, onExportImage }) => {
-  const [view, setView] = useState('macro');
+  const [view, setView] = useState('overview');
   const [expandedSection, setExpandedSection] = useState(null);
   const [selectedChartItem, setSelectedChartItem] = useState(null);
 
@@ -49,6 +49,42 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
       after: data.after || 0,
       change: data.change || 0
     }));
+  }, [comparisonData]);
+
+  const ageDistributionData = useMemo(() => {
+    if (!comparisonData || !comparisonData.aggregated_report) return [];
+    const { age_distribution_change } = comparisonData.aggregated_report;
+    return [
+      { name: 'Before', ...age_distribution_change.before },
+      { name: 'After', ...age_distribution_change.after }
+    ];
+  }, [comparisonData]);
+
+  const rankDistributionData = useMemo(() => {
+    if (!comparisonData || !comparisonData.aggregated_report) return [];
+    const { rank_distribution_change } = comparisonData.aggregated_report;
+    return Object.entries(rank_distribution_change).map(([rank, change]) => ({
+      name: rank,
+      change: change
+    }));
+  }, [comparisonData]);
+
+  const roleDiversityData = useMemo(() => {
+    if (!comparisonData || !comparisonData.aggregated_report) return [];
+    const { role_diversity } = comparisonData.aggregated_report;
+    return [
+      { name: 'Before', uniqueRoles: role_diversity.before.unique_roles, ratio: role_diversity.before.role_to_employee_ratio },
+      { name: 'After', uniqueRoles: role_diversity.after.unique_roles, ratio: role_diversity.after.role_to_employee_ratio }
+    ];
+  }, [comparisonData]);
+
+  const orgDepthData = useMemo(() => {
+    if (!comparisonData || !comparisonData.aggregated_report) return [];
+    const { org_depth_analysis } = comparisonData.aggregated_report;
+    return [
+      { name: 'Before', depth: org_depth_analysis.before },
+      { name: 'After', depth: org_depth_analysis.after }
+    ];
   }, [comparisonData]);
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -124,9 +160,11 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
       return (
         <div className="bg-white p-3 rounded shadow-md border border-gray-200">
           <p className="font-semibold text-sm">{label}</p>
-          <p className="text-sm text-blue-600">{`Before: ${payload[0].value}`}</p>
-          <p className="text-sm text-green-600">{`After: ${payload[1].value}`}</p>
-          <p className="text-sm text-purple-600">{`Change: ${payload[2].value}`}</p>
+          {payload.map((entry, index) => (
+            <p key={index} className={`text-sm text-${entry.color}`}>
+              {`${entry.name}: ${entry.value}`}
+            </p>
+          ))}
           <p className="text-xs text-gray-500 mt-1">Click for more details</p>
         </div>
       );
@@ -148,6 +186,19 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
         'Percent Change': departmentData.percent_change ? `${departmentData.percent_change.toFixed(1)}%` : 'N/A'
       }
     });
+  };
+
+  const downloadReport = () => {
+    const reportData = JSON.stringify(comparisonData, null, 2);
+    const blob = new Blob([reportData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `comparison_report_${format(new Date(), 'yyyy-MM-dd_HH-mm-ss')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const ExpandableSection = ({ title, children, isExpanded, onToggle }) => (
@@ -197,7 +248,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
     </div>
   );
 
-  const MacroView = () => (
+  const OverviewView = () => (
     <div className="space-y-4">
       <ExpandableSection 
         title="Overview"
@@ -223,7 +274,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
         isExpanded={expandedSection === 'structureChanges'}
         onToggle={() => setExpandedSection(expandedSection === 'structureChanges' ? null : 'structureChanges')}
       >
-        <div className="h-64">
+        <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <RePieChart>
               <Pie
@@ -246,27 +297,178 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
                 ))}
               </Pie>
               <Tooltip content={<CustomPieTooltip />} />
-              <Legend />
+              <Legend verticalAlign="bottom" height={36} />
+              <Label value="Structure Changes Distribution" position="top" />
             </RePieChart>
           </ResponsiveContainer>
         </div>
       </ExpandableSection>
 
       <ExpandableSection 
-        title="Department Size Changes"
-        isExpanded={expandedSection === 'departmentSizes'}
-        onToggle={() => setExpandedSection(expandedSection === 'departmentSizes' ? null : 'departmentSizes')}
-      >
-        <div className="h-64">
+      title="Department Size Changes"
+      isExpanded={expandedSection === 'departmentSizes'}
+      onToggle={() => setExpandedSection(expandedSection === 'departmentSizes' ? null : 'departmentSizes')}
+    >
+      <div className="h-96"> {/* Increased height to accommodate full labels */}
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart 
+            data={departmentSizeData} 
+            margin={{top: 20, right: 30, left: 60, bottom: 70}} // Increased left and bottom margins
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name">
+              <Label value="Departments" offset={-40} position="insideBottom" /> {/* Increased offset */}
+            </XAxis>
+            <YAxis 
+              label={{ 
+                value: 'Number of Employees', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { textAnchor: 'middle' },
+                offset: -50 // Offset to move label further from axis
+              }} 
+            />
+            <Tooltip content={<CustomBarTooltip />} />
+            <Legend verticalAlign="bottom" height={36} wrapperStyle={{bottom: -10}} /> {/* Moved legend down */}
+            <Bar dataKey="before" fill="#8884d8" name="Before" />
+            <Bar dataKey="after" fill="#82ca9d" name="After" />
+            <Bar dataKey="change" fill="#ffc658" onClick={handleBarClick} name="Change" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </ExpandableSection>
+
+    <ExpandableSection 
+      title="Age Distribution"
+      isExpanded={expandedSection === 'ageDistribution'}
+      onToggle={() => setExpandedSection(expandedSection === 'ageDistribution' ? null : 'ageDistribution')}
+    >
+      <div className="h-[450px] flex flex-col items-center"> {/* Increased height */}
+        <div className="w-full h-[calc(100%-60px)]"> {/* Increased space for legend */}
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={departmentSizeData}>
+            <BarChart 
+              data={ageDistributionData} 
+              margin={{
+                top: 20, right: 30, left: 60, bottom: 20 // Increased bottom margin
+              }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip content={<CustomBarTooltip />} />
-              <Bar dataKey="before" fill="#8884d8" />
-              <Bar dataKey="after" fill="#82ca9d" />
-              <Bar dataKey="change" fill="#ffc658" onClick={handleBarClick} />
+              <XAxis dataKey="name">
+                <Label value="Time Period" offset={-10} position="insideBottom" />
+              </XAxis>
+              <YAxis 
+                label={{ 
+                  value: 'Age', 
+                  angle: -90, 
+                  position: 'insideLeft', 
+                  offset: -40 // Adjusted offset
+                }} 
+              />
+              <Tooltip />
+              <Bar dataKey="average" fill="#8884d8" name="Average Age" />
+              <Bar dataKey="median" fill="#82ca9d" name="Median Age" />
+              <Bar dataKey="min" fill="#ffc658" name="Minimum Age" />
+              <Bar dataKey="max" fill="#ff7300" name="Maximum Age" />
+              <Label value="Age Distribution Changes" position="top" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </ExpandableSection>
+
+      <ExpandableSection 
+        title="Rank Distribution Changes"
+        isExpanded={expandedSection === 'rankDistribution'}
+        onToggle={() => setExpandedSection(expandedSection === 'rankDistribution' ? null : 'rankDistribution')}
+      >
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={rankDistributionData} 
+              margin={{
+                top: 20, 
+                right: 30, 
+                left: 60,  // Increased left margin to accommodate y-axis labels
+                bottom: 10
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name">
+                <Label value="Ranks" offset={-5} position="insideBottom" />
+              </XAxis>
+              <YAxis 
+                label={{ 
+                  value: 'Change in Number of Employees', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  style: { textAnchor: 'middle' }
+                }} 
+              />
+              <Tooltip />
+              <Bar dataKey="change" fill="#8884d8" />
+              <Label value="Rank Distribution Changes" position="top" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </ExpandableSection>
+
+      <ExpandableSection 
+        title="Role Diversity"
+        isExpanded={expandedSection === 'roleDiversity'}
+        onToggle={() => setExpandedSection(expandedSection === 'roleDiversity' ? null : 'roleDiversity')}
+      >
+        <div className="h-96"> {/* Increased height to accommodate more space */}
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={roleDiversityData} 
+              margin={{ top: 20, right: 30, left: 40, bottom: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name">
+                <Label value="Time Period" offset={-20} position="insideBottom" />
+              </XAxis>
+              <YAxis yAxisId="left" orientation="left" stroke="#8884d8">
+                <Label value="Number of Unique Roles" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+              </YAxis>
+              <YAxis yAxisId="right" orientation="right" stroke="#82ca9d">
+                <Label value="Role to Employee Ratio" angle={90} position="insideRight" style={{ textAnchor: 'middle' }} />
+              </YAxis>
+              <Tooltip />
+              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ bottom: -20 }} />
+              <Bar yAxisId="left" dataKey="uniqueRoles" fill="#8884d8" name="Unique Roles" />
+              <Bar yAxisId="right" dataKey="ratio" fill="#82ca9d" name="Role to Employee Ratio" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </ExpandableSection>
+
+      <ExpandableSection 
+        title="Organizational Depth"
+        isExpanded={expandedSection === 'orgDepth'}
+        onToggle={() => setExpandedSection(expandedSection === 'orgDepth' ? null : 'orgDepth')}
+      >
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={orgDepthData} 
+              margin={{ top: 20, right: 30, left: 40, bottom: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name">
+                <Label value="Time Period" offset={-10} position="insideBottom" />
+              </XAxis>
+              <YAxis 
+                domain={[-2, 'auto']} // This sets the Y-axis to start from -2
+                label={{ 
+                  value: 'Organizational Depth', 
+                  angle: -90, 
+                  position: 'insideLeft', 
+                  style: { textAnchor: 'middle' } 
+                }} 
+              />
+              <Tooltip />
+              <Bar dataKey="depth" fill="#8884d8" />
+              <Label value="Organizational Depth Changes" position="top" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -274,7 +476,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
     </div>
   );
 
-  const MicroView = () => (
+  const DetailedView = () => (
     <div className="space-y-4">
       <ExpandableSection 
         title="Detailed Changes"
@@ -358,19 +560,6 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
     </div>
   );
 
-  const downloadReport = () => {
-    const reportData = JSON.stringify(comparisonData, null, 2);
-    const blob = new Blob([reportData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `comparison_report_${format(new Date(), 'yyyy-MM-dd_HH-mm-ss')}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="fixed inset-0 bg-gray-50 overflow-hidden flex flex-col">
       <motion.div 
@@ -385,7 +574,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
             Back
           </Button>
           <Button onClick={downloadReport} icon={Download}>
-            Download
+            Download Report
           </Button>
         </div>
       </motion.div>
@@ -411,22 +600,22 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
+          transition={{duration: 0.3, delay: 0.2 }}
           className="flex space-x-2 mb-4"
         >
           <Button 
-            onClick={() => setView('macro')} 
+            onClick={() => setView('overview')} 
             icon={PieChart}
-            variant={view === 'macro' ? 'primary' : 'secondary'}
+            variant={view === 'overview' ? 'primary' : 'secondary'}
           >
-            Macro View
+            Overview
           </Button>
           <Button 
-            onClick={() => setView('micro')} 
+            onClick={() => setView('detailed')} 
             icon={List}
-            variant={view === 'micro' ? 'primary' : 'secondary'}
+            variant={view === 'detailed' ? 'primary' : 'secondary'}
           >
-            Micro View
+            Detailed View
           </Button>
         </motion.div>
 
@@ -438,7 +627,7 @@ const ComparisonDashboard = ({ comparisonData, onClose, isLoading, error, onExpo
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {view === 'macro' ? <MacroView /> : <MicroView />}
+            {view === 'overview' ? <OverviewView /> : <DetailedView />}
           </motion.div>
         </AnimatePresence>
       </div>
