@@ -70,6 +70,8 @@ const FilterModal = ({
     { key: "role", label: "Role", Icon: UserCheck },
   ];
 
+  const searchableTypes = filterTypes.filter(type => type.key !== "birth_date");
+
   useEffect(() => {
     const initialFilters = {};
     activeFilters.forEach((filter) => {
@@ -189,6 +191,54 @@ const FilterModal = ({
     setIsLocked(!isLocked);
   };
 
+  const renderSearchResults = () => {
+    if (!searchResults || searchResults.length === 0) {
+      return (
+        <div className="text-center py-4">
+          <p className="text-gray-500">No results found</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-2 gap-4">
+        {searchResults.map((result, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: index * 0.1 }}
+            className="p-3 bg-white bg-opacity-70 rounded-lg shadow-md"
+          >
+            <h3 className="font-semibold text-lg mb-2">{result.name}</h3>
+            <p className="text-sm mb-1">
+              <strong>Role:</strong> {result.role}
+            </p>
+            <p className="text-sm mb-1">
+              <strong>Department:</strong> {result.department || "N/A"}
+            </p>
+            <p className="text-sm mb-1">
+              <strong>Rank:</strong> {result.rank || "N/A"}
+            </p>
+            {searchColumn !== "name" && searchColumn !== "role" && searchColumn !== "department" && searchColumn !== "rank" && (
+              <p className="text-sm mb-1">
+                <strong>{filterTypes.find(ft => ft.key === searchColumn)?.label || searchColumn}:</strong> {result[searchColumn] || "N/A"}
+              </p>
+            )}
+            <p className="text-sm">
+              <strong>Matched Terms:</strong>{" "}
+              {result.matched_terms.map((term, i) => (
+                <span key={i} className="inline-block bg-yellow-200 rounded-full px-2 py-1 text-xs font-semibold text-gray-700 mr-1 mb-1">
+                  {term}
+                </span>
+              ))}
+            </p>
+          </motion.div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -204,14 +254,14 @@ const FilterModal = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden backdrop-filter backdrop-blur-lg"
+            className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden backdrop-filter backdrop-blur-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-4">
                   <AnimatedLogo />
-                  <h2 className="text-2xl font-black text-black tracking-tight">
+                  <h2 className="text-3xl font-black text-black tracking-tight">
                     {activeTab === "filter" ? "Filter" : "Search"} Org Chart
                   </h2>
                 </div>
@@ -273,7 +323,7 @@ const FilterModal = ({
                         ? "Select filter type"
                         : "Select column to search"}
                     </option>
-                    {filterTypes.map(({ key, label }) => (
+                    {(activeTab === "filter" ? filterTypes : searchableTypes).map(({ key, label }) => (
                       <option key={key} value={key}>
                         {label}
                       </option>
@@ -354,7 +404,7 @@ const FilterModal = ({
                 </div>
               )}
               {activeTab === "search" && searchResults !== null && (
-                <div className="mt-2 bg-blue-100 bg-opacity-50 rounded-xl p-3 max-h-48 overflow-y-auto">
+                <div className="mt-2 bg-blue-100 bg-opacity-50 rounded-xl p-3 max-h-96 overflow-y-auto">
                   {searchResults.length > 0 ? (
                     <>
                       <motion.div
@@ -373,29 +423,7 @@ const FilterModal = ({
                           {totalResults}
                         </span>
                       </motion.div>
-                      {searchResults.map((result, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5, delay: index * 0.1 }}
-                          className="mb-2 p-2 bg-white bg-opacity-50 rounded-lg"
-                          >
-                          <p className="font-medium">
-                            <strong>Name:</strong> {result.name}
-                          </p>
-                          <p>
-                            <strong>Role:</strong> {result.role}
-                          </p>
-                          <p>
-                            <strong>Department:</strong> {result.department || "N/A"}
-                          </p>
-                          <p>
-                            <strong>Matched Terms:</strong>{" "}
-                            {result.matched_terms.join(", ")}
-                          </p>
-                        </motion.div>
-                      ))}
+                      {renderSearchResults()}
                     </>
                   ) : (
                     <div className="text-center py-4">

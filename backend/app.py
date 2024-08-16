@@ -766,14 +766,14 @@ def find_node_path(node, target_name):
 @app.route("/search/<int:folder_id>/<int:table_id>", methods=["GET"])
 def search_nodes(folder_id, table_id):
     """
-    Search for nodes in organizational data based on keywords and operators.
+    Search for nodes in organizational data based on complex query expressions.
     
     Args:
     folder_id (int): The ID of the folder containing the data tables
     table_id (int): The ID of the table to search within
     
     Query Parameters:
-    query (str): The search query with keywords and operators
+    query (str): The search query with keywords, operators, and groupings
     column (str): The name of the column to search in
     
     Returns:
@@ -781,7 +781,7 @@ def search_nodes(folder_id, table_id):
     """
     query = request.args.get('query')
     column = request.args.get('column')
-
+    
     if not query or not column:
         return jsonify({"error": "Query and column are required"}), 400
 
@@ -814,29 +814,20 @@ def search_nodes(folder_id, table_id):
         return jsonify({"error": "An unexpected error occurred while searching"}), 500
 
 def search_table(session, table_id, query, column):
-    # Parse the query into keywords and operators
-    parsed_query = parse_query(query)
-    
-    # Build the SQLAlchemy query
+    logger.info(f"Starting search in table with ID: {table_id} for query: '{query}' in column: '{column}'")
+
+    parsed_query = parse_complex_query(query)
+    logger.info(f"Parsed query: {parsed_query}")
+
     base_query = session.query(DataEntry).filter(DataEntry.table_id == table_id)
-    
-    conditions = []
-    for item in parsed_query:
-        if isinstance(item, list):  # AND group
-            and_conditions = []
-            for keyword in item:
-                and_conditions.append(getattr(DataEntry, column).ilike(f'%{keyword}%'))
-            conditions.append(and_conditions)
-        elif item.lower() == 'or':
-            continue  # Skip 'or', it's handled by combining conditions with or_()
-        else:  # Single keyword
-            conditions.append([getattr(DataEntry, column).ilike(f'%{item}%')])
-    
-    # Combine all conditions with OR
-    final_condition = or_(*[and_(*condition_group) for condition_group in conditions])
-    results = base_query.filter(final_condition).all()
-    
-    # Prepare the results
+    logger.info(f"Base query created for table_id: {table_id}")
+
+    condition = build_sqlalchemy_condition(parsed_query, column)
+    logger.info("SQLAlchemy condition built")
+
+    results = base_query.filter(condition).all()
+    logger.info(f"Query executed. Number of results found: {len(results)}")
+
     search_results = []
     for entry in results:
         result = {
@@ -844,51 +835,90 @@ def search_table(session, table_id, query, column):
             'name': entry.name,
             'role': entry.role,
             'department': entry.department,
+            'rank': entry.rank,
+            'organization_id': entry.organization_id,
             'matched_terms': get_matched_terms(getattr(entry, column), parsed_query),
             'hierarchical_structure': entry.hierarchical_structure
         }
         search_results.append(result)
+        logger.info(f"Result added for person_id: {entry.person_id}")
+
+    logger.info("Search completed and results prepared.")
     
     return search_results
 
-def parse_query(query):
-    # Split the query into words, preserving quoted phrases
-    words = re.findall(r'"[^"]*"|\S+', query)
-    
-    parsed = []
-    current_and_group = []
-    
-    for word in words:
-        if word.lower() == 'or':
-            if current_and_group:
-                parsed.append(current_and_group)
-                current_and_group = []
-            parsed.append(word)
-        elif word.startswith('"') and word.endswith('"'):
-            current_and_group.append(word[1:-1])  # Remove quotes
-        elif word == '+':
-            continue  # Skip '+' as it's implied in AND groups
+def parse_complex_query(query):
+    def tokenize(s):
+        return re.findall(r'(\(|\)|"[^"]*"|\S+)', s)
+
+    def parse_expression(tokens):
+        result = []
+        while tokens:
+            token = tokens.pop(0)
+            if token == '(':
+                subexpr, tokens = parse_expression(tokens)
+                result.append(subexpr)
+            elif token == ')':
+                return result, tokens
+            elif token.upper() in ('AND', 'OR', 'NOT'):
+                result.append(token.upper())
+            else:
+                result.append(token)  # Keep quotes for exact matching
+        return result, []
+
+    tokens = tokenize(query)
+    parsed_query, _ = parse_expression(tokens)
+    return parsed_query
+
+def build_sqlalchemy_condition(parsed_query, column):
+    def build_condition(expr):
+        if isinstance(expr, list):
+            if len(expr) == 1:
+                return build_condition(expr[0])
+            elif 'OR' in expr:
+                return or_(*[build_condition(e) for e in expr if e != 'OR'])
+            elif 'AND' in expr:
+                return and_(*[build_condition(e) for e in expr if e != 'AND'])
+            else:
+                return and_(*[build_condition(e) for e in expr])
+        elif expr == 'NOT':
+            return not_(build_condition(parsed_query[parsed_query.index(expr) + 1]))
         else:
-            current_and_group.append(word)
-    
-    if current_and_group:
-        parsed.append(current_and_group)
-    
-    return parsed
+            if expr.startswith('"') and expr.endswith('"'):
+                # Case-insensitive exact match
+                return func.lower(getattr(DataEntry, column)) == func.lower(expr.strip('"'))
+            else:
+                # Case-insensitive partial match
+                return func.lower(getattr(DataEntry, column)).contains(func.lower(expr))
+
+    return build_condition(parsed_query)
 
 def get_matched_terms(text, parsed_query):
+    def collect_terms(expr):
+        terms = []
+        for item in expr:
+            if isinstance(item, list):
+                terms.extend(collect_terms(item))
+            elif item not in ('AND', 'OR', 'NOT'):
+                terms.append(item)
+        return terms
+
+    all_terms = collect_terms(parsed_query)
+    text = str(text).lower()
     matched = []
-    text_lower = text.lower()
-    
-    for item in parsed_query:
-        if isinstance(item, list):  # AND group
-            if all(keyword.lower() in text_lower for keyword in item):
-                matched.extend(item)
-        elif item.lower() != 'or':  # Single keyword
-            if item.lower() in text_lower:
-                matched.append(item)
-    
-    return list(set(matched))  # Remove duplicates
+    for term in all_terms:
+        if term.startswith('"') and term.endswith('"'):
+            # Case-insensitive exact match
+            if term.strip('"').lower() == text:
+                matched.append(term.strip('"'))
+        else:
+            # Case-insensitive partial match
+            if term.lower() in text:
+                matched.append(term)
+    return matched
+
+
+
 @app.route("/export_excel/<int:table_id>", methods=["GET"])
 def export_excel(table_id):
     try:
