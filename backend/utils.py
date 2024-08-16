@@ -159,8 +159,10 @@ def insert_data_entries(session, table_id, df):
         raise ValueError(f"Required column(s) {', '.join(missing_columns)} are missing from the DataFrame")
     
     # Convert birth_date to datetime if the column exists
-    if 'birth_date' in df.columns:
-        df['birth_date'] = pd.to_datetime(df['birth_date'], errors='coerce').dt.date
+    for col in df.columns:
+        df[col] = df[col].astype(str)
+            
+    df['birth_date'] = pd.to_datetime(df['birth_date'], errors='coerce').dt.date
     
     # Define a mapping of expected column names to DataEntry attribute names
     column_mapping = {
