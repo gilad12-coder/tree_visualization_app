@@ -1,3 +1,16 @@
+export const findNodeById = (node, id) => {
+  if (node.person_id === id) {
+    return node;
+  }
+  if (node.children) {
+    for (let child of node.children) {
+      const found = findNodeById(child, id);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
 export const extractNamesAndRoles = (data) => {
   if (!data || typeof data !== 'object') {
     console.warn('Invalid data provided to extractNamesAndRoles');

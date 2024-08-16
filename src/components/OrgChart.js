@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Filter, List, Target, Home, Menu, Upload,Download, Camera, FileText} from "react-feather";
+import { Filter, List, Target, Home, Menu, Upload,Download, Camera, FileText, X} from "react-feather";
 import axios from "axios";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -27,7 +27,7 @@ const OrgChart = ({
   onReturnToLanding,
 }) => {
   const { activeFilters, setActiveFilters, expandAll, setExpandAll } = useOrgChartContext();
-
+  const [filterModalResetTrigger, setFilterModalResetTrigger] = useState(0);
   const [orgData, setOrgData] = useState(null);
   const [filteredOrgData, setFilteredOrgData] = useState(null);
   const [searchResults, setSearchResults] = useState(null);
@@ -475,9 +475,18 @@ const OrgChart = ({
       console.log("Search results received:", results);
       setSearchResults(results);
       setActiveFilters([]);
+      setFilterModalResetTrigger(prev => prev + 1); // Trigger reset
     },
     [setActiveFilters]
   );
+
+  const handleClearFilter = useCallback(() => {
+    setActiveFilters([]);
+    setSearchResults(null);
+    setFilteredOrgData(orgData);
+    setExpandAll(false);
+    setFilterModalResetTrigger(prev => prev + 1);
+  }, [orgData, setActiveFilters, setExpandAll]);
 
   const handleClearSearch = useCallback(() => {
     console.log("Clearing search");
@@ -682,6 +691,7 @@ const OrgChart = ({
   useKeyboardShortcut("l", true, handleCollapseAll);
   useKeyboardShortcut("u", true, () => setIsUploadOpen(true));
   useKeyboardShortcut("m", true, handleCompare);
+  useKeyboardShortcut("r", true, handleClearFilter);
 
   if (isLoading) {
     return (
@@ -763,6 +773,16 @@ const OrgChart = ({
               >
                 Filter
               </Button>
+              {(activeFilters.length > 0 || searchResults) && (
+                <Button
+                  onClick={handleClearFilter}
+                  icon={X}
+                  tooltip="Clear Filter"
+                  variant="danger"
+                >
+                  Clear Filter
+                </Button>
+              )}
               <Button
                 onClick={() => setIsTableSelectionOpen(true)}
                 icon={List}
@@ -882,6 +902,8 @@ const OrgChart = ({
             onClose={() => setSelectedNode(null)}
             folderId={selectedFolderId}
             tableId={selectedTableId}
+            folderStructure={folderStructure}
+            onUpdateComplete={fetchData}
           />
         )}
       </AnimatePresence>
@@ -895,6 +917,7 @@ const OrgChart = ({
         orgData={orgData}
         folderId={selectedFolderId}
         tableId={selectedTableId}
+        resetTrigger={filterModalResetTrigger}
       />
       <TableSelectionModal
         isOpen={isTableSelectionOpen}
