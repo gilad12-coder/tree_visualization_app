@@ -767,23 +767,24 @@ def find_node_path(node, target_name):
 def search_nodes(folder_id, table_id):
     """
     Search for nodes in organizational data based on complex query expressions.
+    If the query is empty, return all results for the specified column.
     
     Args:
     folder_id (int): The ID of the folder containing the data tables
     table_id (int): The ID of the table to search within
     
     Query Parameters:
-    query (str): The search query with keywords, operators, and groupings
+    query (str): The search query with keywords, operators, and groupings (can be empty)
     column (str): The name of the column to search in
     
     Returns:
     JSON: A dictionary containing the search results
     """
-    query = request.args.get('query')
+    query = request.args.get('query', '')
     column = request.args.get('column')
     
-    if not query or not column:
-        return jsonify({"error": "Query and column are required"}), 400
+    if not column:
+        return jsonify({"error": "Column is required"}), 400
 
     try:
         with session_scope() as session:
@@ -798,7 +799,10 @@ def search_nodes(folder_id, table_id):
             
             logger.info(f"Searching table {table_id} in folder {folder_id} for column {column}")
             
-            results = search_table(session, table_id, query, column)
+            if query:
+                results = search_table(session, table_id, query, column)
+            else:
+                results = get_all_results(session, table_id, column)
             
             return jsonify({
                 "results": results,
@@ -812,6 +816,32 @@ def search_nodes(folder_id, table_id):
     except Exception as e:
         logger.error(f"Error searching in folder {folder_id}, table {table_id}: {str(e)}")
         return jsonify({"error": "An unexpected error occurred while searching"}), 500
+
+def get_all_results(session, table_id, column):
+    logger.info(f"Fetching all results for table with ID: {table_id} in column: '{column}'")
+
+    base_query = session.query(DataEntry).filter(DataEntry.table_id == table_id)
+    results = base_query.all()
+    logger.info(f"Query executed. Number of results found: {len(results)}")
+
+    search_results = []
+    for entry in results:
+        result = {
+            'person_id': entry.person_id,
+            'name': entry.name,
+            'role': entry.role,
+            'department': entry.department,
+            'rank': entry.rank,
+            'organization_id': entry.organization_id,
+            'matched_terms': [],  # No matched terms for all results
+            'hierarchical_structure': entry.hierarchical_structure
+        }
+        search_results.append(result)
+        logger.info(f"Result added for person_id: {entry.person_id}")
+
+    logger.info("All results fetched and prepared.")
+    
+    return search_results
 
 def search_table(session, table_id, query, column):
     logger.info(f"Starting search in table with ID: {table_id} for query: '{query}' in column: '{column}'")
@@ -1043,6 +1073,9 @@ def update_person_data(session, table_id, person_id, updates):
         # Update fields
         for key, value in updates.items():
             if hasattr(data_entry, key) and key != 'hierarchical_structure':
+                if key == 'birth_date' and value:
+                    # Convert string to datetime object
+                    value = datetime.strptime(value, '%Y-%m-%d').date()
                 setattr(data_entry, key, value)
 
         # Commit the changes

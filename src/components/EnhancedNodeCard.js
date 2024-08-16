@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, ArrowRight, User } from 'react-feather';
+import { X, ArrowRight, User, Edit } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 import DirectReportsSection from './DirectReportsSection';
 import CVTimelineSection from './CVTimelineSection';
 import PersonalInfoSection from './PersonalInfoSection';
+import UpdatePersonalInfoSection from './UpdatePersonalInfoSection.js';
 import '../styles/fonts.css';
 
 const MotionPath = motion.path;
@@ -23,7 +24,7 @@ const AnimatedLogo = () => (
   </svg>
 );
 
-const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
+const EnhancedNodeCard = ({ node, onClose, tableId, folderId, folderStructure, onUpdateComplete }) => {
   const [activeScreen, setActiveScreen] = useState('main');
   const bgOpacity = useMotionValue(0);
   const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
@@ -31,52 +32,6 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
   const nameLanguage = getLanguage(node.name);
   const roleLanguage = getLanguage(node.role);
   const departmentLanguage = getLanguage(node.department);
-
-  const renderMainScreen = () => (
-    <div className="p-6 space-y-4">
-      <motion.div
-        className="bg-blue-100 rounded-xl py-3 px-4 flex items-center justify-center"
-        whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-      >
-        <span
-          className={`text-gray-800 ${getFontClass(roleLanguage)} text-center font-semibold`}
-          dir={getTextDirection(roleLanguage)}
-        >
-          {node.role || 'Role not specified'}
-        </span>
-      </motion.div>
-      <motion.div
-        className="bg-blue-100 rounded-xl py-3 px-4 flex items-center justify-center"
-        whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-      >
-        <span
-          className={`text-gray-800 ${getFontClass(departmentLanguage)} text-center`}
-          dir={getTextDirection(departmentLanguage)}
-        >
-          {node.department || 'Department not specified'}
-        </span>
-      </motion.div>
-      <DirectReportsSection node={node} />
-      <motion.button
-        onClick={() => setActiveScreen('personal')}
-        className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <span className="font-bold">View Personal Info</span>
-        <User size={20} />
-      </motion.button>
-      <motion.button
-        onClick={() => setActiveScreen('cv')}
-        className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <span className="font-bold">View CV</span>
-        <ArrowRight size={20} />
-      </motion.button>
-    </div>
-  );
 
   return (
     <AnimatePresence>
@@ -127,7 +82,58 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
                 exit={{ opacity: 0, x: 50 }}
                 transition={{ duration: 0.3 }}
               >
-                {renderMainScreen()}
+                <div className="p-6 space-y-4">
+                  <motion.div
+                    className="bg-blue-100 rounded-xl py-3 px-4 flex items-center justify-center"
+                    whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                  >
+                    <span
+                      className={`text-gray-800 ${getFontClass(roleLanguage)} text-center font-semibold`}
+                      dir={getTextDirection(roleLanguage)}
+                    >
+                      {node.role || 'Role not specified'}
+                    </span>
+                  </motion.div>
+                  <motion.div
+                    className="bg-blue-100 rounded-xl py-3 px-4 flex items-center justify-center"
+                    whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                  >
+                    <span
+                      className={`text-gray-800 ${getFontClass(departmentLanguage)} text-center`}
+                      dir={getTextDirection(departmentLanguage)}
+                    >
+                      {node.department || 'Department not specified'}
+                    </span>
+                  </motion.div>
+                  <DirectReportsSection node={node} />
+                  <motion.button
+                    onClick={() => setActiveScreen('personal')}
+                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="font-bold">View Personal Info</span>
+                    <User size={20} />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setActiveScreen('cv')}
+                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="font-bold">View CV</span>
+                    <ArrowRight size={20} />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setActiveScreen('update')}
+                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="font-bold">Update Personal Info</span>
+                    <Edit size={20} />
+                  </motion.button>
+                </div>
               </motion.div>
             )}
             {activeScreen === 'personal' && (
@@ -141,6 +147,24 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId }) => {
                 <PersonalInfoSection
                   node={node}
                   onBack={() => setActiveScreen('main')}
+                />
+              </motion.div>
+            )}
+            {activeScreen === 'update' && (
+              <motion.div
+                key="update"
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
+              >
+                <UpdatePersonalInfoSection
+                  node={node}
+                  onBack={() => setActiveScreen('main')}
+                  folderId={folderId}
+                  tableId={tableId}
+                  folderStructure={folderStructure}
+                  onUpdateComplete={onUpdateComplete}  // This is the key change
                 />
               </motion.div>
             )}

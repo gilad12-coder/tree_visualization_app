@@ -9,6 +9,7 @@ const HelpModal = ({ isOpen, onClose }) => {
     { key: "Ctrl + H", description: "Open this help modal" },
     { key: "Ctrl + T", description: "Change table" },
     { key: "Ctrl + F", description: "Filter nodes" },
+    { key: "Ctrl + R", description: "Remove filter (available when a a filter is triggered)" },
     { key: "Ctrl + C", description: "Center the chart" },
     { key: "Ctrl + O", description: "Open all nodes" },
     { key: "Ctrl + L", description: "Collapse all nodes" },
