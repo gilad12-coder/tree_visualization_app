@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Save, Calendar } from 'lucide-react';
+import { ArrowLeft, Save, Calendar, CheckSquare } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import Select from 'react-select';
+import Select, { components } from 'react-select';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/datepicker.css';
@@ -35,9 +35,11 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
       const currentFolder = folderStructure.find(folder => folder.id === folderId);
       if (currentFolder && currentFolder.tables) {
         const tables = currentFolder.tables.map(table => ({ value: table.id, label: table.name }));
-        setAvailableTables(tables);
+        setAvailableTables([
+          { value: 'all', label: 'Select All Tables' },
+          ...tables
+        ]);
 
-        // Find the current table and set it as selected
         const currentTable = tables.find(table => table.value === tableId);
         if (currentTable) {
           setSelectedTables([currentTable]);
@@ -69,6 +71,14 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
     setFormData(prev => ({ ...prev, birth_date: date }));
   };
 
+  const handleTableSelection = (selectedOptions) => {
+    if (selectedOptions.some(option => option.value === 'all')) {
+      setSelectedTables(availableTables.filter(table => table.value !== 'all'));
+    } else {
+      setSelectedTables(selectedOptions);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -92,7 +102,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
         timeoutRef.current = setTimeout(() => {
           onUpdateComplete();
           onBack();
-        }, 2000);
+        }, 500);
       } else {
         toast.warn("Update completed with some issues. Please check the results.");
         console.log("Update results:", response.data.results);
@@ -117,13 +127,13 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
         <span className="font-bold">Back to Main Info</span>
       </motion.button>
 
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 shadow-lg">
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 shadow-lg overflow-y-auto max-h-[80vh]">
         <h3 className="text-3xl font-black text-gray-800 tracking-tight font-merriweather text-center mb-6">
           Update Personal Information
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {Object.entries(formData).map(([key, value]) => {
               const language = getLanguage(value);
               if (key === 'birth_date') {
@@ -181,13 +191,16 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
               name="tables"
               options={availableTables}
               value={selectedTables}
-              onChange={setSelectedTables}
+              onChange={handleTableSelection}
               className="basic-multi-select"
               classNamePrefix="select"
               styles={{
                 control: (base) => ({
                   ...base,
                   borderColor: '#d1d5db',
+                  borderRadius: '0.75rem',
+                  padding: '0.25rem',
+                  boxShadow: 'none',
                   '&:hover': {
                     borderColor: '#9ca3af',
                   },
@@ -195,7 +208,39 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
                 multiValue: (base) => ({
                   ...base,
                   backgroundColor: '#e5e7eb',
+                  borderRadius: '0.5rem',
                 }),
+                option: (base, state) => ({
+                  ...base,
+                  backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#bfdbfe' : 'white',
+                  color: state.isSelected ? 'white' : '#1f2937',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  fontFamily: 'inherit',
+                  padding: '0.5rem 1rem',
+                  '&:hover': {
+                    backgroundColor: '#bfdbfe',
+                    color: '#1f2937',
+                  },
+                }),
+                menu: (base) => ({
+                  ...base,
+                  borderRadius: '0.75rem',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                }),
+                menuList: (base) => ({
+                  ...base,
+                  padding: '0.5rem 0',
+                }),
+              }}
+              components={{
+                Option: ({ children, ...props }) => (
+                  <components.Option {...props}>
+                    {props.data.value === 'all' && <CheckSquare size={16} className="inline-block mr-2" />}
+                    {children}
+                  </components.Option>
+                ),
               }}
             />
           </div>
