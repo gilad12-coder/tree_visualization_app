@@ -18,7 +18,7 @@ import webbrowser
 import threading
 import sys
 import re
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, not_
 from datetime import datetime, date
 
 def resource_path(relative_path):
@@ -765,25 +765,13 @@ def find_node_path(node, target_name):
 
 @app.route("/search/<int:folder_id>/<int:table_id>", methods=["GET"])
 def search_nodes(folder_id, table_id):
-    """
-    Search for nodes in organizational data based on complex query expressions.
-    If the query is empty, return all results for the specified column.
-    
-    Args:
-    folder_id (int): The ID of the folder containing the data tables
-    table_id (int): The ID of the table to search within
-    
-    Query Parameters:
-    query (str): The search query with keywords, operators, and groupings (can be empty)
-    column (str): The name of the column to search in
-    
-    Returns:
-    JSON: A dictionary containing the search results
-    """
     query = request.args.get('query', '')
     column = request.args.get('column')
     
+    logger.info(f"Search request received for folder_id: {folder_id}, table_id: {table_id}, query: '{query}', column: '{column}'")
+    
     if not column:
+        logger.error("Column parameter is missing")
         return jsonify({"error": "Column is required"}), 400
 
     try:
@@ -795,6 +783,7 @@ def search_nodes(folder_id, table_id):
             )
             
             if not table:
+                logger.error(f"Table with id {table_id} not found in folder {folder_id}")
                 return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
             
             logger.info(f"Searching table {table_id} in folder {folder_id} for column {column}")
@@ -803,6 +792,8 @@ def search_nodes(folder_id, table_id):
                 results = search_table(session, table_id, query, column)
             else:
                 results = get_all_results(session, table_id, column)
+            
+            logger.info(f"Search completed. Total results: {len(results)}")
             
             return jsonify({
                 "results": results,
@@ -814,7 +805,7 @@ def search_nodes(folder_id, table_id):
             }), 200
     
     except Exception as e:
-        logger.error(f"Error searching in folder {folder_id}, table {table_id}: {str(e)}")
+        logger.exception(f"Error searching in folder {folder_id}, table {table_id}: {str(e)}")
         return jsonify({"error": "An unexpected error occurred while searching"}), 500
 
 def get_all_results(session, table_id, column):
@@ -833,11 +824,11 @@ def get_all_results(session, table_id, column):
             'department': entry.department,
             'rank': entry.rank,
             'organization_id': entry.organization_id,
-            'matched_terms': [],  # No matched terms for all results
+            'matched_terms': [],
             'hierarchical_structure': entry.hierarchical_structure
         }
         search_results.append(result)
-        logger.info(f"Result added for person_id: {entry.person_id}")
+        logger.debug(f"Result added for person_id: {entry.person_id}")
 
     logger.info("All results fetched and prepared.")
     
@@ -853,7 +844,7 @@ def search_table(session, table_id, query, column):
     logger.info(f"Base query created for table_id: {table_id}")
 
     condition = build_sqlalchemy_condition(parsed_query, column)
-    logger.info("SQLAlchemy condition built")
+    logger.info(f"SQLAlchemy condition built: {condition}")
 
     results = base_query.filter(condition).all()
     logger.info(f"Query executed. Number of results found: {len(results)}")
@@ -871,15 +862,20 @@ def search_table(session, table_id, query, column):
             'hierarchical_structure': entry.hierarchical_structure
         }
         search_results.append(result)
-        logger.info(f"Result added for person_id: {entry.person_id}")
+        logger.debug(f"Result added for person_id: {entry.person_id}, matched terms: {result['matched_terms']}")
 
     logger.info("Search completed and results prepared.")
     
     return search_results
 
 def parse_complex_query(query):
+    logger.info(f"Parsing complex query: '{query}'")
+
     def tokenize(s):
-        return re.findall(r'(\(|\)|"[^"]*"|\S+)', s)
+        # Split on spaces, but keep quoted strings and parentheses together
+        tokens = re.findall(r'([()]|\w+|"[^"]*")', s)
+        logger.debug(f"Tokenized query: {tokens}")
+        return tokens
 
     def parse_expression(tokens):
         result = []
@@ -887,21 +883,46 @@ def parse_complex_query(query):
             token = tokens.pop(0)
             if token == '(':
                 subexpr, tokens = parse_expression(tokens)
-                result.append(subexpr)
+                if result and result[-1] == 'NOT':
+                    result[-1] = ['NOT', subexpr]
+                else:
+                    result.append(subexpr)
             elif token == ')':
                 return result, tokens
-            elif token.upper() in ('AND', 'OR', 'NOT'):
-                result.append(token.upper())
+            elif token == 'NOT':
+                if tokens and tokens[0] == '(':
+                    subexpr, tokens = parse_expression(tokens[1:])
+                    result.append(['NOT', subexpr])
+                else:
+                    next_token = tokens.pop(0) if tokens else None
+                    result.append(['NOT', next_token])
             else:
-                result.append(token)  # Keep quotes for exact matching
+                result.append(token)
         return result, []
 
-    tokens = tokenize(query)
-    parsed_query, _ = parse_expression(tokens)
-    return parsed_query
+    try:
+        tokens = tokenize(query)
+        parsed_query, _ = parse_expression(tokens)
+        
+        # Flatten the list if it's unnecessarily nested
+        while len(parsed_query) == 1 and isinstance(parsed_query[0], list):
+            parsed_query = parsed_query[0]
+        
+        logger.info(f"Parsed complex query result: {parsed_query}")
+        return parsed_query
+    except Exception as e:
+        logger.error(f"Error parsing query '{query}': {str(e)}")
+        raise ValueError(f"Invalid query format: {str(e)}")
 
 def build_sqlalchemy_condition(parsed_query, column):
+    logger.info(f"Building SQLAlchemy condition for parsed query: {parsed_query}")
+    
+    if not parsed_query:
+        logger.warning("Empty parsed query, returning True condition")
+        return True  # This will match all rows
+    
     def build_condition(expr):
+        logger.debug(f"Building condition for expression: {expr}")
         if isinstance(expr, list):
             if len(expr) == 1:
                 return build_condition(expr[0])
@@ -909,45 +930,87 @@ def build_sqlalchemy_condition(parsed_query, column):
                 return or_(*[build_condition(e) for e in expr if e != 'OR'])
             elif 'AND' in expr:
                 return and_(*[build_condition(e) for e in expr if e != 'AND'])
+            elif expr[0] == 'NOT':
+                return not_(build_condition(expr[1]))
             else:
                 return and_(*[build_condition(e) for e in expr])
-        elif expr == 'NOT':
-            return not_(build_condition(parsed_query[parsed_query.index(expr) + 1]))
         else:
             if expr.startswith('"') and expr.endswith('"'):
-                # Case-insensitive exact match
+                logger.debug(f"Building exact match condition for: {expr}")
                 return func.lower(getattr(DataEntry, column)) == func.lower(expr.strip('"'))
             else:
-                # Case-insensitive partial match
-                return func.lower(getattr(DataEntry, column)).contains(func.lower(expr))
+                logger.debug(f"Building partial match condition for: {expr}")
+                return func.lower(getattr(DataEntry, column)).like(f"%{expr.lower()}%")
 
-    return build_condition(parsed_query)
+    try:
+        condition = build_condition(parsed_query)
+        logger.info(f"Built SQLAlchemy condition: {condition}")
+        return condition
+    except Exception as e:
+        logger.error(f"Error building SQLAlchemy condition: {str(e)}")
+        raise ValueError(f"Error building search condition: {str(e)}")
 
 def get_matched_terms(text, parsed_query):
-    def collect_terms(expr):
-        terms = []
-        for item in expr:
+    logger.debug(f"Starting get_matched_terms with text: '{text}' and parsed query: {parsed_query}")
+    
+    def flatten_and_remove_duplicates(lst):
+        result = []
+        for item in lst:
             if isinstance(item, list):
-                terms.extend(collect_terms(item))
-            elif item not in ('AND', 'OR', 'NOT'):
-                terms.append(item)
-        return terms
+                result.extend(flatten_and_remove_duplicates(item))
+            elif item not in result and item != 'AND':
+                result.append(item)
+        return result
 
-    all_terms = collect_terms(parsed_query)
-    text = str(text).lower()
-    matched = []
-    for term in all_terms:
-        if term.startswith('"') and term.endswith('"'):
-            # Case-insensitive exact match
-            if term.strip('"').lower() == text:
-                matched.append(term.strip('"'))
+    def evaluate_and_explain(expr):
+        logger.debug(f"Evaluating expression: {expr}")
+        if isinstance(expr, list):
+            if expr[0] == 'NOT':
+                logger.debug("Processing NOT condition")
+                sub_result, sub_explanation = evaluate_and_explain(expr[1])
+                result = not sub_result
+                if result:
+                    explanation = f"NOT ({sub_explanation})" if sub_explanation else f"NOT ({' AND '.join(flatten_and_remove_duplicates(expr[1]))})"
+                else:
+                    explanation = None
+                logger.debug(f"NOT result: {result}, explanation: {explanation}")
+                return (result, explanation)
+            elif 'AND' in expr:
+                logger.debug("Processing AND condition")
+                results = [evaluate_and_explain(e) for e in expr if e != 'AND']
+                result = all(r for r, _ in results)
+                explanations = [e for _, e in results if e is not None]
+                explanation = " AND ".join(explanations) if result and explanations else None
+                logger.debug(f"AND result: {result}, explanation: {explanation}")
+                return (result, explanation)
+            elif 'OR' in expr:
+                logger.debug("Processing OR condition")
+                results = [evaluate_and_explain(e) for e in expr if e != 'OR']
+                matching_explanations = [e for r, e in results if r and e is not None]
+                result = any(r for r, _ in results)
+                explanation = matching_explanations[0] if matching_explanations else None
+                logger.debug(f"OR result: {result}, explanation: {explanation}")
+                return (result, explanation)
+            else:
+                logger.debug("Processing implicit AND condition")
+                return evaluate_and_explain(['AND'] + expr)
         else:
-            # Case-insensitive partial match
-            if term.lower() in text:
-                matched.append(term)
-    return matched
+            logger.debug(f"Processing leaf node: {expr}")
+            result = expr.lower() in text.lower()
+            explanation = expr if result else None
+            logger.debug(f"Leaf node result: {result}, explanation: {explanation}")
+            return (result, explanation)
 
-
+    result, explanation = evaluate_and_explain(parsed_query)
+    
+    logger.debug(f"Final result: {result}, Final explanation: {explanation}")
+    
+    if explanation:
+        logger.info(f"Match explanation: {explanation}")
+        return [explanation]
+    else:
+        logger.info("No match found")
+        return []
 
 @app.route("/export_excel/<int:table_id>", methods=["GET"])
 def export_excel(table_id):
