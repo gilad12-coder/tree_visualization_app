@@ -846,6 +846,10 @@ def search_table(session, table_id, query, column):
     condition = build_sqlalchemy_condition(parsed_query, column)
     logger.info(f"SQLAlchemy condition built: {condition}")
 
+    # Log the SQL query
+    query_sql = str(base_query.filter(condition).statement.compile(compile_kwargs={"literal_binds": True}))
+    logger.info(f"SQL query: {query_sql}")
+
     results = base_query.filter(condition).all()
     logger.info(f"Query executed. Number of results found: {len(results)}")
 
@@ -862,7 +866,7 @@ def search_table(session, table_id, query, column):
             'hierarchical_structure': entry.hierarchical_structure
         }
         search_results.append(result)
-        logger.debug(f"Result added for person_id: {entry.person_id}, matched terms: {result['matched_terms']}")
+        logger.debug(f"Result added: {result}")
 
     logger.info("Search completed and results prepared.")
     
@@ -953,30 +957,16 @@ def build_sqlalchemy_condition(parsed_query, column):
 def get_matched_terms(text, parsed_query):
     logger.debug(f"Starting get_matched_terms with text: '{text}' and parsed query: {parsed_query}")
     
-    def flatten_and_remove_duplicates(lst):
-        result = []
-        for item in lst:
-            if isinstance(item, list):
-                result.extend(flatten_and_remove_duplicates(item))
-            elif item not in result and item != 'AND':
-                result.append(item)
-        return result
-
     def evaluate_and_explain(expr):
         logger.debug(f"Evaluating expression: {expr}")
         if isinstance(expr, list):
             if expr[0] == 'NOT':
-                logger.debug("Processing NOT condition")
                 sub_result, sub_explanation = evaluate_and_explain(expr[1])
                 result = not sub_result
-                if result:
-                    explanation = f"NOT ({sub_explanation})" if sub_explanation else f"NOT ({' AND '.join(flatten_and_remove_duplicates(expr[1]))})"
-                else:
-                    explanation = None
+                explanation = f"NOT ({expr[1]})" if result else None
                 logger.debug(f"NOT result: {result}, explanation: {explanation}")
                 return (result, explanation)
             elif 'AND' in expr:
-                logger.debug("Processing AND condition")
                 results = [evaluate_and_explain(e) for e in expr if e != 'AND']
                 result = all(r for r, _ in results)
                 explanations = [e for _, e in results if e is not None]
@@ -984,18 +974,15 @@ def get_matched_terms(text, parsed_query):
                 logger.debug(f"AND result: {result}, explanation: {explanation}")
                 return (result, explanation)
             elif 'OR' in expr:
-                logger.debug("Processing OR condition")
                 results = [evaluate_and_explain(e) for e in expr if e != 'OR']
                 matching_explanations = [e for r, e in results if r and e is not None]
                 result = any(r for r, _ in results)
-                explanation = matching_explanations[0] if matching_explanations else None
+                explanation = " OR ".join(matching_explanations) if result else None
                 logger.debug(f"OR result: {result}, explanation: {explanation}")
                 return (result, explanation)
             else:
-                logger.debug("Processing implicit AND condition")
                 return evaluate_and_explain(['AND'] + expr)
         else:
-            logger.debug(f"Processing leaf node: {expr}")
             result = expr.lower() in text.lower()
             explanation = expr if result else None
             logger.debug(f"Leaf node result: {result}, explanation: {explanation}")
@@ -1003,15 +990,15 @@ def get_matched_terms(text, parsed_query):
 
     result, explanation = evaluate_and_explain(parsed_query)
     
-    logger.debug(f"Final result: {result}, Final explanation: {explanation}")
+    logger.info(f"Final result: {result}, Final explanation: {explanation}")
     
-    if explanation:
-        logger.info(f"Match explanation: {explanation}")
+    if result and explanation:
+        logger.info(f"Match found. Explanation: {explanation}")
         return [explanation]
     else:
         logger.info("No match found")
         return []
-
+    
 @app.route("/export_excel/<int:table_id>", methods=["GET"])
 def export_excel(table_id):
     try:
