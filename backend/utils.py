@@ -40,32 +40,47 @@ def check_continuation(folder_id, file_content, file_extension):
         session.close()
 
 def parse_org_data(df):
-    # Sort the DataFrame by the structure column to ensure parents are processed before children
     df = df.sort_values('hierarchical_structure')
-
-    # Initialize a dictionary to store all nodes
     nodes = {}
-    root = None
+    roots = []
+    errors = {}
+    info = {}
+    disconnected_nodes = {}
+    excluded_nodes = set()
+
+    def add_error(error_type, message):
+        if error_type not in errors:
+            errors[error_type] = []
+        errors[error_type].append(message)
+
+    def add_info(info_type, message):
+        if info_type not in info:
+            info[info_type] = []
+        info[info_type].append(message)
 
     def is_rtl(text):
-        # Check for RTL: if the string contains Hebrew or Arabic characters
         return any('\u0590' <= c <= '\u05FF' or '\u0600' <= c <= '\u06FF' for c in text)
 
     def split_structure(structure):
-        # Handle different structure formats: numeric, forward slash, backward slash, RTL
         if '\\' in structure:
-            return structure.split('\\')
+            return [part for part in structure.split('\\') if part]
         elif '/' in structure:
             return [part for part in structure.split('/') if part]
         else:
-            return structure.split('/')
+            return [part for part in structure.split('/') if part]
 
-    for _, row in df.iterrows():
-        structure = row.get('hierarchical_structure', '')
+    def count_descendants(node):
+        return len(node['children']) + sum(count_descendants(child) for child in node['children'])
+
+    def process_node(row):
+        structure = row['hierarchical_structure']
         if not structure:
-            continue
+            add_error('missing_structure', f"Row {row.name}: Missing hierarchical structure")
+            return None
 
-        # Create the new node with all available data
+        if structure in nodes:
+            return nodes[structure]
+
         new_node = {
             "name": row.get('name', ''),
             "role": row.get('role', ''),
@@ -78,39 +93,95 @@ def parse_org_data(df):
             "children": []
         }
 
-        # Calculate age if birth_date is available
         if new_node['birth_date']:
             try:
                 birth_date = pd.to_datetime(new_node['birth_date']).date()
                 upload_date = pd.to_datetime(new_node['upload_date']).date()
                 new_node['age'] = (upload_date - birth_date).days // 365
-            except:
+            except ValueError as e:
+                add_error('invalid_date', f"Invalid birth date format for {structure} - {e}")
                 new_node['age'] = None
 
         nodes[structure] = new_node
 
         parts = split_structure(structure)
-
-        # Identify the root node
         if len(parts) == 1:
-            root = new_node
+            roots.append(structure)
+        else:
+            parent_structure = '/' + '/'.join(parts[:-1])
+            if parent_structure in nodes:
+                nodes[parent_structure]['children'].append(new_node)
+            else:
+                disconnected_nodes[structure] = parent_structure
+
+        return new_node
+
+    # Process all nodes
+    for _, row in df.iterrows():
+        structure = row['hierarchical_structure']
+        if not structure.startswith('/'):
+            add_error('invalid_structure', f"Row {_}: Structure must start with a slash: {structure}")
             continue
+        process_node(row)
 
-        # Find the parent
-        if is_rtl(structure):
-            parent_structure = '/'.join(parts[:-1])
-        elif structure.startswith('/') or structure.startswith('\\'):
-            parent_structure = structure[:len(structure) - len(parts[-1]) - 1]
-        else:
-            parent_structure = '/'.join(parts[:-1])
+    # Select main root based on the number of descendants
+    if roots:
+        root_info = [(root, count_descendants(nodes[root])) for root in roots]
+        main_root, main_descendants = max(root_info, key=lambda x: x[1])
+        excluded_roots = [root for root in roots if root != main_root]
+        
+        add_info('root_selection', f"Selected main root: '{main_root}' (with {main_descendants} descendants)")
+        if len(roots) > 1:
+            excluded_root_info = [f"'{root}' ({count_descendants(nodes[root])} descendants)" for root in excluded_roots]
+            add_info('multiple_roots', f"Additional roots found: {', '.join(excluded_root_info)}")
 
-        parent = nodes.get(parent_structure)
-        if parent:
-            parent["children"].append(new_node)
-        else:
-            print(f"Parent not found for node: {structure}")
+        # Identify excluded nodes
+        for structure in nodes.keys():
+            if not structure.startswith(main_root):
+                excluded_nodes.add(structure)
+    else:
+        add_error('missing_root', "No root nodes found")
+        main_root = None
 
-    return root
+    # Categorize nodes
+    only_disconnected = set(disconnected_nodes.keys()) - excluded_nodes
+    only_excluded = excluded_nodes - set(disconnected_nodes.keys())
+    disconnected_and_excluded = set(disconnected_nodes.keys()).intersection(excluded_nodes)
+
+    # Report on categorized nodes
+    if only_disconnected:
+        add_error('disconnected_nodes', "The following nodes are disconnected (parent not found):")
+        for node in sorted(only_disconnected):
+            add_error('disconnected_nodes', f"  - {node} (Expected parent: {disconnected_nodes[node]})")
+
+    if only_excluded:
+        add_error('excluded_nodes', f"The following nodes are not connected to the main root '{main_root}' and are excluded from the final structure:")
+        for node in sorted(only_excluded):
+            add_error('excluded_nodes', f"  - {node}")
+
+    if disconnected_and_excluded:
+        add_error('disconnected_and_excluded', "The following nodes are both disconnected and excluded:")
+        for node in sorted(disconnected_and_excluded):
+            add_error('disconnected_and_excluded', f"  - {node} (Expected parent: {disconnected_nodes[node]})")
+
+    if info:
+        print("Information about the parsed structure:")
+        for info_type, info_list in info.items():
+            print(f"\n{info_type.replace('_', ' ').title()}:")
+            for message in info_list:
+                print(f"  - {message}")
+
+    if errors:
+        print("\nErrors encountered during parsing:")
+        for error_type, error_list in errors.items():
+            print(f"\n{error_type.replace('_', ' ').title()}:")
+            for error in error_list:
+                print(f"  - {error}")
+        print("\nPlease resolve these issues and try again.")
+    elif not info:
+        print("\nNo issues encountered during parsing.")
+
+    return nodes[main_root] if main_root else None
 
 def compare_id_column(previous_df, new_df):
     def get_person_id_set(df):
