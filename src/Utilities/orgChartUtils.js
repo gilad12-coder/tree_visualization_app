@@ -1,86 +1,62 @@
-export const findNodeById = (node, id) => {
-  if (node.person_id === id) {
-    return node;
-  }
-  if (node.children) {
-    for (let child of node.children) {
-      const found = findNodeById(child, id);
-      if (found) return found;
+export const formatLogToJSON = (logString) => {
+  const logLines = logString.split('\n');
+  const formattedLog = {
+    errors: {
+      invalid_structure: [],
+      disconnected_nodes: [],
+      disconnected_and_excluded: []
+    },
+    info: {},
+    summary: {
+      total_errors: 0,
+      error_types: []
     }
-  }
-  return null;
-};
+  };
 
-export const extractNamesAndRoles = (data) => {
-  if (!data || typeof data !== 'object') {
-    console.warn('Invalid data provided to extractNamesAndRoles');
-    return { names: [], roles: [] };
-  }
+  let currentCategory = null;
 
-  const names = new Set();
-  const roles = new Set();
+  logLines.forEach(line => {
+    const [type, category, ...message] = line.split(' - ');
+    const fullMessage = message.join(' - ').trim();
 
-  const traverse = (node) => {
-    if (node && typeof node === 'object') {
-      if (node.name) names.add(node.name);
-      if (node.role) roles.add(node.role);
-      if (Array.isArray(node.children)) {
-        node.children.forEach(traverse);
+    if (type === 'ERROR') {
+      if (fullMessage.startsWith('The following nodes')) {
+        currentCategory = category;
+      } else if (currentCategory && fullMessage.startsWith('  -')) {
+        formattedLog.summary.total_errors++;
+        if (!formattedLog.summary.error_types.includes(currentCategory)) {
+          formattedLog.summary.error_types.push(currentCategory);
+        }
+
+        const [node, parent] = fullMessage.split(' (Expected parent: ');
+        formattedLog.errors[currentCategory].push({
+          node: node.replace('  - ', '').trim(),
+          expected_parent: parent ? parent.replace(')', '') : null
+        });
+      } else {
+        formattedLog.summary.total_errors++;
+        if (!formattedLog.summary.error_types.includes(category)) {
+          formattedLog.summary.error_types.push(category);
+        }
+
+        if (category === 'invalid_structure') {
+          const [row, structure] = fullMessage.split(': Structure must start with a slash: ');
+          formattedLog.errors.invalid_structure.push({
+            row: row.replace('Row ', ''),
+            invalid_structure: structure
+          });
+        }
+      }
+    } else if (type === 'INFO') {
+      if (category === 'root_selection') {
+        const [root, descendants] = fullMessage.split(' (with ');
+        formattedLog.info.root_selection = {
+          main_root: root.replace("Selected main root: ", ''),
+          descendants: parseInt(descendants.replace(' descendants)', ''))
+        };
       }
     }
-  };
+  });
 
-  traverse(data);
-  return {
-    names: Array.from(names),
-    roles: Array.from(roles)
-  };
-};
-
-export const extractAllData = (data) => {
-  if (!data || typeof data !== 'object') {
-    console.warn('Invalid data provided to extractAllData');
-    return {
-      birth_dates: [],
-      departments: [],
-      names: [],
-      organization_ids: [],
-      person_ids: [],
-      ranks: [],
-      roles: []
-    };
-  }
-
-  const extractedData = {
-    birth_dates: new Set(),
-    departments: new Set(),
-    names: new Set(),
-    organization_ids: new Set(),
-    person_ids: new Set(),
-    ranks: new Set(),
-    roles: new Set()
-  };
-
-  const traverse = (node) => {
-    if (node && typeof node === 'object') {
-      if (node.birth_date) extractedData.birth_dates.add(node.birth_date);
-      if (node.department) extractedData.departments.add(node.department);
-      if (node.name) extractedData.names.add(node.name);
-      if (node.organization_id) extractedData.organization_ids.add(node.organization_id);
-      if (node.person_id) extractedData.person_ids.add(node.person_id);
-      if (node.rank) extractedData.ranks.add(node.rank);
-      if (node.role) extractedData.roles.add(node.role);
-
-      if (Array.isArray(node.children)) {
-        node.children.forEach(traverse);
-      }
-    }
-  };
-
-  traverse(data);
-
-  // Convert Sets to Arrays
-  return Object.fromEntries(
-    Object.entries(extractedData).map(([key, value]) => [key, Array.from(value)])
-  );
+  return formattedLog;
 };

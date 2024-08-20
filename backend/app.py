@@ -279,8 +279,11 @@ def view_tables():
 @app.route("/org_data", methods=["GET"], endpoint='get_org_data')
 @validate_input(table_id=int)
 def get_org_data(table_id):
-    org_chart = get_org_chart(table_id)
-    return jsonify(org_chart), 200
+    org_chart, log = get_org_chart(table_id)
+    response = {"org_chart": org_chart}
+    if log:
+        response["log"] = log
+    return jsonify(response), 200
 
 @app.route("/person_history/<int:person_id>", methods=["GET"])
 def fetch_person_history(person_id):
