@@ -63,10 +63,10 @@ const OrgChart = ({
 
   const fetchData = useCallback(async () => {
     if (!dbPath || !selectedTableId) return;
-
+  
     setIsLoading(true);
     setError(null);
-
+  
     try {
       const [folderResponse, orgDataResponse] = await Promise.all([
         axios.get(`${API_BASE_URL}/folder_structure`, {
@@ -76,16 +76,51 @@ const OrgChart = ({
           params: { table_id: selectedTableId, db_path: dbPath },
         }),
       ]);
-
+  
       setFolderStructure(folderResponse.data);
-      setOrgData(orgDataResponse.data);
-      setFilteredOrgData(orgDataResponse.data);
+      
+      if (orgDataResponse.data.log) {
+        console.warn("Parsing log received:", orgDataResponse.data.log);
+        
+        // Create a Blob from the parsing log
+        const blob = new Blob([JSON.stringify(orgDataResponse.data.log, null, 2)], { type: 'application/json' });
+        
+        // Create a link element, use it to download the blob, then remove it
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'parsing_log.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.warning("Parsing encountered issues. The log has been downloaded for your review.");
+      }
+      
+      setOrgData(orgDataResponse.data.org_chart);
+      setFilteredOrgData(orgDataResponse.data.org_chart);
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("Failed to fetch data. Please try again.");
       setFolderStructure([]);
       setOrgData(null);
       setFilteredOrgData(null);
+      
+      if (error.response?.data?.log) {
+        console.warn("Error log:", error.response.data.log);
+        
+        // Create a Blob from the error log
+        const blob = new Blob([JSON.stringify(error.response.data.log, null, 2)], { type: 'application/json' });
+        
+        // Create a link element, use it to download the blob, then remove it
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'error_log.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.error("An error occurred. The error log has been downloaded for your review.");
+      }
     } finally {
       setIsLoading(false);
     }

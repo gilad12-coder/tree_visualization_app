@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from sqlalchemy import func
 from datetime import datetime
+import json
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -43,20 +44,39 @@ def parse_org_data(df):
     df = df.sort_values('hierarchical_structure')
     nodes = {}
     roots = []
-    errors = {}
-    info = {}
+    log = {
+        "errors": {
+            "invalid_structure": [],
+            "missing_structure": [],
+            "invalid_date": [],
+            "disconnected_nodes": [],
+            "excluded_nodes": [],
+            "disconnected_and_excluded": [],
+            "missing_root": []
+        },
+        "info": {
+            "root_selection": None,
+            "multiple_roots": []
+        },
+        "summary": {
+            "total_errors": 0,
+            "error_types": []
+        }
+    }
     disconnected_nodes = {}
     excluded_nodes = set()
 
     def add_error(error_type, message):
-        if error_type not in errors:
-            errors[error_type] = []
-        errors[error_type].append(message)
+        log["errors"][error_type].append(message)
+        log["summary"]["total_errors"] += 1
+        if error_type not in log["summary"]["error_types"]:
+            log["summary"]["error_types"].append(error_type)
 
     def add_info(info_type, message):
-        if info_type not in info:
-            info[info_type] = []
-        info[info_type].append(message)
+        if info_type == "root_selection":
+            log["info"]["root_selection"] = message
+        elif info_type == "multiple_roots":
+            log["info"]["multiple_roots"].append(message)
 
     def is_rtl(text):
         return any('\u0590' <= c <= '\u05FF' or '\u0600' <= c <= '\u06FF' for c in text)
@@ -75,7 +95,7 @@ def parse_org_data(df):
     def process_node(row):
         structure = row['hierarchical_structure']
         if not structure:
-            add_error('missing_structure', f"Row {row.name}: Missing hierarchical structure")
+            add_error('missing_structure', {"row": int(row.name), "message": "Missing hierarchical structure"})
             return None
 
         if structure in nodes:
@@ -89,7 +109,7 @@ def parse_org_data(df):
             "birth_date": row.get('birth_date', None),
             "rank": row.get('rank', ''),
             "organization_id": row.get('organization_id', ''),
-            "upload_date": datetime.now().date(),
+            "upload_date": datetime.now().date().isoformat(),
             "children": []
         }
 
@@ -99,7 +119,7 @@ def parse_org_data(df):
                 upload_date = pd.to_datetime(new_node['upload_date']).date()
                 new_node['age'] = (upload_date - birth_date).days // 365
             except ValueError as e:
-                add_error('invalid_date', f"Invalid birth date format for {structure} - {e}")
+                add_error('invalid_date', {"structure": structure, "message": str(e)})
                 new_node['age'] = None
 
         nodes[structure] = new_node
@@ -119,8 +139,8 @@ def parse_org_data(df):
     # Process all nodes
     for _, row in df.iterrows():
         structure = row['hierarchical_structure']
-        if not structure.startswith('/'):
-            add_error('invalid_structure', f"Row {_}: Structure must start with a slash: {structure}")
+        if not isinstance(structure, str) or not structure.startswith('/'):
+            add_error('invalid_structure', {"row": int(_), "structure": str(structure), "message": "Structure must start with a slash"})
             continue
         process_node(row)
 
@@ -130,17 +150,17 @@ def parse_org_data(df):
         main_root, main_descendants = max(root_info, key=lambda x: x[1])
         excluded_roots = [root for root in roots if root != main_root]
         
-        add_info('root_selection', f"Selected main root: '{main_root}' (with {main_descendants} descendants)")
+        add_info('root_selection', {"main_root": main_root, "descendants": main_descendants})
         if len(roots) > 1:
-            excluded_root_info = [f"'{root}' ({count_descendants(nodes[root])} descendants)" for root in excluded_roots]
-            add_info('multiple_roots', f"Additional roots found: {', '.join(excluded_root_info)}")
+            excluded_root_info = [{"root": root, "descendants": count_descendants(nodes[root])} for root in excluded_roots]
+            add_info('multiple_roots', excluded_root_info)
 
         # Identify excluded nodes
         for structure in nodes.keys():
             if not structure.startswith(main_root):
                 excluded_nodes.add(structure)
     else:
-        add_error('missing_root', "No root nodes found")
+        add_error('missing_root', {"message": "No root nodes found"})
         main_root = None
 
     # Categorize nodes
@@ -150,38 +170,28 @@ def parse_org_data(df):
 
     # Report on categorized nodes
     if only_disconnected:
-        add_error('disconnected_nodes', "The following nodes are disconnected (parent not found):")
         for node in sorted(only_disconnected):
-            add_error('disconnected_nodes', f"  - {node} (Expected parent: {disconnected_nodes[node]})")
+            add_error('disconnected_nodes', {"node": node, "expected_parent": disconnected_nodes[node]})
 
     if only_excluded:
-        add_error('excluded_nodes', f"The following nodes are not connected to the main root '{main_root}' and are excluded from the final structure:")
         for node in sorted(only_excluded):
-            add_error('excluded_nodes', f"  - {node}")
+            add_error('excluded_nodes', {"node": node, "main_root": main_root})
 
     if disconnected_and_excluded:
-        add_error('disconnected_and_excluded', "The following nodes are both disconnected and excluded:")
         for node in sorted(disconnected_and_excluded):
-            add_error('disconnected_and_excluded', f"  - {node} (Expected parent: {disconnected_nodes[node]})")
+            add_error('disconnected_and_excluded', {"node": node, "expected_parent": disconnected_nodes[node]})
 
-    if info:
-        print("Information about the parsed structure:")
-        for info_type, info_list in info.items():
-            print(f"\n{info_type.replace('_', ' ').title()}:")
-            for message in info_list:
-                print(f"  - {message}")
-
-    if errors:
-        print("\nErrors encountered during parsing:")
-        for error_type, error_list in errors.items():
-            print(f"\n{error_type.replace('_', ' ').title()}:")
-            for error in error_list:
-                print(f"  - {error}")
-        print("\nPlease resolve these issues and try again.")
-    elif not info:
-        print("\nNo issues encountered during parsing.")
-
-    return nodes[main_root] if main_root else None
+    # Prepare the result
+    result = nodes[main_root] if main_root else None
+    
+    # Remove empty error categories
+    log["errors"] = {k: v for k, v in log["errors"].items() if v}
+    
+    # Return the parsing log only if there were errors
+    if log["summary"]["total_errors"] > 0:
+        return result, log
+    else:
+        return result, None
 
 def compare_id_column(previous_df, new_df):
     def get_person_id_set(df):
@@ -271,8 +281,12 @@ def get_org_chart(table_id):
         df = pd.DataFrame([entry.__dict__ for entry in data_entries])
         df = df.drop('_sa_instance_state', axis=1, errors='ignore')
         
-        print(parse_org_data(df))
-        return parse_org_data(df)
+        org_chart, log = parse_org_data(df)
+        if log:
+            logger.info(f"Org chart generated for table ID {table_id} with logs: {log}")
+        else:
+            logger.info(f"Org chart generated successfully for table ID {table_id}")
+        return org_chart, log
     finally:
         session.close()
 
