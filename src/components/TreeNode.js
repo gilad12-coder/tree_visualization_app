@@ -24,6 +24,7 @@ const TreeNode = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
+  const isSingleChild = hasChildren && node.children.length === 1;
   const colorClass = colors[`level${(depth % 5) + 1}`];
   const longPressTimer = useRef(null);
   const isLongPress = useRef(false);
@@ -130,45 +131,52 @@ const TreeNode = ({
         </div>
       </motion.div>
       <AnimatePresence initial={false}>
-        {hasChildren && isExpanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="relative mt-4 pt-8 w-full"
-          >
-            <div className="absolute left-1/2 -translate-x-px w-1 bg-gray-400 h-8 top-0" />
-            <div className="relative flex justify-center">
-              {node.children.map((child, index, array) => (
-                <div key={child.name || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
-                  {index === 0 && array.length > 1 && (
-                    <div className="absolute w-1/2 h-1 bg-gray-400 right-0 top-0" />
-                  )}
-                  {index === array.length - 1 && array.length > 1 && (
-                    <div className="absolute w-1/2 h-1 bg-gray-400 left-0 top-0" />
-                  )}
-                  {index > 0 && index < array.length - 1 && (
-                    <div className="absolute w-full h-1 bg-gray-400 top-0" />
-                  )}
-                  <div className="w-1 bg-gray-400 h-8 mb-4" />
-                  <TreeNode 
-                    node={child} 
-                    onNodeClick={onNodeClick} 
-                    depth={depth + 1} 
-                    expandAll={expandAll}
-                    collapseAll={collapseAll}
-                    folderId={folderId || node.folderId}
-                    tableId={tableId || node.tableId}
-                    highlightedNodes={highlightedNodes}
-                    onHighlight={onHighlight}
-                  />
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+  {hasChildren && isExpanded && (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.3, ease: 'easeInOut' }}
+      className="relative mt-4 pt-8 w-full"
+    >
+      {/* Vertical line for both single and multiple children */}
+      <div className={`absolute left-1/2 -translate-x-px w-1 bg-gray-400 ${isSingleChild ? 'h-16' : 'h-8'} top-0`} />
+      <div className={`relative flex justify-center ${isSingleChild ? 'mt-10' : ''}`}>
+        {node.children.map((child, index, array) => (
+          <div key={child.name || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
+            {/* Horizontal lines only for multiple children */}
+            {!isSingleChild && (
+              <>
+                {index === 0 && (
+                  <div className="absolute w-1/2 h-1 bg-gray-400 right-0 top-0" />
+                )}
+                {index === array.length - 1 && (
+                  <div className="absolute w-1/2 h-1 bg-gray-400 left-0 top-0" />
+                )}
+                {index > 0 && index < array.length - 1 && (
+                  <div className="absolute w-full h-1 bg-gray-400 top-0" />
+                )}
+              </>
+            )}
+            {/* Vertical line for each child */}
+            {!isSingleChild && <div className="w-1 bg-gray-400 h-8 mb-4" />}
+            <TreeNode 
+              node={child} 
+              onNodeClick={onNodeClick} 
+              depth={depth + 1} 
+              expandAll={expandAll}
+              collapseAll={collapseAll}
+              folderId={folderId || node.folderId}
+              tableId={tableId || node.tableId}
+              highlightedNodes={highlightedNodes}
+              onHighlight={onHighlight}
+            />
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   );
 };

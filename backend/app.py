@@ -344,7 +344,7 @@ def get_timeline(folder_id):
             current_role = None
             
             for table in tables:
-                org_tree = get_org_chart(table.id)  # Assuming this function exists and returns the org tree
+                org_tree, _ = get_org_chart(table.id)  # Ignoring the log
                 
                 timeline_entry = {
                     "table_id": table.id,
