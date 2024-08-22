@@ -4,6 +4,13 @@ import { ChevronDown, Download } from 'react-feather';
 import { getLanguage, getFontClass, getTextAlignClass, getTextDirection } from '../Utilities/languageUtils';
 
 const REPORTS_DISPLAY_THRESHOLD = 5;
+const MAX_NAME_LENGTH = 20;
+const MAX_ROLE_LENGTH = 30;
+
+const truncate = (str, maxLength) => {
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength - 3) + '...';
+};
 
 const DirectReportsSection = ({ node }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -63,7 +70,9 @@ const DirectReportsSection = ({ node }) => {
                 className={`${getTextAlignClass(reportLanguage)} ${getFontClass(reportLanguage)} mb-2`}
                 dir={getTextDirection(reportLanguage)}
               >
-                {report.name} - {report.role}
+                <span title={report.name}>{truncate(report.name, MAX_NAME_LENGTH)}</span>
+                {' - '}
+                <span title={report.role}>{truncate(report.role, MAX_ROLE_LENGTH)}</span>
               </motion.li>
             );
           })}
