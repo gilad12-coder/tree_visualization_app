@@ -7,6 +7,7 @@ const Button = ({ onClick, children, icon: Icon, variant = 'primary' }) => {
     primary: 'bg-blue-500 bg-opacity-20 hover:bg-opacity-30 focus:ring-blue-500',
     secondary: 'bg-gray-500 bg-opacity-20 hover:bg-opacity-30 focus:ring-gray-400',
     danger: 'bg-red-500 bg-opacity-20 hover:bg-opacity-30 focus:ring-red-500',
+    active: 'bg-blue-500 text-blue-50'
   };
 
   return (

@@ -24,7 +24,16 @@ const AnimatedLogo = () => (
   </svg>
 );
 
-const EnhancedNodeCard = ({ node, onClose, tableId, folderId, folderStructure, onUpdateComplete }) => {
+const EnhancedNodeCard = ({ 
+  node, 
+  onClose, 
+  tableId, 
+  folderId, 
+  folderStructure, 
+  onUpdateComplete,
+  onOpenUpdateModal,
+  onCloseUpdateModal
+}) => {
   const [activeScreen, setActiveScreen] = useState('main');
   const bgOpacity = useMotionValue(0);
   const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
@@ -32,6 +41,16 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId, folderStructure, o
   const nameLanguage = getLanguage(node.name);
   const roleLanguage = getLanguage(node.role);
   const departmentLanguage = getLanguage(node.department);
+
+  const handleOpenUpdateScreen = () => {
+    setActiveScreen('update');
+    onOpenUpdateModal();
+  };
+
+  const handleCloseUpdateScreen = () => {
+    setActiveScreen('main');
+    onCloseUpdateModal();
+  };
 
   return (
     <AnimatePresence>
@@ -125,7 +144,7 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId, folderStructure, o
                     <ArrowRight size={20} />
                   </motion.button>
                   <motion.button
-                    onClick={() => setActiveScreen('update')}
+                    onClick={handleOpenUpdateScreen}
                     className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -160,11 +179,11 @@ const EnhancedNodeCard = ({ node, onClose, tableId, folderId, folderStructure, o
               >
                 <UpdatePersonalInfoSection
                   node={node}
-                  onBack={() => setActiveScreen('main')}
+                  onBack={handleCloseUpdateScreen}
                   folderId={folderId}
                   tableId={tableId}
                   folderStructure={folderStructure}
-                  onUpdateComplete={onUpdateComplete}  // This is the key change
+                  onUpdateComplete={onUpdateComplete}
                 />
               </motion.div>
             )}

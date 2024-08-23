@@ -20,20 +20,27 @@ const TreeNode = ({
   folderId, 
   tableId,
   highlightedNodes,
-  onHighlight
+  onHighlight,
+  isOrgMode,
+  searchTerm,
+  searchResults = [],
+  currentSearchIndex
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const hasChildren = node.children && node.children.length > 0;
-  const isSingleChild = hasChildren && node.children.length === 1;
-  const colorClass = colors[`level${(depth % 5) + 1}`];
   const longPressTimer = useRef(null);
   const isLongPress = useRef(false);
   const nodeRef = useRef(null);
 
-  const nameLanguage = getLanguage(node.name);
-  const roleLanguage = getLanguage(node.role);
+  const hasChildren = node?.children && node.children.length > 0;
+  const isSingleChild = hasChildren && node.children.length === 1;
+  const colorClass = colors[`level${(depth % 5) + 1}`];
 
-  const isHighlighted = highlightedNodes.includes(node.name);
+  const nameLanguage = getLanguage(node?.name || '');
+  const roleLanguage = getLanguage(node?.role || '');
+
+  const isHighlighted = node ? highlightedNodes.includes(node.name) : false;
+  const isSearchResult = searchTerm && node && searchResults.includes(node.id);
+  const isCurrentSearchResult = searchTerm && node && searchResults[currentSearchIndex] === node.id;
 
   useEffect(() => {
     if (expandAll) {
@@ -43,17 +50,23 @@ const TreeNode = ({
     }
   }, [expandAll, collapseAll]);
 
+  useEffect(() => {
+    if (isSearchResult) {
+      setIsExpanded(true);
+    }
+  }, [isSearchResult]);
+
   const handleMouseDown = useCallback((e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || !node) return;
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
       onHighlight(node.name);
     }, 500);
-  }, [node.name, onHighlight]);
+  }, [node, onHighlight]);
 
   const handleMouseUp = useCallback((e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || !node) return;
     clearTimeout(longPressTimer.current);
     if (!isLongPress.current) {
       onNodeClick({
@@ -76,13 +89,26 @@ const TreeNode = ({
     }
   }, [hasChildren]);
 
+  if (!node) return null;
+
+  const highlightText = (text, term) => {
+    if (!term) return text;
+    const parts = text.split(new RegExp(`(${term})`, 'gi'));
+    return parts.map((part, index) => 
+      part.toLowerCase() === term.toLowerCase() ? 
+        <span key={index} className="bg-yellow-300">{part}</span> : part
+    );
+  };
+
   return (
     <div className="flex flex-col items-center">
       <motion.div
         ref={nodeRef}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        className={`${colorClass} rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer overflow-hidden`}
+        className={`${colorClass} rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer overflow-hidden
+          ${isSearchResult ? 'ring-2 ring-yellow-400' : ''}
+          ${isCurrentSearchResult ? 'ring-4 ring-yellow-500' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
@@ -99,12 +125,12 @@ const TreeNode = ({
             />
           )}
         </AnimatePresence>
-        <div className={`flex justify-between items-center mb-2 ${nameLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row'}`}>
+        <div className={`flex justify-between items-center mb-2 ${isOrgMode ? (roleLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row') : (nameLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row')}`}>
           <h3 
-            className={`text-lg font-bold text-black ${getFontClass(nameLanguage)}`}
-            dir={getTextDirection(nameLanguage)}
+            className={`text-lg font-bold text-black ${getFontClass(isOrgMode ? roleLanguage : nameLanguage)}`}
+            dir={getTextDirection(isOrgMode ? roleLanguage : nameLanguage)}
           >
-            {node.name}
+            {isOrgMode ? highlightText(node.role || 'No Role', searchTerm) : highlightText(node.name, searchTerm)}
           </h3>
           {hasChildren && (
             <motion.div
@@ -124,59 +150,60 @@ const TreeNode = ({
           )}
         </div>
         <div 
-          className={`text-sm font-medium text-black ${getFontClass(roleLanguage)} text-center`}
-          dir={getTextDirection(roleLanguage)}
+          className={`text-sm font-medium text-black ${getFontClass(isOrgMode ? nameLanguage : roleLanguage)} text-center`}
+          dir={getTextDirection(isOrgMode ? nameLanguage : roleLanguage)}
         >
-          {node.role}
+          {isOrgMode ? highlightText(node.name, searchTerm) : highlightText(node.role, searchTerm)}
         </div>
       </motion.div>
       <AnimatePresence initial={false}>
-  {hasChildren && isExpanded && (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="relative mt-4 pt-8 w-full"
-    >
-      {/* Vertical line for both single and multiple children */}
-      <div className={`absolute left-1/2 -translate-x-px w-1 bg-gray-400 ${isSingleChild ? 'h-16' : 'h-8'} top-0`} />
-      <div className={`relative flex justify-center ${isSingleChild ? 'mt-10' : ''}`}>
-        {node.children.map((child, index, array) => (
-          <div key={child.name || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
-            {/* Horizontal lines only for multiple children */}
-            {!isSingleChild && (
-              <>
-                {index === 0 && (
-                  <div className="absolute w-1/2 h-1 bg-gray-400 right-0 top-0" />
-                )}
-                {index === array.length - 1 && (
-                  <div className="absolute w-1/2 h-1 bg-gray-400 left-0 top-0" />
-                )}
-                {index > 0 && index < array.length - 1 && (
-                  <div className="absolute w-full h-1 bg-gray-400 top-0" />
-                )}
-              </>
-            )}
-            {/* Vertical line for each child */}
-            {!isSingleChild && <div className="w-1 bg-gray-400 h-8 mb-4" />}
-            <TreeNode 
-              node={child} 
-              onNodeClick={onNodeClick} 
-              depth={depth + 1} 
-              expandAll={expandAll}
-              collapseAll={collapseAll}
-              folderId={folderId || node.folderId}
-              tableId={tableId || node.tableId}
-              highlightedNodes={highlightedNodes}
-              onHighlight={onHighlight}
-            />
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
+        {hasChildren && isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="relative mt-4 pt-8 w-full"
+          >
+            <div className={`absolute left-1/2 -translate-x-px w-1 bg-gray-400 ${isSingleChild ? 'h-16' : 'h-8'} top-0`} />
+            <div className={`relative flex justify-center ${isSingleChild ? 'mt-10' : ''}`}>
+              {node.children.map((child, index, array) => (
+                <div key={child.name || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
+                  {!isSingleChild && (
+                    <>
+                      {index === 0 && (
+                        <div className="absolute w-1/2 h-1 bg-gray-400 right-0 top-0" />
+                      )}
+                      {index === array.length - 1 && (
+                        <div className="absolute w-1/2 h-1 bg-gray-400 left-0 top-0" />
+                      )}
+                      {index > 0 && index < array.length - 1 && (
+                        <div className="absolute w-full h-1 bg-gray-400 top-0" />
+                      )}
+                    </>
+                  )}
+                  {!isSingleChild && <div className="w-1 bg-gray-400 h-8 mb-4" />}
+                  <TreeNode 
+                    node={child} 
+                    onNodeClick={onNodeClick} 
+                    depth={depth + 1} 
+                    expandAll={expandAll}
+                    collapseAll={collapseAll}
+                    folderId={folderId}
+                    tableId={tableId}
+                    highlightedNodes={highlightedNodes}
+                    onHighlight={onHighlight}
+                    isOrgMode={isOrgMode}
+                    searchTerm={searchTerm}
+                    searchResults={searchResults}
+                    currentSearchIndex={currentSearchIndex}
+                  />
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

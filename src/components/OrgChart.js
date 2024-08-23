@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Filter, List, Target, Home, Menu, Upload,Download, Camera, FileText, X} from "react-feather";
+import { Filter, List, Target, Home, Menu, Upload,Download, Camera, FileText, X, Users, Layers} from "react-feather";
 import axios from "axios";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -17,6 +17,7 @@ import HelpModal from "./HelpModal";
 import ToolbarMenu from "./ToolbarMenu";
 import { useKeyboardShortcut } from "../Utilities/KeyboardShortcuts";
 import html2canvas from 'html2canvas'; 
+import SearchBar from './SearchBar.js';
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -53,6 +54,11 @@ const OrgChart = ({
   const [comparisonTableSelected, setComparisonTableSelected] = useState(false);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isOrgMode, setIsOrgMode] = useState(false);
+  const [orgModeData, setOrgModeData] = useState(null);
+  const [treeSearchResults, setTreeSearchResults] = useState([]);
+  const [currentTreeSearchIndex, setCurrentTreeSearchIndex] = useState(0);
   const [settings, setSettings] = useState({
     moveAmount: 30,
     zoomAmount: 0.1,
@@ -260,7 +266,59 @@ const OrgChart = ({
       }, 1000); // Adjust timeout as needed to ensure DOM updates are complete
     }
     handleCenter();
-  }, [setExpandAll, handleCenter]);  
+  }, [setExpandAll, handleCenter]);
+
+  const handleOrgMode = useCallback(() => {
+    setIsOrgMode((prevMode) => {
+      const newMode = !prevMode;
+      if (newMode) {
+        console.log("Entering Org Mode. Initial data:", filteredOrgData);
+        
+        const processOrgMode = (node) => {
+          if (!node) {
+            console.log("Encountered null node");
+            return null;
+          }
+          
+          console.log("Processing node:", node.name, "Children:", node.children?.length);
+          
+          const newNode = { ...node };
+          
+          if (node.children && node.children.length > 0) {
+            newNode.children = node.children
+              .map(processOrgMode)
+              .filter(Boolean);
+            
+            console.log("Processed children for", node.name, "Remaining children:", newNode.children.length);
+          }
+          
+          // Keep this node if it originally had children, even if they're all filtered out
+          if (node.children && node.children.length > 0) {
+            console.log("Keeping node", node.name, "in Org Mode");
+            return newNode;
+          } else {
+            console.log("Removing leaf node", node.name, "from Org Mode");
+            return null;
+          }
+        };
+  
+        const orgModeTree = processOrgMode(filteredOrgData);
+        console.log("Org Mode processing complete. Result:", orgModeTree);
+        
+        if (orgModeTree) {
+          setOrgModeData(orgModeTree);
+          console.log("Setting Org Mode data");
+        } else {
+          console.log("No organizational structure found. Reverting to original data.");
+          setOrgModeData(filteredOrgData);
+          toast.warning("No organizational structure to display in Org Mode. Showing full tree.");
+        }
+      } else {
+        console.log("Exiting Org Mode");
+      }
+      return newMode;
+    });
+  }, [filteredOrgData]);
 
   const filterOrgData = useCallback((node, filters) => {
     const matchesFilter = (n) => {
@@ -615,6 +673,34 @@ const OrgChart = ({
     setComparisonTableSelected(false);
   }, []);
 
+  const handleTreeSearch = useCallback((term) => {
+    const results = [];
+    const searchTree = (node) => {
+      if (node.name.toLowerCase().includes(term.toLowerCase()) || 
+          node.role.toLowerCase().includes(term.toLowerCase())) {
+        results.push(node);
+      }
+      if (node.children) {
+        node.children.forEach(searchTree);
+      }
+    };
+    searchTree(isOrgMode ? orgModeData : filteredOrgData);
+    setTreeSearchResults(results);
+    setCurrentTreeSearchIndex(0);
+    if (results.length > 0) {
+      handleNodeClick(results[0]);
+    }
+  }, [isOrgMode, orgModeData, filteredOrgData, handleNodeClick]);
+
+  const handleTreeSearchNavigation = useCallback((direction) => {
+    if (treeSearchResults.length === 0) return;
+    let newIndex = direction === 'next' 
+      ? (currentTreeSearchIndex + 1) % treeSearchResults.length
+      : (currentTreeSearchIndex - 1 + treeSearchResults.length) % treeSearchResults.length;
+    setCurrentTreeSearchIndex(newIndex);
+    handleNodeClick(treeSearchResults[newIndex]);
+  }, [treeSearchResults, currentTreeSearchIndex, handleNodeClick]);
+
   const handleHighlight = useCallback(
     async (nodeName) => {
       try {
@@ -639,6 +725,8 @@ const OrgChart = ({
 
   const handleKeyDown = useCallback(
     (e) => {
+      if (isUpdateModalOpen) return; // Ignore arrow keys when update modal is open
+
       const { moveAmount, zoomAmount } = settings;
 
       switch (e.key) {
@@ -648,7 +736,7 @@ const OrgChart = ({
         case "ArrowDown":
           setTransform((prev) => ({ ...prev, y: prev.y - moveAmount }));
           break;
-          case "ArrowLeft":
+        case "ArrowLeft":
           setTransform((prev) => ({ ...prev, x: prev.x + moveAmount }));
           break;
         case "ArrowRight":
@@ -670,7 +758,7 @@ const OrgChart = ({
           break;
       }
     },
-    [settings]
+    [settings, isUpdateModalOpen]
   );
 
   useEffect(() => {
@@ -727,6 +815,11 @@ const OrgChart = ({
   useKeyboardShortcut("u", true, () => setIsUploadOpen(true));
   useKeyboardShortcut("m", true, handleCompare);
   useKeyboardShortcut("r", true, handleClearFilter);
+  useKeyboardShortcut("g", true, handleOrgMode);
+  useKeyboardShortcut("ctrl+x", (e) => {
+    e.preventDefault();
+    document.getElementById('tree-search-input').focus();
+  });
 
   if (isLoading) {
     return (
@@ -819,8 +912,16 @@ const OrgChart = ({
                 </Button>
               )}
               <Button
+                onClick={handleOrgMode}
+                icon={Users}
+                tooltip="Org Mode (Ctrl+G)"
+                variant={isOrgMode ? "active" : "primary"}
+              >
+                Org Mode
+              </Button>
+              <Button
                 onClick={() => setIsTableSelectionOpen(true)}
-                icon={List}
+                icon={Layers}
                 tooltip="Change Table (Ctrl+Q)"
               >
                 Change Table
@@ -846,6 +947,12 @@ const OrgChart = ({
                   />
                 )}
               </AnimatePresence>
+              <SearchBar
+                onSearch={handleTreeSearch}
+                totalResults={treeSearchResults.length}
+                currentResult={currentTreeSearchIndex + 1}
+                onNavigate={handleTreeSearchNavigation}
+              />
             </div>
             <div className="absolute top-4 right-4 z-10">
               <div className="relative">
@@ -906,16 +1013,17 @@ const OrgChart = ({
               }}
             >
               <div className="p-8 pt-20">
-                <TreeNode
-                  node={filteredOrgData}
-                  onNodeClick={handleNodeClick}
-                  expandAll={expandAll}
-                  collapseAll={collapseAll}
-                  folderId={selectedFolderId}
-                  tableId={selectedTableId}
-                  highlightedNodes={highlightedNodes}
-                  onHighlight={handleHighlight}
-                />
+              <TreeNode
+  node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
+  onNodeClick={handleNodeClick}
+  expandAll={expandAll}
+  collapseAll={collapseAll}
+  folderId={selectedFolderId}
+  tableId={selectedTableId}
+  highlightedNodes={highlightedNodes}
+  onHighlight={handleHighlight}
+  isOrgMode={isOrgMode}
+/>
               </div>
             </div>
           </div>
@@ -934,11 +1042,16 @@ const OrgChart = ({
         {selectedNode && !isComparing && (
           <EnhancedNodeCard
             node={selectedNode}
-            onClose={() => setSelectedNode(null)}
+            onClose={() => {
+              setSelectedNode(null);
+              setIsUpdateModalOpen(false);
+            }}
             folderId={selectedFolderId}
             tableId={selectedTableId}
             folderStructure={folderStructure}
             onUpdateComplete={fetchData}
+            onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+            onCloseUpdateModal={() => setIsUpdateModalOpen(false)}
           />
         )}
       </AnimatePresence>
