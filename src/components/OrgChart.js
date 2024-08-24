@@ -59,11 +59,14 @@ const OrgChart = ({
   const [orgModeData, setOrgModeData] = useState(null);
   const [treeSearchResults, setTreeSearchResults] = useState([]);
   const [currentTreeSearchIndex, setCurrentTreeSearchIndex] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [renderedNodes, setRenderedNodes] = useState([]);
+  const [isSearchBarVisible, setIsSearchBarVisible] = useState(false);
   const [settings, setSettings] = useState({
     moveAmount: 30,
     zoomAmount: 0.1,
+    searchZoomLevel: 0.85, // Add this new setting
   });
-
   const dragRef = useRef(null);
   const chartRef = useRef(null);
 
@@ -630,6 +633,22 @@ const OrgChart = ({
     setIsFilterOpen((prev) => !prev);
   }, []);
 
+  const toggleSearchBar = useCallback(() => {
+    setIsSearchBarVisible((prev) => {
+      const newVisibility = !prev;
+      console.log("toggleSearchBar called. Setting visibility to:", newVisibility);
+      
+      if (!newVisibility) {
+        // Reset search state when closing the search bar
+        setSearchTerm('');
+        setTreeSearchResults([]);
+        setCurrentTreeSearchIndex(-1);
+      }
+      
+      return newVisibility;
+    });
+  }, [setSearchTerm, setTreeSearchResults, setCurrentTreeSearchIndex]);
+
   const toggleHelpModal = useCallback(() => {
     setIsHelpOpen((prev) => !prev);
   }, []);
@@ -674,42 +693,107 @@ const OrgChart = ({
   }, []);
 
   const handleTreeSearch = useCallback((term) => {
-    const results = [];
-    const searchTree = (node) => {
-      if (node.name.toLowerCase().includes(term.toLowerCase()) || 
-          node.role.toLowerCase().includes(term.toLowerCase())) {
-        results.push(node);
-      }
-      if (node.children) {
-        node.children.forEach(searchTree);
-      }
-    };
-    searchTree(isOrgMode ? orgModeData : filteredOrgData);
-    setTreeSearchResults(results);
-    setCurrentTreeSearchIndex(0);
-    if (results.length > 0) {
-      handleNodeClick(results[0]);
+    setSearchTerm(term);
+    if (term.trim() === '') {
+      setTreeSearchResults([]);
+      setCurrentTreeSearchIndex(-1);
+      return;
     }
-  }, [isOrgMode, orgModeData, filteredOrgData, handleNodeClick]);
+    const results = renderedNodes.filter(node => 
+      node.name.toLowerCase().includes(term.toLowerCase()) || 
+      node.role.toLowerCase().includes(term.toLowerCase())
+    );
+    setTreeSearchResults(results.map(node => node.person_id));
+    setCurrentTreeSearchIndex(results.length > 0 ? 0 : -1);
+    console.log("Search results:", results);
+  }, [renderedNodes]);
+
+  const handleNodeRendered = useCallback((node) => {
+    setRenderedNodes(prev => {
+      const existing = prev.find(n => n.person_id === node.person_id);
+      if (!existing) {
+        return [...prev, node];
+      }
+      return prev;
+    });
+  }, []);
+
+  const handleNodeUnrendered = useCallback((nodeId) => {
+    setRenderedNodes(prev => prev.filter(node => node.person_id !== nodeId));
+  }, []);
 
   const handleTreeSearchNavigation = useCallback((direction) => {
     if (treeSearchResults.length === 0) return;
-    let newIndex = direction === 'next' 
-      ? (currentTreeSearchIndex + 1) % treeSearchResults.length
-      : (currentTreeSearchIndex - 1 + treeSearchResults.length) % treeSearchResults.length;
+
+    let newIndex;
+    if (direction === 'next') {
+      newIndex = (currentTreeSearchIndex + 1) % treeSearchResults.length;
+    } else {
+      newIndex = (currentTreeSearchIndex - 1 + treeSearchResults.length) % treeSearchResults.length;
+    }
     setCurrentTreeSearchIndex(newIndex);
-    handleNodeClick(treeSearchResults[newIndex]);
-  }, [treeSearchResults, currentTreeSearchIndex, handleNodeClick]);
+    
+    console.log(`Navigating ${direction}. New index: ${newIndex}`);
+
+    const currentNodeId = treeSearchResults[newIndex];
+    if (currentNodeId) {
+      const element = document.getElementById(`node-${currentNodeId}`);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        const { width: nodeWidth, height: nodeHeight } = rect;
+
+        const chartRect = chartRef.current.getBoundingClientRect();
+        const { width: chartWidth, height: chartHeight } = chartRect;
+
+        // Calculate the node's position relative to the chart
+        const nodeX = (rect.left - chartRect.left) / transform.scale;
+        const nodeY = (rect.top - chartRect.top) / transform.scale;
+
+        console.log(`Node position (relative): x=${nodeX}, y=${nodeY}`);
+        console.log(`Current transform: x=${transform.x}, y=${transform.y}, scale=${transform.scale}`);
+
+        // Use the searchZoomLevel from settings
+        const NAVIGATION_ZOOM_LEVEL = settings.searchZoomLevel;
+
+        // Calculate the new position to center the node both horizontally and vertically
+        const newX = -nodeX * NAVIGATION_ZOOM_LEVEL + (chartWidth - nodeWidth * NAVIGATION_ZOOM_LEVEL) / 2;
+        const newY = -nodeY * NAVIGATION_ZOOM_LEVEL + (chartHeight - nodeHeight * NAVIGATION_ZOOM_LEVEL) / 2;
+
+        // Adjust for the toolbar height (estimate, adjust as needed)
+        const toolbarHeight = 60;
+        const adjustedY = newY + (toolbarHeight / 2);
+
+        console.log(`Calculated new position: x=${newX}, y=${adjustedY}`);
+
+        // Update the transform
+        setTransform(prev => {
+          console.log(`Previous transform: x=${prev.x}, y=${prev.y}, scale=${prev.scale}`);
+          console.log(`New transform: x=${newX}, y=${adjustedY}, scale=${NAVIGATION_ZOOM_LEVEL}`);
+          return { x: newX, y: adjustedY, scale: NAVIGATION_ZOOM_LEVEL };
+        });
+
+        // Optionally, add a smooth transition effect
+        chartRef.current.style.transition = 'transform 0.3s ease-out';
+        setTimeout(() => {
+          chartRef.current.style.transition = '';
+        }, 300);
+      } else {
+        console.warn(`Element with id node-${currentNodeId} not found`);
+      }
+    } else {
+      console.warn(`No node found for index ${newIndex}`);
+    }
+  }, [treeSearchResults, currentTreeSearchIndex, transform, chartRef, settings.searchZoomLevel]);
 
   const handleHighlight = useCallback(
-    async (nodeName) => {
+    async (personId) => {
       try {
-        if (highlightedNodes.includes(nodeName)) {
+        if (highlightedNodes.includes(personId)) {
           setHighlightedNodes([]);
         } else {
           const response = await axios.get(`${API_BASE_URL}/highlight_nodes`, {
             params: {
-              node_name: nodeName,
+              person_id: personId,
               table_id: selectedTableId,
             },
           });
@@ -816,10 +900,7 @@ const OrgChart = ({
   useKeyboardShortcut("m", true, handleCompare);
   useKeyboardShortcut("r", true, handleClearFilter);
   useKeyboardShortcut("g", true, handleOrgMode);
-  useKeyboardShortcut("ctrl+x", (e) => {
-    e.preventDefault();
-    document.getElementById('tree-search-input').focus();
-  });
+  useKeyboardShortcut("x", true, toggleSearchBar);
 
   if (isLoading) {
     return (
@@ -947,14 +1028,29 @@ const OrgChart = ({
                   />
                 )}
               </AnimatePresence>
-              <SearchBar
-                onSearch={handleTreeSearch}
-                totalResults={treeSearchResults.length}
-                currentResult={currentTreeSearchIndex + 1}
-                onNavigate={handleTreeSearchNavigation}
-              />
             </div>
-            <div className="absolute top-4 right-4 z-10">
+            <div className="absolute top-4 right-4 z-10 flex items-center">
+            <AnimatePresence>
+    {isSearchBarVisible && (
+      <motion.div
+        initial={{ opacity: 0, width: 0 }}
+        animate={{ opacity: 1, width: "auto" }}
+        exit={{ opacity: 0, width: 0 }}
+        transition={{ duration: 0.3 }}
+        className="mr-2"
+      >
+        <SearchBar
+  onSearch={handleTreeSearch}
+  totalResults={treeSearchResults.length}
+  currentResult={currentTreeSearchIndex + 1}
+  onNavigate={handleTreeSearchNavigation}
+  onClose={toggleSearchBar}  // Use toggleSearchBar directly here
+  searchTerm={searchTerm}
+  setSearchTerm={setSearchTerm}
+/>
+      </motion.div>
+    )}
+  </AnimatePresence>
               <div className="relative">
                 <Button
                   onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -1013,17 +1109,29 @@ const OrgChart = ({
               }}
             >
               <div className="p-8 pt-20">
-              <TreeNode
-  node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
-  onNodeClick={handleNodeClick}
-  expandAll={expandAll}
-  collapseAll={collapseAll}
-  folderId={selectedFolderId}
-  tableId={selectedTableId}
-  highlightedNodes={highlightedNodes}
-  onHighlight={handleHighlight}
-  isOrgMode={isOrgMode}
-/>
+                <TreeNode
+                  node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
+                  onNodeClick={handleNodeClick}
+                  expandAll={expandAll}
+                  collapseAll={collapseAll}
+                  folderId={selectedFolderId}
+                  tableId={selectedTableId}
+                  highlightedNodes={highlightedNodes}
+                  onHighlight={handleHighlight}
+                  isOrgMode={isOrgMode}
+                  searchTerm={searchTerm}
+                  searchResults={treeSearchResults}
+                  currentSearchIndex={currentTreeSearchIndex}
+                  onNodePosition={(id, x, y) => {
+                    const element = document.getElementById(`node-${id}`);
+                    if (element) {
+                      element.dataset.x = x;
+                      element.dataset.y = y;
+                    }
+                  }}
+                  onNodeRendered={handleNodeRendered}
+                  onNodeUnrendered={handleNodeUnrendered}
+                />
               </div>
             </div>
           </div>

@@ -49,6 +49,21 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
               className="w-full"
             />
           </div>
+          <div>
+            <label htmlFor="searchZoomLevel" className="block mb-2">
+              Search Result Zoom Level: {settings.searchZoomLevel.toFixed(2)}
+            </label>
+            <input
+              id="searchZoomLevel"
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={settings.searchZoomLevel}
+              onChange={(e) => onSettingsChange({ ...settings, searchZoomLevel: parseFloat(e.target.value) })}
+              className="w-full"
+            />
+          </div>
         </div>
       </div>
     </motion.div>
