@@ -712,16 +712,29 @@ def entry_to_dict(entry):
 
     
 @app.route("/highlight_nodes", methods=["GET"], endpoint='highlight_nodes')
-@validate_input(node_name=str, table_id=int)
-def highlight_nodes(node_name, table_id):
-    org_chart = get_org_chart(table_id)
-    #TODO: Make the find node path function rely on the ID of the node instead of the name.
-    highlighted_nodes = find_node_path(org_chart, node_name)
+@validate_input(person_id=int, table_id=int)
+def highlight_nodes(person_id, table_id):
+    org_chart = get_org_chart(table_id)[0]
+    highlighted_nodes = find_node_path(org_chart, person_id)
     
     if highlighted_nodes is None:
-        return jsonify({"error": f"Node '{node_name}' not found in the organization chart"}), 404
+        return jsonify({"error": f"Node with person_id '{person_id}' not found in the organization chart"}), 404
 
     return jsonify({"highlighted_nodes": highlighted_nodes}), 200
+
+def find_node_path(node, target_id):
+    def dfs(current_node, path):
+        if current_node['person_id'] == target_id:
+            return path + [current_node['person_id']]
+        
+        for child in current_node.get('children', []):
+            result = dfs(child, path + [current_node['person_id']])
+            if result:
+                return result
+        
+        return None
+
+    return dfs(node, [])
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -751,20 +764,6 @@ def find_person_in_tree(node, target_person_id):
             return result
     
     return None
-
-def find_node_path(node, target_name):
-    def dfs(current_node, path):
-        if current_node['name'] == target_name:
-            return path + [current_node['name']]
-        
-        for child in current_node.get('children', []):
-            result = dfs(child, path + [current_node['name']])
-            if result:
-                return result
-        
-        return None
-
-    return dfs(node, [])
 
 @app.route("/search/<int:folder_id>/<int:table_id>", methods=["GET"])
 def search_nodes(folder_id, table_id):

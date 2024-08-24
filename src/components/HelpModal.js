@@ -11,6 +11,7 @@ const HelpModal = ({ isOpen, onClose }) => {
     { key: "Ctrl + F", description: "Filter nodes" },
     { key: "Ctrl + R", description: "Remove search filter" },
     { key: "Ctrl + G", description: "Toggle Org Mode (focus on department structure)" },
+    { key: "Ctrl + X", description: "Toggle searchbar" },
     { key: "Ctrl + C", description: "Center the chart" },
     { key: "Ctrl + O", description: "Open all nodes" },
     { key: "Ctrl + L", description: "Collapse all nodes" },

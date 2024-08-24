@@ -24,12 +24,16 @@ const TreeNode = ({
   isOrgMode,
   searchTerm,
   searchResults = [],
-  currentSearchIndex
+  currentSearchIndex,
+  onNodePosition,
+  onNodeRendered,
+  onNodeUnrendered
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const longPressTimer = useRef(null);
   const isLongPress = useRef(false);
   const nodeRef = useRef(null);
+  const isRendered = useRef(false);
 
   const hasChildren = node?.children && node.children.length > 0;
   const isSingleChild = hasChildren && node.children.length === 1;
@@ -38,9 +42,12 @@ const TreeNode = ({
   const nameLanguage = getLanguage(node?.name || '');
   const roleLanguage = getLanguage(node?.role || '');
 
-  const isHighlighted = node ? highlightedNodes.includes(node.name) : false;
-  const isSearchResult = searchTerm && node && searchResults.includes(node.id);
-  const isCurrentSearchResult = searchTerm && node && searchResults[currentSearchIndex] === node.id;
+  const isHighlighted = node ? highlightedNodes.includes(node.person_id) : false;
+  const isSearchResult = searchTerm && node && (
+    node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    node.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const isCurrentSearchResult = isSearchResult && searchResults[currentSearchIndex] === node.person_id;
 
   useEffect(() => {
     if (expandAll) {
@@ -51,17 +58,38 @@ const TreeNode = ({
   }, [expandAll, collapseAll]);
 
   useEffect(() => {
-    if (isSearchResult) {
-      setIsExpanded(true);
+    const updatePosition = () => {
+      if (nodeRef.current) {
+        const rect = nodeRef.current.getBoundingClientRect();
+        onNodePosition(node.person_id, rect.left, rect.top);
+      }
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    return () => window.removeEventListener('resize', updatePosition);
+  }, [node.person_id, onNodePosition]);
+
+  useEffect(() => {
+    if (node && !isRendered.current) {
+      onNodeRendered(node);
+      isRendered.current = true;
     }
-  }, [isSearchResult]);
+
+    return () => {
+      if (node && isRendered.current) {
+        onNodeUnrendered(node.person_id);
+        isRendered.current = false;
+      }
+    };
+  }, [node, onNodeRendered, onNodeUnrendered]);
 
   const handleMouseDown = useCallback((e) => {
     if (e.button !== 0 || !node) return;
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
-      onHighlight(node.name);
+      onHighlight(node.person_id);
     }, 500);
   }, [node, onHighlight]);
 
@@ -103,12 +131,13 @@ const TreeNode = ({
   return (
     <div className="flex flex-col items-center">
       <motion.div
+        id={`node-${node.person_id}`}
         ref={nodeRef}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         className={`${colorClass} rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer overflow-hidden
-          ${isSearchResult ? 'ring-2 ring-yellow-400' : ''}
-          ${isCurrentSearchResult ? 'ring-4 ring-yellow-500' : ''}`}
+          ${isSearchResult && !isCurrentSearchResult ? 'ring-2 ring-yellow-400' : ''}
+          ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
@@ -125,6 +154,9 @@ const TreeNode = ({
             />
           )}
         </AnimatePresence>
+        {isSearchResult && (
+          <div className={`absolute inset-0 ${isCurrentSearchResult ? 'bg-orange-200' : 'bg-yellow-200'} opacity-30 rounded-xl`} />
+        )}
         <div className={`flex justify-between items-center mb-2 ${isOrgMode ? (roleLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row') : (nameLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row')}`}>
           <h3 
             className={`text-lg font-bold text-black ${getFontClass(isOrgMode ? roleLanguage : nameLanguage)}`}
@@ -168,7 +200,7 @@ const TreeNode = ({
             <div className={`absolute left-1/2 -translate-x-px w-1 bg-gray-400 ${isSingleChild ? 'h-16' : 'h-8'} top-0`} />
             <div className={`relative flex justify-center ${isSingleChild ? 'mt-10' : ''}`}>
               {node.children.map((child, index, array) => (
-                <div key={child.name || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
+                <div key={child.person_id || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
                   {!isSingleChild && (
                     <>
                       {index === 0 && (
@@ -197,6 +229,9 @@ const TreeNode = ({
                     searchTerm={searchTerm}
                     searchResults={searchResults}
                     currentSearchIndex={currentSearchIndex}
+                    onNodePosition={onNodePosition}
+                    onNodeRendered={onNodeRendered}
+                    onNodeUnrendered={onNodeUnrendered}
                   />
                 </div>
               ))}
