@@ -7,18 +7,18 @@ const HelpModal = ({ isOpen, onClose }) => {
 
   const shortcuts = [
     { key: "Ctrl + H", description: "Open this help modal" },
-    { key: "Ctrl + T", description: "Change table" },
-    { key: "Ctrl + F", description: "Filter nodes" },
+    { key: "Ctrl + G", description: "Change table" },
+    { key: "Ctrl + S", description: "Filter nodes" },
     { key: "Ctrl + R", description: "Remove search filter" },
-    { key: "Ctrl + G", description: "Toggle Org Mode (focus on department structure)" },
-    { key: "Ctrl + X", description: "Toggle searchbar" },
+    { key: "Ctrl + O", description: "Toggle Org Mode (focus on department structure)" },
+    { key: "Ctrl + F", description: "Toggle searchbar" },
     { key: "Ctrl + C", description: "Center the chart" },
-    { key: "Ctrl + O", description: "Open all nodes" },
-    { key: "Ctrl + L", description: "Collapse all nodes" },
+    { key: "Ctrl + E", description: "Expand all nodes" },
+    { key: "Ctrl + Q", description: "Collapse all nodes" },
     { key: "Ctrl + U", description: "Upload new table" },
     { key: "Ctrl + M", description: "Compare tables" },
     { key: "Arrow keys", description: "Navigate the chart" },
-    { key: "+ / -", description: "Zoom in / out" },
+    { key: "= / -", description: "Zoom in / out" },
   ];
 
   return (

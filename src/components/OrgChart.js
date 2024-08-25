@@ -15,7 +15,6 @@ import ComparisonDashboard from "./ComparisonDashboard";
 import SettingsModal from "./SettingsModal";
 import HelpModal from "./HelpModal";
 import ToolbarMenu from "./ToolbarMenu";
-import { useKeyboardShortcut } from "../Utilities/KeyboardShortcuts";
 import html2canvas from 'html2canvas'; 
 import SearchBar from './SearchBar.js';
 
@@ -65,7 +64,7 @@ const OrgChart = ({
   const [settings, setSettings] = useState({
     moveAmount: 30,
     zoomAmount: 0.1,
-    searchZoomLevel: 0.85, // Add this new setting
+    searchZoomLevel: 0.85,
   });
   const dragRef = useRef(null);
   const chartRef = useRef(null);
@@ -807,44 +806,6 @@ const OrgChart = ({
     [selectedTableId, highlightedNodes]
   );
 
-  const handleKeyDown = useCallback(
-    (e) => {
-      if (isUpdateModalOpen) return; // Ignore arrow keys when update modal is open
-
-      const { moveAmount, zoomAmount } = settings;
-
-      switch (e.key) {
-        case "ArrowUp":
-          setTransform((prev) => ({ ...prev, y: prev.y + moveAmount }));
-          break;
-        case "ArrowDown":
-          setTransform((prev) => ({ ...prev, y: prev.y - moveAmount }));
-          break;
-        case "ArrowLeft":
-          setTransform((prev) => ({ ...prev, x: prev.x + moveAmount }));
-          break;
-        case "ArrowRight":
-          setTransform((prev) => ({ ...prev, x: prev.x - moveAmount }));
-          break;
-        case "+":
-          setTransform((prev) => ({
-            ...prev,
-            scale: Math.min(3, prev.scale + zoomAmount),
-          }));
-          break;
-        case "-":
-          setTransform((prev) => ({
-            ...prev,
-            scale: Math.max(0.1, prev.scale - zoomAmount),
-          }));
-          break;
-        default:
-          break;
-      }
-    },
-    [settings, isUpdateModalOpen]
-  );
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -883,6 +844,48 @@ const OrgChart = ({
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (isUpdateModalOpen || isFilterOpen) return;
+  
+      const { moveAmount, zoomAmount } = settings;
+  
+      const shortcuts = {
+        'ArrowUp': () => setTransform((prev) => ({ ...prev, y: prev.y + moveAmount })),
+        'ArrowDown': () => setTransform((prev) => ({ ...prev, y: prev.y - moveAmount })),
+        'ArrowLeft': () => setTransform((prev) => ({ ...prev, x: prev.x + moveAmount })),
+        'ArrowRight': () => setTransform((prev) => ({ ...prev, x: prev.x - moveAmount })),
+        '=': () => setTransform((prev) => ({
+          ...prev,
+          scale: Math.min(3, prev.scale + zoomAmount),
+        })),
+        '-': () => setTransform((prev) => ({
+          ...prev,
+          scale: Math.max(0.1, prev.scale - zoomAmount),
+        })),
+        's': toggleFilterModal,
+        'h': toggleHelpModal,
+        'g': () => setIsTableSelectionOpen(true), // 'T' for Table selection
+        'c': handleCenter,
+        'e': handleExpandAll, // 'E' for Expand all
+        'q': handleCollapseAll,
+        'u': () => setIsUploadOpen(true),
+        'm': handleCompare,
+        'r': handleClearFilter,
+        'o': handleOrgMode, // 'O' for Org mode
+        'f': toggleSearchBar, // 'S' for Search
+      };
+  
+      // Check if the pressed key is a shortcut
+      const key = e.key.toLowerCase();
+      if (e.ctrlKey && key in shortcuts) {
+        e.preventDefault(); // Prevent default browser behavior
+        shortcuts[key](); // Execute the shortcut function
+      }
+    },
+    [settings, isUpdateModalOpen, isFilterOpen, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleCompare, handleClearFilter, handleOrgMode, toggleSearchBar]
+  );
+
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
     return () => {
@@ -890,17 +893,12 @@ const OrgChart = ({
     };
   }, [handleKeyDown]);
 
-  useKeyboardShortcut("f", true, toggleFilterModal);
-  useKeyboardShortcut("h", true, toggleHelpModal);
-  useKeyboardShortcut("q", true, () => setIsTableSelectionOpen(true));
-  useKeyboardShortcut("c", true, handleCenter);
-  useKeyboardShortcut("o", true, handleExpandAll);
-  useKeyboardShortcut("l", true, handleCollapseAll);
-  useKeyboardShortcut("u", true, () => setIsUploadOpen(true));
-  useKeyboardShortcut("m", true, handleCompare);
-  useKeyboardShortcut("r", true, handleClearFilter);
-  useKeyboardShortcut("g", true, handleOrgMode);
-  useKeyboardShortcut("x", true, toggleSearchBar);
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleKeyDown]);
 
   if (isLoading) {
     return (
