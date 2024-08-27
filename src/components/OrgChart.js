@@ -916,8 +916,6 @@ const handleKeyDown = useCallback(
       'f': toggleSearchBar,
     };
 
-    console.log(e.key);  // Debugging output
-
     if (e.key in singleKeyShortcuts) {
       e.preventDefault();
       singleKeyShortcuts[e.key]();
