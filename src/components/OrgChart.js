@@ -883,7 +883,7 @@ const OrgChart = ({
 
   const handleKeyDown = useCallback(
     (e) => {
-      if (isUpdateModalOpen || isFilterOpen) return;
+      if (isUpdateModalOpen || isFilterOpen) return; // Ignore arrow keys when modal is open
   
       const { moveAmount, zoomAmount } = settings;
   
@@ -917,6 +917,7 @@ const OrgChart = ({
       };
   
       const key = e.key.toLowerCase();
+<<<<<<< Updated upstream
   
       if (key in singleKeyShortcuts) {
         e.preventDefault();
@@ -945,6 +946,16 @@ const OrgChart = ({
     ]
   );
   
+=======
+      if (key in shortcuts) {
+        e.preventDefault(); // Prevent default browser behavior
+        shortcuts[key](); // Execute the shortcut function
+      }
+    },
+    [settings, isUpdateModalOpen, isFilterOpen, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleCompare, handleClearFilter, handleOrgMode, toggleSearchBar]
+  );  
+
+>>>>>>> Stashed changes
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
     return () => {
