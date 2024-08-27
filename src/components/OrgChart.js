@@ -887,7 +887,7 @@ const OrgChart = ({
   
       const { moveAmount, zoomAmount } = settings;
   
-      const shortcuts = {
+      const singleKeyShortcuts = {
         'ArrowUp': () => setTransform((prev) => ({ ...prev, y: prev.y + moveAmount })),
         'ArrowDown': () => setTransform((prev) => ({ ...prev, y: prev.y - moveAmount })),
         'ArrowLeft': () => setTransform((prev) => ({ ...prev, x: prev.x + moveAmount })),
@@ -900,36 +900,51 @@ const OrgChart = ({
           ...prev,
           scale: Math.max(0.1, prev.scale - zoomAmount),
         })),
+      };
+  
+      const ctrlKeyShortcuts = {
         's': toggleFilterModal,
         'h': toggleHelpModal,
-        'g': () => setIsTableSelectionOpen(true), // 'T' for Table selection
+        'g': () => setIsTableSelectionOpen(true),
         'c': handleCenter,
-        'e': handleExpandAll, // 'E' for Expand all
+        'e': handleExpandAll,
         'q': handleCollapseAll,
         'u': () => setIsUploadOpen(true),
         'm': handleCompare,
         'r': handleClearFilter,
-        'o': handleOrgMode, // 'O' for Org mode
-        'f': toggleSearchBar, // 'S' for Search
+        'o': handleOrgMode,
+        'f': toggleSearchBar,
       };
   
-      // Check if the pressed key is a shortcut
       const key = e.key.toLowerCase();
-      if (e.ctrlKey && key in shortcuts) {
-        e.preventDefault(); // Prevent default browser behavior
-        shortcuts[key](); // Execute the shortcut function
+  
+      if (key in singleKeyShortcuts) {
+        e.preventDefault();
+        singleKeyShortcuts[key]();
+      } else if (e.ctrlKey && key in ctrlKeyShortcuts) {
+        e.preventDefault();
+        ctrlKeyShortcuts[key]();
       }
     },
-    [settings, isUpdateModalOpen, isFilterOpen, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleCompare, handleClearFilter, handleOrgMode, toggleSearchBar]
+    [
+      settings,
+      isUpdateModalOpen,
+      isFilterOpen,
+      toggleFilterModal,
+      toggleHelpModal,
+      handleCenter,
+      handleExpandAll,
+      handleCollapseAll,
+      handleCompare,
+      handleClearFilter,
+      handleOrgMode,
+      toggleSearchBar,
+      setIsTableSelectionOpen,
+      setIsUploadOpen,
+      setTransform,
+    ]
   );
-
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [handleKeyDown]);
-
+  
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
     return () => {
