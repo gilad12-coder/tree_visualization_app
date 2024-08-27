@@ -881,87 +881,77 @@ const OrgChart = ({
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  const handleKeyDown = useCallback(
-    (e) => {
-      if (isUpdateModalOpen || isFilterOpen) return; // Ignore arrow keys when modal is open
-  
-      const { moveAmount, zoomAmount } = settings;
-  
-      const singleKeyShortcuts = {
-        'ArrowUp': () => setTransform((prev) => ({ ...prev, y: prev.y + moveAmount })),
-        'ArrowDown': () => setTransform((prev) => ({ ...prev, y: prev.y - moveAmount })),
-        'ArrowLeft': () => setTransform((prev) => ({ ...prev, x: prev.x + moveAmount })),
-        'ArrowRight': () => setTransform((prev) => ({ ...prev, x: prev.x - moveAmount })),
-        '=': () => setTransform((prev) => ({
-          ...prev,
-          scale: Math.min(3, prev.scale + zoomAmount),
-        })),
-        '-': () => setTransform((prev) => ({
-          ...prev,
-          scale: Math.max(0.1, prev.scale - zoomAmount),
-        })),
-      };
-  
-      const ctrlKeyShortcuts = {
-        's': toggleFilterModal,
-        'h': toggleHelpModal,
-        'g': () => setIsTableSelectionOpen(true),
-        'c': handleCenter,
-        'e': handleExpandAll,
-        'q': handleCollapseAll,
-        'u': () => setIsUploadOpen(true),
-        'm': handleCompare,
-        'r': handleClearFilter,
-        'o': handleOrgMode,
-        'f': toggleSearchBar,
-      };
-  
-      const key = e.key.toLowerCase();
-<<<<<<< Updated upstream
-  
-      if (key in singleKeyShortcuts) {
-        e.preventDefault();
-        singleKeyShortcuts[key]();
-      } else if (e.ctrlKey && key in ctrlKeyShortcuts) {
-        e.preventDefault();
-        ctrlKeyShortcuts[key]();
-      }
-    },
-    [
-      settings,
-      isUpdateModalOpen,
-      isFilterOpen,
-      toggleFilterModal,
-      toggleHelpModal,
-      handleCenter,
-      handleExpandAll,
-      handleCollapseAll,
-      handleCompare,
-      handleClearFilter,
-      handleOrgMode,
-      toggleSearchBar,
-      setIsTableSelectionOpen,
-      setIsUploadOpen,
-      setTransform,
-    ]
-  );
-  
-=======
-      if (key in shortcuts) {
-        e.preventDefault(); // Prevent default browser behavior
-        shortcuts[key](); // Execute the shortcut function
-      }
-    },
-    [settings, isUpdateModalOpen, isFilterOpen, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleCompare, handleClearFilter, handleOrgMode, toggleSearchBar]
-  );  
+const handleKeyDown = useCallback(
+  (e) => {
+    if (isUpdateModalOpen || isFilterOpen) return;
 
->>>>>>> Stashed changes
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
+    const { moveAmount, zoomAmount } = settings;
+
+    const singleKeyShortcuts = {
+      'ArrowUp': () => setTransform((prev) => ({ ...prev, y: prev.y + moveAmount })),
+      'ArrowDown': () => setTransform((prev) => ({ ...prev, y: prev.y - moveAmount })),
+      'ArrowLeft': () => setTransform((prev) => ({ ...prev, x: prev.x + moveAmount })),
+      'ArrowRight': () => setTransform((prev) => ({ ...prev, x: prev.x - moveAmount })),
+      '=': () => setTransform((prev) => ({
+        ...prev,
+        scale: Math.min(3, prev.scale + zoomAmount),
+      })),
+      '-': () => setTransform((prev) => ({
+        ...prev,
+        scale: Math.max(0.1, prev.scale - zoomAmount),
+      })),
     };
-  }, [handleKeyDown]);
+
+    const ctrlKeyShortcuts = {
+      's': toggleFilterModal,
+      'h': toggleHelpModal,
+      'g': () => setIsTableSelectionOpen(true),
+      'c': handleCenter,
+      'e': handleExpandAll,
+      'q': handleCollapseAll,
+      'u': () => setIsUploadOpen(true),
+      'm': handleCompare,
+      'r': handleClearFilter,
+      'o': handleOrgMode,
+      'f': toggleSearchBar,
+    };
+
+    console.log(e.key);  // Debugging output
+
+    if (e.key in singleKeyShortcuts) {
+      e.preventDefault();
+      singleKeyShortcuts[e.key]();
+    } else if (e.ctrlKey && e.key.toLowerCase() in ctrlKeyShortcuts) {
+      e.preventDefault();
+      ctrlKeyShortcuts[e.key.toLowerCase()]();
+    }
+  },
+  [
+    settings,
+    isUpdateModalOpen,
+    isFilterOpen,
+    toggleFilterModal,
+    toggleHelpModal,
+    handleCenter,
+    handleExpandAll,
+    handleCollapseAll,
+    handleCompare,
+    handleClearFilter,
+    handleOrgMode,
+    toggleSearchBar,
+    setIsTableSelectionOpen,
+    setIsUploadOpen,
+    setTransform,
+  ]
+);
+
+useEffect(() => {
+  document.addEventListener("keydown", handleKeyDown);
+  return () => {
+    document.removeEventListener("keydown", handleKeyDown);
+  };
+}, [handleKeyDown]);
+
 
   if (isLoading) {
     return (
