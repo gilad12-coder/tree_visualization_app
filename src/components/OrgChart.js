@@ -26,6 +26,8 @@ const OrgChart = ({
   initialFolderId,
   onReturnToLanding,
 }) => {
+  const [directSearchResults, setDirectSearchResults] = useState([]);
+  const [filteredSearchResults, setFilteredSearchResults] = useState([]);
   const { activeFilters, setActiveFilters, expandAll, setExpandAll } = useOrgChartContext();
   const [filterModalResetTrigger, setFilterModalResetTrigger] = useState(0);
   const [orgData, setOrgData] = useState(null);
@@ -565,29 +567,64 @@ const OrgChart = ({
     [setActiveFilters]
   );
 
-  const handleSearch = useCallback(
-    (results) => {
-      console.log("Search results received:", results);
-      setSearchResults(results);
-      setActiveFilters([]);
-      setFilterModalResetTrigger(prev => prev + 1); // Trigger reset
-    },
-    [setActiveFilters]
-  );
+  const handleSearch = useCallback((results) => {
+    console.log("Search results received:", results);
+    const resultIds = results.map(result => result.person_id);
+    setSearchResults(results);
+    setDirectSearchResults(resultIds);
+    setActiveFilters([]);
+    setFilterModalResetTrigger(prev => prev + 1);
+    setTreeSearchResults(resultIds);
+    setCurrentTreeSearchIndex(0);
+  
+    const findAncestors = (node, targetIds, ancestors = []) => {
+      if (targetIds.includes(node.person_id)) {
+        return [...ancestors, node.person_id];
+      }
+      if (node.children) {
+        for (let child of node.children) {
+          const result = findAncestors(child, targetIds, [...ancestors, node.person_id]);
+          if (result.length > 0) return result;
+        }
+      }
+      return [];
+    };
+  
+    const allIncludedIds = new Set();
+    const addAncestors = (tree) => {
+      resultIds.forEach(id => {
+        const ancestors = findAncestors(tree, [id]);
+        ancestors.forEach(ancestorId => allIncludedIds.add(ancestorId));
+      });
+    };
+  
+    addAncestors(orgData);
+    setFilteredSearchResults(Array.from(allIncludedIds));
+  }, [orgData, setActiveFilters, setFilteredSearchResults, setTreeSearchResults]);
 
   const handleClearFilter = useCallback(() => {
     setActiveFilters([]);
     setSearchResults(null);
+    setFilteredSearchResults([]);
+    setDirectSearchResults([]); // Add this line
     setFilteredOrgData(orgData);
     setExpandAll(false);
     setFilterModalResetTrigger(prev => prev + 1);
+    setTreeSearchResults([]);
+    setCurrentTreeSearchIndex(-1);
+    setSearchTerm('');
   }, [orgData, setActiveFilters, setExpandAll]);
 
   const handleClearSearch = useCallback(() => {
     console.log("Clearing search");
     setSearchResults(null);
+    setFilteredSearchResults([]);
+    setDirectSearchResults([]); // Add this line
     setFilteredOrgData(orgData);
     setExpandAll(false);
+    setTreeSearchResults([]);
+    setCurrentTreeSearchIndex(-1);
+    setSearchTerm('');
   }, [orgData, setExpandAll]);
 
   const handleMouseDown = useCallback((e) => {
@@ -1029,26 +1066,27 @@ const OrgChart = ({
             </div>
             <div className="absolute top-4 right-4 z-10 flex items-center">
             <AnimatePresence>
-    {isSearchBarVisible && (
-      <motion.div
-        initial={{ opacity: 0, width: 0 }}
-        animate={{ opacity: 1, width: "auto" }}
-        exit={{ opacity: 0, width: 0 }}
-        transition={{ duration: 0.3 }}
-        className="mr-2"
-      >
-        <SearchBar
-  onSearch={handleTreeSearch}
-  totalResults={treeSearchResults.length}
-  currentResult={currentTreeSearchIndex + 1}
-  onNavigate={handleTreeSearchNavigation}
-  onClose={toggleSearchBar}  // Use toggleSearchBar directly here
-  searchTerm={searchTerm}
-  setSearchTerm={setSearchTerm}
-/>
-      </motion.div>
-    )}
-  </AnimatePresence>
+  {isSearchBarVisible && (
+    <motion.div
+      initial={{ opacity: 0, width: 0 }}
+      animate={{ opacity: 1, width: "auto" }}
+      exit={{ opacity: 0, width: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mr-2"
+    >
+      <SearchBar
+        onSearch={handleTreeSearch}
+        totalResults={treeSearchResults.length}
+        currentResult={currentTreeSearchIndex + 1}
+        onNavigate={handleTreeSearchNavigation}
+        onClose={toggleSearchBar}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        autoFocus={true}
+      />
+    </motion.div>
+  )}
+</AnimatePresence>
               <div className="relative">
                 <Button
                   onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -1107,29 +1145,31 @@ const OrgChart = ({
               }}
             >
               <div className="p-8 pt-20">
-                <TreeNode
-                  node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
-                  onNodeClick={handleNodeClick}
-                  expandAll={expandAll}
-                  collapseAll={collapseAll}
-                  folderId={selectedFolderId}
-                  tableId={selectedTableId}
-                  highlightedNodes={highlightedNodes}
-                  onHighlight={handleHighlight}
-                  isOrgMode={isOrgMode}
-                  searchTerm={searchTerm}
-                  searchResults={treeSearchResults}
-                  currentSearchIndex={currentTreeSearchIndex}
-                  onNodePosition={(id, x, y) => {
-                    const element = document.getElementById(`node-${id}`);
-                    if (element) {
-                      element.dataset.x = x;
-                      element.dataset.y = y;
-                    }
-                  }}
-                  onNodeRendered={handleNodeRendered}
-                  onNodeUnrendered={handleNodeUnrendered}
-                />
+              <TreeNode
+  node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
+  onNodeClick={handleNodeClick}
+  expandAll={expandAll}
+  collapseAll={collapseAll}
+  folderId={selectedFolderId}
+  tableId={selectedTableId}
+  highlightedNodes={highlightedNodes}
+  onHighlight={handleHighlight}
+  isOrgMode={isOrgMode}
+  searchTerm={searchTerm}
+  searchResults={treeSearchResults}
+  currentSearchIndex={currentTreeSearchIndex}
+  onNodePosition={(id, x, y) => {
+    const element = document.getElementById(`node-${id}`);
+    if (element) {
+      element.dataset.x = x;
+      element.dataset.y = y;
+    }
+  }}
+  onNodeRendered={handleNodeRendered}
+  onNodeUnrendered={handleNodeUnrendered}
+  filteredSearchResults={filteredSearchResults}
+  directSearchResults={directSearchResults}
+/>
               </div>
             </div>
           </div>
