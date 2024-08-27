@@ -27,7 +27,9 @@ const TreeNode = ({
   currentSearchIndex,
   onNodePosition,
   onNodeRendered,
-  onNodeUnrendered
+  onNodeUnrendered,
+  filteredSearchResults = [],
+  directSearchResults = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const longPressTimer = useRef(null);
@@ -48,6 +50,7 @@ const TreeNode = ({
     node.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const isCurrentSearchResult = isSearchResult && searchResults[currentSearchIndex] === node.person_id;
+  const isDirectSearchResult = node && directSearchResults.includes(node.person_id);
 
   useEffect(() => {
     if (expandAll) {
@@ -137,14 +140,15 @@ const TreeNode = ({
         whileTap={{ scale: 0.98 }}
         className={`${colorClass} rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer overflow-hidden
           ${isSearchResult && !isCurrentSearchResult ? 'ring-2 ring-yellow-400' : ''}
-          ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}`}
+          ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}
+          ${isDirectSearchResult ? 'ring-2 ring-black' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         onContextMenu={handleToggle}
       >
         <AnimatePresence>
-          {isHighlighted && (
+          {(isHighlighted || isDirectSearchResult) && (
             <motion.div
               className="absolute inset-0 border-2 border-black rounded-xl"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -232,6 +236,8 @@ const TreeNode = ({
                     onNodePosition={onNodePosition}
                     onNodeRendered={onNodeRendered}
                     onNodeUnrendered={onNodeUnrendered}
+                    filteredSearchResults={filteredSearchResults}
+                    directSearchResults={directSearchResults}
                   />
                 </div>
               ))}

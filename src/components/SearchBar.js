@@ -1,8 +1,16 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ChevronUp, ChevronDown, X } from 'react-feather';
 import { motion } from 'framer-motion';
 
-const SearchBar = ({ onSearch, totalResults, currentResult, onNavigate, onClose, searchTerm, setSearchTerm }) => {
+const SearchBar = ({ onSearch, totalResults, currentResult, onNavigate, onClose, searchTerm, setSearchTerm, autoFocus }) => {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
+
   const handleInputChange = (e) => {
     const newTerm = e.target.value;
     setSearchTerm(newTerm);
@@ -49,6 +57,7 @@ const SearchBar = ({ onSearch, totalResults, currentResult, onNavigate, onClose,
       transition={{ duration: 0.3 }}
     >
       <input
+        ref={inputRef}
         id="tree-search-input"
         type="text"
         value={searchTerm}

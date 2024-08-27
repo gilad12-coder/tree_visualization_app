@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Upload, GitBranch, Settings, HelpCircle } from 'react-feather';
+import { ChevronDown, ChevronUp, Upload, GitBranch, Settings, Command } from 'react-feather';
 import Button from './Button';
 
 const ToolbarMenu = ({
@@ -39,8 +39,8 @@ const ToolbarMenu = ({
           <Button onClick={onOpenSettings} icon={Settings} tooltip="Settings">
             Settings
           </Button>
-          <Button onClick={onOpenHelp} icon={HelpCircle} tooltip="Help (Ctrl+H)">
-            Help
+          <Button onClick={onOpenHelp} icon={Command} tooltip="View Shortcuts (Ctrl+H)">
+            Shortcuts
           </Button>
         </div>
       </motion.div>

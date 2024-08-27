@@ -18,7 +18,7 @@ const HelpModal = ({ isOpen, onClose }) => {
     { key: "Ctrl + U", description: "Upload new table" },
     { key: "Ctrl + M", description: "Compare tables" },
     { key: "Arrow keys", description: "Navigate the chart" },
-    { key: "= / -", description: "Zoom in / out" },
+    { key: "= / -", description: "Zoom in / out" }
   ];
 
   return (
@@ -54,6 +54,10 @@ const HelpModal = ({ isOpen, onClose }) => {
               ))}
             </div>
           </section>
+          
+          <div className="text-center text-sm text-gray-600 mt-4">
+            If a shortcut isn't working, try holding the Shift key while using it.
+          </div>
         </div>
       </div>
     </motion.div>
