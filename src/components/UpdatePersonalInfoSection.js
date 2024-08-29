@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Save, Calendar, CheckSquare, ArrowRightCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, Calendar, CheckSquare, ArrowRightCircle, X } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -9,26 +9,108 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/datepicker.css';
 import '../styles/fonts.css';
+import '../styles/scrollbar.css';
 
 const API_BASE_URL = "http://localhost:5000";
 
 const convertToUTCDate = (date) => new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 const formatDateForAPI = (date) => date.toISOString().split('T')[0];
 
-const ComparisonRow = ({ label, before, after }) => {
+const TruncatedText = ({ text, maxLength = 10, id, activePopupId, setActivePopupId }) => {
+  const [popupStyle, setPopupStyle] = useState({});
+  const textRef = useRef(null);
+  const popupRef = useRef(null);
+
+  useEffect(() => {
+    if (activePopupId === id && textRef.current) {
+      const textRect = textRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+
+      let top = textRect.bottom + window.scrollY;
+      let left = textRect.left + window.scrollX;
+
+      if (top + 200 > viewportHeight) {
+        top = textRect.top - 200 + window.scrollY;
+      }
+      if (left + 300 > viewportWidth) {
+        left = viewportWidth - 310 + window.scrollX;
+      }
+
+      setPopupStyle({
+        position: 'fixed',
+        top: `${top}px`,
+        left: `${left}px`,
+        width: '300px',
+        maxHeight: '200px',
+      });
+    }
+  }, [activePopupId, id]);
+
+  if (text.length <= maxLength) {
+    return <span>{text}</span>;
+  }
+
+  const handleClick = () => {
+    setActivePopupId(activePopupId === id ? null : id);
+  };
+
+  return (
+    <span className="relative inline-block">
+      <span
+        ref={textRef}
+        className="cursor-pointer"
+        onClick={handleClick}
+      >
+        {`${text.substring(0, maxLength)}...`}
+      </span>
+      {activePopupId === id && (
+        <div
+          ref={popupRef}
+          className="fixed z-50 bg-white bg-opacity-90 backdrop-filter backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-blue-200"
+          style={popupStyle}
+        >
+          <div className="bg-blue-500 bg-opacity-20 px-4 py-2 flex justify-between items-center">
+            <button 
+              onClick={() => setActivePopupId(null)}
+              className="text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="p-4 overflow-y-auto custom-scrollbar" style={{maxHeight: '158px'}}>
+            <p className="text-sm text-gray-700 whitespace-normal break-words">{text}</p>
+          </div>
+        </div>
+      )}
+    </span>
+  );
+};
+
+const ComparisonRow = ({ label, before, after, activePopupId, setActivePopupId }) => {
   const hasChanged = before !== after;
   return (
     <div className="flex items-center py-3 border-b border-gray-200 last:border-b-0">
       <div className="w-1/4 font-medium text-gray-700">{label}</div>
       <div className="w-5/12 px-2">
         <span className={`inline-block py-1 px-2 rounded ${hasChanged ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-          {before || 'Not set'}
+          <TruncatedText 
+            text={before || 'Not set'} 
+            id={`before-${label}`}
+            activePopupId={activePopupId}
+            setActivePopupId={setActivePopupId}
+          />
         </span>
       </div>
       <ArrowRightCircle className={`w-1/12 ${hasChanged ? 'text-blue-500' : 'text-gray-300'}`} size={20} />
       <div className="w-5/12 px-2">
         <span className={`inline-block py-1 px-2 rounded ${hasChanged ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-100 text-gray-800'}`}>
-          {after || 'Not set'}
+          <TruncatedText 
+            text={after || 'Not set'} 
+            id={`after-${label}`}
+            activePopupId={activePopupId}
+            setActivePopupId={setActivePopupId}
+          />
         </span>
       </div>
     </div>
@@ -49,6 +131,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
   const [availableTables, setAvailableTables] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [activePopupId, setActivePopupId] = useState(null);
   const timeoutRef = useRef(null);
 
   useEffect(() => {
@@ -282,6 +365,8 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
               label={key.replace('_', ' ')}
               before={formatValue(key, node[key])}
               after={formatValue(key, formData[key])}
+              activePopupId={activePopupId}
+              setActivePopupId={setActivePopupId}
             />
           ))}
         </div>

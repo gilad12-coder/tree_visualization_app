@@ -136,6 +136,12 @@ const FilterModal = ({
     onClose();
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   const renderResults = () => {
     if (results.length === 0) {
       return (
@@ -292,6 +298,7 @@ const FilterModal = ({
                         className="w-full bg-blue-100 bg-opacity-50 rounded-xl py-3 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-700"
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
                       />
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3">
                         <Search size={18} className="text-blue-500" />

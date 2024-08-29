@@ -138,7 +138,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
         if (!a.upload_date) return 1;
         if (!b.upload_date) return -1;
         const comparison = new Date(b.upload_date) - new Date(a.upload_date);
-        return sortByDate ? comparison : -comparison;
+        return sortByDate ? -comparison : comparison; // Most recent first when not sorted, least recent first when sorted
       });
   }, [selectedFolder, folderStructure, searchTerm, sortByDate, dateFilter]);
 
