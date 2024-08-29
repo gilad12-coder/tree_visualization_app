@@ -18,6 +18,12 @@ const NewDatabaseSection = ({ onCreateNewDB }) => {
     }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && isValid) {
+      handleCreate();
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -34,6 +40,7 @@ const NewDatabaseSection = ({ onCreateNewDB }) => {
           type="text"
           value={folderPath}
           onChange={handleInputChange}
+          onKeyPress={handleKeyPress}
           placeholder="Enter folder path for new database"
           className={`w-full pl-10 py-3 border-2 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
             isValid ? 'border-green-500' : 'border-blue-300'

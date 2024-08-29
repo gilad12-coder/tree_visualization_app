@@ -1,14 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Folder, File, Calendar, Plus, HelpCircle, ChevronDown, Search} from 'react-feather';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import '../styles/datepicker.css';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  X,
+  Upload,
+  Folder,
+  File,
+  Calendar,
+  Plus,
+  HelpCircle,
+  ChevronDown,
+  Search,
+  FileText,
+} from "react-feather";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import "../styles/datepicker.css";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = "http://localhost:5000";
 
 const AnimatedLogo = () => (
   <svg width="40" height="40" viewBox="0 0 50 50">
@@ -24,27 +35,34 @@ const AnimatedLogo = () => (
   </svg>
 );
 
-const convertToUTCDate = (date) => new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-const formatDateForAPI = (date) => date.toISOString().split('T')[0];
+const convertToUTCDate = (date) =>
+  new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+const formatDateForAPI = (date) => date.toISOString().split("T")[0];
 
 const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [folderName, setFolderName] = useState('');
+  const [folderName, setFolderName] = useState("");
   const [uploadDate, setUploadDate] = useState(null);
   const [folders, setFolders] = useState([]);
-  const [selectedFolderId, setSelectedFolderId] = useState('');
-  const [folderSelectionType, setFolderSelectionType] = useState(null);
+  const [selectedFolderId, setSelectedFolderId] = useState("");
+  const [folderSelectionType, setFolderSelectionType] = useState("existing");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   const fetchFolders = useCallback(async () => {
     if (!dbPath) return;
     try {
-      const response = await axios.get(`${API_BASE_URL}/folders`, { params: { db_path: dbPath } });
+      const response = await axios.get(`${API_BASE_URL}/folders`, {
+        params: { db_path: dbPath },
+      });
       setFolders(response.data);
+      console.log("Fetched folders:", response.data); // Debug log
     } catch (error) {
-      console.error('Failed to fetch folders:', error);
-      toast.error('Failed to fetch folders. Please try again.');
+      console.error("Failed to fetch folders:", error);
+      toast.error("Failed to fetch folders. Please try again.");
     }
   }, [dbPath]);
 
@@ -52,65 +70,149 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
     if (isOpen) {
       fetchFolders();
       setSelectedFile(null);
-      setFolderName('');
+      setFolderName("");
       setUploadDate(null);
-      setSelectedFolderId('');
-      setFolderSelectionType(null);
-      setSearchTerm('');
+      setSelectedFolderId("");
+      setFolderSelectionType("existing");
+      setIsDropdownOpen(false);
+      setSearchTerm("");
     }
   }, [isOpen, fetchFolders]);
 
-  const handleFileChange = (event) => setSelectedFile(event.target.files[0]);
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleAreaClick = () => {
+    fileInputRef.current.click();
+  };
+
   const handleFolderSelection = (folderId) => {
     setSelectedFolderId(folderId);
-    setFolderName(folders.find(folder => folder.id === folderId).name);
+    setFolderName(folders.find((folder) => folder.id === folderId).name);
     setIsDropdownOpen(false);
   };
-  const handleNewFolderNameChange = (event) => setFolderName(event.target.value);
+
+  const handleNewFolderNameChange = (event) =>
+    setFolderName(event.target.value);
   const handleUploadDateChange = (date) => setUploadDate(date);
 
   const handleUpload = async () => {
-    if (selectedFile && ((folderSelectionType === 'existing' && selectedFolderId) || (folderSelectionType === 'new' && folderName)) && uploadDate) {
+    if (
+      selectedFile &&
+      ((folderSelectionType === "existing" && selectedFolderId) ||
+        (folderSelectionType === "new" && folderName)) &&
+      uploadDate
+    ) {
       const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('folder_name', folderName);
-      formData.append('is_new_folder', folderSelectionType === 'new' ? 'true' : 'false');
-      if (folderSelectionType === 'existing') formData.append('folder_id', selectedFolderId);
-      formData.append('upload_date', formatDateForAPI(convertToUTCDate(uploadDate)));
-      formData.append('db_path', dbPath);
+      formData.append("file", selectedFile);
+      formData.append("folder_name", folderName);
+      formData.append(
+        "is_new_folder",
+        folderSelectionType === "new" ? "true" : "false"
+      );
+      if (folderSelectionType === "existing")
+        formData.append("folder_id", selectedFolderId);
+      formData.append(
+        "upload_date",
+        formatDateForAPI(convertToUTCDate(uploadDate))
+      );
+      formData.append("db_path", dbPath);
 
       try {
         const response = await axios.post(`${API_BASE_URL}/upload`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+          headers: { "Content-Type": "multipart/form-data" },
         });
         onUpload(response.data);
         onClose();
-        toast.success('File uploaded successfully!');
+        toast.success("File uploaded successfully!");
       } catch (error) {
-        console.error('Failed to upload file:', error);
-        toast.error(error.response?.data?.error || 'Failed to upload file. Please try again.');
+        console.error("Failed to upload file:", error);
+        toast.error(
+          error.response?.data?.error ||
+            "Failed to upload file. Please try again."
+        );
       }
     }
   };
 
   const handleDownloadGuide = () => {
-    const link = document.createElement('a');
-    link.href = process.env.PUBLIC_URL + 'מדריך מפורט להעלאת נתונים.pdf';
-    link.download = 'be-net_file_upload_guide.pdf';
+    const link = document.createElement("a");
+    link.href = process.env.PUBLIC_URL + "מדריך מפורט להעלאת נתונים.pdf";
+    link.download = "be-net_file_upload_guide.pdf";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const filteredFolders = folders.filter(folder =>
+  const filteredFolders = folders.filter((folder) =>
     folder.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const isUploadDisabled = !selectedFile || !uploadDate || (folderSelectionType === 'new' && !folderName) || (folderSelectionType === 'existing' && !selectedFolderId);
+  console.log("Filtered folders:", filteredFolders); // Debug log
+
+  const isUploadDisabled =
+    !selectedFile ||
+    !uploadDate ||
+    (folderSelectionType === "new" && !folderName) ||
+    (folderSelectionType === "existing" && !selectedFolderId);
 
   return (
     <>
-      <ToastContainer position="bottom-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      <ToastContainer
+        position="bottom-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -132,7 +234,9 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <AnimatedLogo />
-                    <h2 className="text-2xl font-black text-black tracking-tight">Upload File</h2>
+                    <h2 className="text-2xl font-black text-black tracking-tight">
+                      Upload File
+                    </h2>
                   </div>
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -144,16 +248,39 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   </motion.button>
                 </div>
               </div>
-              <div className="p-6 space-y-4">
-                <motion.div 
-                  className="bg-blue-100 bg-opacity-50 rounded-xl p-3 flex items-center space-x-3"
-                  whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+              <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <motion.div
+                  className={`bg-blue-100 bg-opacity-50 rounded-xl p-6 flex flex-col items-center justify-center space-y-4 border-2 border-dashed ${
+                    isDragging
+                      ? "border-blue-500"
+                      : selectedFile
+                      ? "border-green-500"
+                      : "border-gray-300"
+                  } cursor-pointer`}
+                  whileHover={{
+                    boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+                  }}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  onClick={handleAreaClick}
                 >
-                  <File size={20} className="text-black" />
+                  {selectedFile ? (
+                    <FileText size={40} className="text-green-500" />
+                  ) : (
+                    <File size={40} className="text-blue-500" />
+                  )}
+                  <p className="text-sm text-center text-gray-600">
+                    {selectedFile
+                      ? `Selected file: ${selectedFile.name}`
+                      : "Drag & drop your file here or click to choose a file"}
+                  </p>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     onChange={handleFileChange}
-                    className="bg-transparent w-full outline-none text-sm text-black file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600 transition-colors"
+                    className="hidden"
                   />
                 </motion.div>
 
@@ -161,39 +288,59 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setFolderSelectionType('existing')}
-                    className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold ${folderSelectionType === 'existing' ? 'bg-blue-500 text-white' : 'bg-blue-100 text-black'} transition-colors duration-200`}
+                    onClick={() => setFolderSelectionType("existing")}
+                    className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold ${
+                      folderSelectionType === "existing"
+                        ? "bg-blue-500 text-white"
+                        : "bg-blue-100 text-black"
+                    } transition-colors duration-200`}
                   >
                     Existing Folder
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setFolderSelectionType('new')}
-                    className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold ${folderSelectionType === 'new' ? 'bg-blue-500 text-white' : 'bg-blue-100 text-black'} transition-colors duration-200`}
+                    onClick={() => setFolderSelectionType("new")}
+                    className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold ${
+                      folderSelectionType === "new"
+                        ? "bg-blue-500 text-white"
+                        : "bg-blue-100 text-black"
+                    } transition-colors duration-200`}
                   >
                     New Folder
                   </motion.button>
                 </div>
 
-                {folderSelectionType === 'existing' && (
-                  <div className="relative">
+                {folderSelectionType === "existing" && (
+                  <div className="relative" ref={dropdownRef}>
                     <motion.button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       className="w-full px-4 py-3 bg-blue-100 bg-opacity-50 text-black rounded-xl transition-colors flex items-center justify-between text-sm font-semibold"
-                      whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                      whileHover={{
+                        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+                      }}
                     >
-                      <span>{selectedFolderId ? folders.find(f => f.id === selectedFolderId).name : "Select a folder"}</span>
-                      <ChevronDown size={20} className={`transform transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                      <span>
+                        {selectedFolderId
+                          ? folders.find((f) => f.id === selectedFolderId)?.name
+                          : "Select a folder"}
+                      </span>
+                      <ChevronDown
+                        size={20}
+                        className={`transform transition-transform ${
+                          isDropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
                     </motion.button>
                     {isDropdownOpen && (
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="absolute z-10 w-full mt-2 bg-white rounded-xl shadow-lg max-h-60 overflow-hidden"
+                        className="absolute z-10 w-full mt-2 bg-white rounded-xl shadow-lg overflow-hidden"
+                        style={{ maxHeight: "200px" }}
                       >
-                        <div className="p-2 border-b">
+                        <div className="sticky top-0 bg-white p-2 border-b z-10">
                           <div className="flex items-center bg-blue-100 bg-opacity-50 rounded-lg px-3 py-2">
                             <Search size={16} className="text-gray-500 mr-2" />
                             <input
@@ -205,13 +352,18 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                             />
                           </div>
                         </div>
-                        <div className="overflow-y-auto max-h-48">
-                          {filteredFolders.map(folder => (
+                        <div
+                          className="overflow-y-auto"
+                          style={{ maxHeight: "150px" }}
+                        >
+                          {filteredFolders.map((folder) => (
                             <motion.button
                               key={folder.id}
                               onClick={() => handleFolderSelection(folder.id)}
                               className="w-full px-4 py-2 text-left hover:bg-blue-100 transition-colors flex items-center space-x-2 text-sm font-semibold"
-                              whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.1)" }}
+                              whileHover={{
+                                backgroundColor: "rgba(59, 130, 246, 0.1)",
+                              }}
                             >
                               <Folder size={16} />
                               <span>{folder.name}</span>
@@ -223,10 +375,12 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   </div>
                 )}
 
-                {folderSelectionType === 'new' && (
-                  <motion.div 
+                {folderSelectionType === "new" && (
+                  <motion.div
                     className="bg-blue-100 bg-opacity-50 rounded-xl p-3 flex items-center space-x-3"
-                    whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                    whileHover={{
+                      boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+                    }}
                   >
                     <Plus size={20} className="text-black" />
                     <input
@@ -239,9 +393,11 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   </motion.div>
                 )}
 
-                <motion.div 
+                <motion.div
                   className="bg-blue-100 bg-opacity-50 rounded-xl p-3 flex items-center space-x-3"
-                  whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                  whileHover={{
+                    boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+                  }}
                 >
                   <Calendar size={20} className="text-black" />
                   <DatePicker
@@ -266,7 +422,9 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                     whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}
                     onClick={handleUpload}
                     className={`flex-grow px-4 py-3 bg-blue-500 text-white rounded-xl transition-colors flex items-center justify-center space-x-2 ${
-                      isUploadDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+                      isUploadDisabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-blue-600"
                     }`}
                     disabled={isUploadDisabled}
                   >

@@ -12,6 +12,12 @@ const ExistingDatabaseSection = ({ onUseExistingDB }) => {
     setIsValid(value.toLowerCase().endsWith('.db') ? true : value === '' ? null : false);
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && isValid) {
+      onUseExistingDB(dbPath);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -28,6 +34,7 @@ const ExistingDatabaseSection = ({ onUseExistingDB }) => {
           type="text"
           value={dbPath}
           onChange={handleInputChange}
+          onKeyPress={handleKeyPress}
           placeholder="Enter path to existing .db file"
           className={`w-full pl-10 pr-10 py-3 border-2 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
             isValid === true ? 'border-green-500' : isValid === false ? 'border-red-500' : 'border-blue-300'
