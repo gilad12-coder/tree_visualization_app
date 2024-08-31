@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Download } from 'react-feather';
 import { getLanguage, getFontClass, getTextAlignClass, getTextDirection } from '../Utilities/languageUtils';
 
-const REPORTS_DISPLAY_THRESHOLD = 5;
+const REPORTS_DISPLAY_THRESHOLD = 3;
 const MAX_NAME_LENGTH = 20;
 const MAX_ROLE_LENGTH = 30;
 
 const truncate = (str, maxLength) => {
+  if (!str) return 'N/A';
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength - 3) + '...';
 };
@@ -17,9 +18,9 @@ const DirectReportsSection = ({ node }) => {
 
   const getIndirectReports = useCallback((currentNode) => {
     let indirectReports = [];
-    if (currentNode.children) {
+    if (currentNode && currentNode.children) {
       currentNode.children.forEach(child => {
-        if (child.children) {
+        if (child && child.children) {
           indirectReports = [...indirectReports, ...child.children, ...getIndirectReports(child)];
         }
       });
@@ -27,7 +28,7 @@ const DirectReportsSection = ({ node }) => {
     return indirectReports;
   }, []);
 
-  const directReports = useMemo(() => node.children || [], [node]);
+  const directReports = useMemo(() => (node && node.children) || [], [node]);
   const indirectReports = useMemo(() => getIndirectReports(node), [node, getIndirectReports]);
   const totalReports = directReports.length + indirectReports.length;
 
@@ -60,7 +61,7 @@ const DirectReportsSection = ({ node }) => {
         )}
         <ul className="text-sm text-gray-700 list-none pl-0 mb-4">
           {displayReports.map((report, index) => {
-            const reportLanguage = getLanguage(report.name);
+            const reportLanguage = getLanguage(report.name || '');
             return (
               <motion.li
                 key={index}
@@ -70,16 +71,16 @@ const DirectReportsSection = ({ node }) => {
                 className={`${getTextAlignClass(reportLanguage)} ${getFontClass(reportLanguage)} mb-2`}
                 dir={getTextDirection(reportLanguage)}
               >
-                <span title={report.name}>{truncate(report.name, MAX_NAME_LENGTH)}</span>
+                <span title={report.name || 'N/A'}>{truncate(report.name, MAX_NAME_LENGTH)}</span>
                 {' - '}
-                <span title={report.role}>{truncate(report.role, MAX_ROLE_LENGTH)}</span>
+                <span title={report.role || 'N/A'}>{truncate(report.role, MAX_ROLE_LENGTH)}</span>
               </motion.li>
             );
           })}
         </ul>
         {reports.length > threshold && (
           <motion.button
-            onClick={() => handleDownload(reports, `${node.name}_${type}_reports.json`)}
+            onClick={() => handleDownload(reports, `${node.name || 'reports'}_${type}_reports.json`)}
             className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors mx-auto"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

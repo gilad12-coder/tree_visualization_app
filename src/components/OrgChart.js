@@ -1234,6 +1234,7 @@ useEffect(() => {
         folderStructure={folderStructure}
         currentFolderId={selectedFolderId}
         isComparingMode={isComparing}
+        currentTableId={selectedTableId}
       />
       <FileUploadModal
         isOpen={isUploadOpen}

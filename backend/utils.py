@@ -351,3 +351,68 @@ def export_excel_data(session, table_id):
     
     output.seek(0)
     return output
+
+def generate_hierarchical_structure(session, table_id, parent_structure):
+    """
+    Generate a new hierarchical structure based on the parent's structure and its existing children.
+    Handles both numerical and non-numerical hierarchies.
+
+    Args:
+    session (Session): The database session.
+    table_id (int): The ID of the table containing the hierarchical data.
+    parent_structure (str): The hierarchical structure of the parent node.
+
+    Returns:
+    str: The new hierarchical structure.
+
+    Raises:
+    ValueError: If the parent_structure is invalid.
+    """
+    if not parent_structure:
+        raise ValueError("Parent structure cannot be empty")
+
+    # Find all direct children of the parent
+    children = session.query(DataEntry).filter(
+        DataEntry.table_id == table_id,
+        DataEntry.hierarchical_structure.like(f"{parent_structure}/%"),
+        ~DataEntry.hierarchical_structure.like(f"{parent_structure}/%/%")  # Exclude grandchildren
+    ).all()
+
+    if not children:
+        # If no children, add first child
+        return f"{parent_structure}/1"
+
+    # Extract the last part from each child's structure
+    child_suffixes = [child.hierarchical_structure.split('/')[-1] for child in children]
+
+    # Check if all suffixes are numeric
+    if all(suffix.isdigit() for suffix in child_suffixes):
+        # If all numeric, increment the highest number
+        next_number = max(int(suffix) for suffix in child_suffixes) + 1
+        return f"{parent_structure}/{next_number}"
+    else:
+        # If non-numeric suffixes exist, use alphabetical ordering
+        alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        existing_letters = [suffix for suffix in child_suffixes if suffix in alphabet]
+        
+        if existing_letters:
+            # Find the next available letter
+            last_letter = max(existing_letters)
+            if last_letter != 'Z':
+                next_letter = alphabet[alphabet.index(last_letter) + 1]
+                return f"{parent_structure}/{next_letter}"
+            else:
+                # If we've reached 'Z', start with 'AA', 'AB', etc.
+                double_letters = [suffix for suffix in child_suffixes if len(suffix) == 2 and suffix.isalpha()]
+                if double_letters:
+                    last_double = max(double_letters)
+                    if last_double != 'ZZ':
+                        next_double = last_double[0] + alphabet[alphabet.index(last_double[1]) + 1]
+                        return f"{parent_structure}/{next_double}"
+                    else:
+                        return f"{parent_structure}/AAA"  # Start triple letters if 'ZZ' is reached
+                else:
+                    return f"{parent_structure}/AA"  # Start double letters if 'Z' is reached
+        else:
+            # If no alphabetical suffixes exist, start with 'A'
+            return f"{parent_structure}/A"

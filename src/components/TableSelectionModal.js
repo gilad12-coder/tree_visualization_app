@@ -47,21 +47,25 @@ const FolderCard = ({ folder, onClick, tablesCount }) => {
   );
 };
 
-const TableCard = ({ table, onClick }) => {
+const TableCard = ({ table, onClick, isActive }) => {
   if (!table) return null;
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      className="bg-blue-500 bg-opacity-20 rounded-xl border border-blue-200 shadow-sm transition-all duration-300 ease-out p-4 w-full cursor-pointer backdrop-filter backdrop-blur-sm"
+      className={`${
+        isActive
+          ? 'bg-blue-500 text-white'
+          : 'bg-blue-500 bg-opacity-20 text-black'
+      } rounded-xl border border-blue-200 shadow-sm transition-all duration-300 ease-out p-4 w-full cursor-pointer backdrop-filter backdrop-blur-sm`}
       onClick={onClick}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <File size={20} className="text-black" />
-          <span className="text-base font-medium text-black">{table.name}</span>
+          <File size={20} className={isActive ? "text-white" : "text-black"} />
+          <span className="text-base font-medium">{table.name}</span>
         </div>
-        <span className="text-sm text-black">
+        <span className="text-sm">
           {table.upload_date ? format(parseISO(table.upload_date), 'MMM dd, yyyy') : 'N/A'}
         </span>
       </div>
@@ -69,7 +73,7 @@ const TableCard = ({ table, onClick }) => {
   );
 };
 
-const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode }) => {
+const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode, currentTableId }) => {
   console.log('TableSelectionModal rendered with folderStructure:', folderStructure);
 
   const [step, setStep] = useState('folder');
@@ -174,10 +178,11 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
         <TableCard
           table={table}
           onClick={() => handleTableSelect(table.id)}
+          isActive={table.id === currentTableId}
         />
       </div>
     );
-  }, [filteredTables, handleTableSelect]);
+  }, [filteredTables, handleTableSelect, currentTableId]);
 
   const pageVariants = {
     initial: { opacity: 0, x: '-100%' },
