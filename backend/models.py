@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
+#TODO: Rethink how the database works to enable lego like behaviors. this will fix the issue with null nodes.
+
 class Folder(Base):
     __tablename__ = 'folders'
     id = Column(Integer, primary_key=True)

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, ArrowRight, User, Edit } from 'lucide-react';
+import { X, ArrowRight, User, Edit, GitBranch, ArrowLeft } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 import DirectReportsSection from './DirectReportsSection';
 import CVTimelineSection from './CVTimelineSection';
 import PersonalInfoSection from './PersonalInfoSection';
 import UpdatePersonalInfoSection from './UpdatePersonalInfoSection.js';
+import UpdateHierarchicalInfoSection from './UpdateHierarchicalInfoSection.js';
 import '../styles/fonts.css';
 
 const MotionPath = motion.path;
@@ -43,14 +44,27 @@ const EnhancedNodeCard = ({
   const departmentLanguage = getLanguage(node.department);
 
   const handleOpenUpdateScreen = () => {
-    setActiveScreen('update');
+    setActiveScreen('updateMenu');
     onOpenUpdateModal();
   };
 
   const handleCloseUpdateScreen = () => {
+    onUpdateComplete(); // Trigger update before closing
     setActiveScreen('main');
     onCloseUpdateModal();
   };
+
+  const renderNavigationButton = (onClick, icon, text) => (
+    <motion.button
+      onClick={onClick}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="w-full px-4 py-2 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-center"
+    >
+      {icon}
+      <span className="font-bold">{text}</span>
+    </motion.button>
+  );
 
   return (
     <AnimatePresence>
@@ -149,9 +163,44 @@ const EnhancedNodeCard = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <span className="font-bold">Update Personal Info</span>
+                    <span className="font-bold">Update Information</span>
                     <Edit size={20} />
                   </motion.button>
+                </div>
+              </motion.div>
+            )}
+            {activeScreen === 'updateMenu' && (
+              <motion.div
+                key="updateMenu"
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="p-3 max-w-7xl mx-auto w-full">
+                  {renderNavigationButton(handleCloseUpdateScreen, <ArrowLeft size={20} className="mr-2" />, "Back to Main Info")}
+                  <motion.div
+                    className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-4 shadow-lg mt-3 space-y-4"
+                  >
+                    <motion.button
+                      onClick={() => setActiveScreen('updatePersonal')}
+                      className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <span className="font-bold">Update Personal Information</span>
+                      <User size={20} />
+                    </motion.button>
+                    <motion.button
+                      onClick={() => setActiveScreen('updateHierarchical')}
+                      className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <span className="font-bold">Update Hierarchical Information</span>
+                      <GitBranch size={20} />
+                    </motion.button>
+                  </motion.div>
                 </div>
               </motion.div>
             )}
@@ -169,9 +218,9 @@ const EnhancedNodeCard = ({
                 />
               </motion.div>
             )}
-            {activeScreen === 'update' && (
+            {activeScreen === 'updatePersonal' && (
               <motion.div
-                key="update"
+                key="updatePersonal"
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -50 }}
@@ -179,7 +228,25 @@ const EnhancedNodeCard = ({
               >
                 <UpdatePersonalInfoSection
                   node={node}
-                  onBack={handleCloseUpdateScreen}
+                  onBack={() => setActiveScreen('updateMenu')}
+                  folderId={folderId}
+                  tableId={tableId}
+                  folderStructure={folderStructure}
+                  onUpdateComplete={onUpdateComplete}
+                />
+              </motion.div>
+            )}
+            {activeScreen === 'updateHierarchical' && (
+              <motion.div
+                key="updateHierarchical"
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
+              >
+                <UpdateHierarchicalInfoSection
+                  node={node}
+                  onBack={() => setActiveScreen('updateMenu')}
                   folderId={folderId}
                   tableId={tableId}
                   folderStructure={folderStructure}

@@ -3,11 +3,10 @@ from flask_cors import CORS
 from models import (Folder, Table, DataEntry, get_session, 
                     dispose_db, create_new_db, init_db, set_db_path, 
                     check_db_schema, is_valid_sqlite_db)
-from utils import (check_continuation, process_excel_data, 
+from utils import (process_excel_data, 
                    insert_data_entries, get_org_chart, get_person_history, 
-                   get_department_structure, get_age_distribution, export_excel_data)
+                   get_department_structure, get_age_distribution, export_excel_data, generate_hierarchical_structure)
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 import logging
 from datetime import datetime
 import os
@@ -18,7 +17,7 @@ import webbrowser
 import threading
 import sys
 import re
-from sqlalchemy import and_, or_, not_
+from sqlalchemy import and_, or_, not_, inspect
 from datetime import datetime, date
 
 def resource_path(relative_path):
@@ -765,17 +764,10 @@ def find_person_in_tree(node, target_person_id):
     
     return None
 
-@app.route("/search/<int:folder_id>/<int:table_id>", methods=["GET"])
-def search_nodes(folder_id, table_id):
-    query = request.args.get('query', '')
-    column = request.args.get('column')
+@app.route("/columns/<int:folder_id>/<int:table_id>", methods=["GET"])
+def get_available_columns(folder_id, table_id):
+    logger.info(f"Fetching available columns for folder_id: {folder_id}, table_id: {table_id}")
     
-    logger.info(f"Search request received for folder_id: {folder_id}, table_id: {table_id}, query: '{query}', column: '{column}'")
-    
-    if not column:
-        logger.error("Column parameter is missing")
-        return jsonify({"error": "Column is required"}), 400
-
     try:
         with session_scope() as session:
             table = (
@@ -788,12 +780,45 @@ def search_nodes(folder_id, table_id):
                 logger.error(f"Table with id {table_id} not found in folder {folder_id}")
                 return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
             
-            logger.info(f"Searching table {table_id} in folder {folder_id} for column {column}")
+            columns = [column.key for column in inspect(DataEntry).columns if column.key not in ['id', 'table_id']]
+            
+            logger.info(f"Available columns: {columns}")
+            
+            return jsonify({
+                "columns": columns,
+                "folder_id": folder_id,
+                "table_id": table_id
+            }), 200
+    
+    except Exception as e:
+        logger.exception(f"Error fetching columns for folder {folder_id}, table {table_id}: {str(e)}")
+        return jsonify({"error": "An unexpected error occurred while fetching columns"}), 500
+
+@app.route("/search/<int:folder_id>/<int:table_id>", methods=["GET"])
+def search_nodes(folder_id, table_id):
+    query = request.args.get('query', '')
+    columns = request.args.get('columns', '').split(',')
+    
+    logger.info(f"Search request received for folder_id: {folder_id}, table_id: {table_id}, query: '{query}', columns: {columns}")
+    
+    try:
+        with session_scope() as session:
+            table = (
+                session.query(Table)
+                .filter_by(id=table_id, folder_id=folder_id)
+                .first()
+            )
+            
+            if not table:
+                logger.error(f"Table with id {table_id} not found in folder {folder_id}")
+                return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
+            
+            logger.info(f"Searching table {table_id} in folder {folder_id} across specified columns: {columns}")
             
             if query:
-                results = search_table(session, table_id, query, column)
+                results = search_table_specified_columns(session, table_id, query, columns)
             else:
-                results = get_all_results(session, table_id, column)
+                results = get_all_results(session, table_id)
             
             logger.info(f"Search completed. Total results: {len(results)}")
             
@@ -801,7 +826,7 @@ def search_nodes(folder_id, table_id):
                 "results": results,
                 "total_results": len(results),
                 "query": query,
-                "column_searched": column,
+                "columns": columns,
                 "folder_id": folder_id,
                 "table_id": table_id
             }), 200
@@ -810,11 +835,10 @@ def search_nodes(folder_id, table_id):
         logger.exception(f"Error searching in folder {folder_id}, table {table_id}: {str(e)}")
         return jsonify({"error": "An unexpected error occurred while searching"}), 500
 
-def get_all_results(session, table_id, column):
-    logger.info(f"Fetching all results for table with ID: {table_id} in column: '{column}'")
+def get_all_results(session, table_id):
+    logger.info(f"Fetching all results for table with ID: {table_id}")
 
-    base_query = session.query(DataEntry).filter(DataEntry.table_id == table_id)
-    results = base_query.all()
+    results = session.query(DataEntry).filter(DataEntry.table_id == table_id).all()
     logger.info(f"Query executed. Number of results found: {len(results)}")
 
     search_results = []
@@ -836,8 +860,8 @@ def get_all_results(session, table_id, column):
     
     return search_results
 
-def search_table(session, table_id, query, column):
-    logger.info(f"Starting search in table with ID: {table_id} for query: '{query}' in column: '{column}'")
+def search_table_specified_columns(session, table_id, query, columns):
+    logger.info(f"Starting search in table with ID: {table_id} for query: '{query}' across columns: {columns}")
 
     parsed_query = parse_complex_query(query)
     logger.info(f"Parsed query: {parsed_query}")
@@ -845,18 +869,35 @@ def search_table(session, table_id, query, column):
     base_query = session.query(DataEntry).filter(DataEntry.table_id == table_id)
     logger.info(f"Base query created for table_id: {table_id}")
 
-    condition = build_sqlalchemy_condition(parsed_query, column)
-    logger.info(f"SQLAlchemy condition built: {condition}")
+    all_columns = [column.key for column in DataEntry.__table__.columns if column.key not in ['id', 'table_id']]
+    valid_columns = [col for col in columns if col in all_columns]
+    
+    if not valid_columns:
+        valid_columns = all_columns  # If no valid columns specified, search all columns
 
+    # Build the main condition
+    main_condition = build_sqlalchemy_condition(parsed_query, valid_columns)
+    
     # Log the SQL query
-    query_sql = str(base_query.filter(condition).statement.compile(compile_kwargs={"literal_binds": True}))
+    query_sql = str(base_query.filter(main_condition).statement.compile(compile_kwargs={"literal_binds": True}))
     logger.info(f"SQL query: {query_sql}")
 
-    results = base_query.filter(condition).all()
+    results = base_query.filter(main_condition).all()
     logger.info(f"Query executed. Number of results found: {len(results)}")
 
     search_results = []
     for entry in results:
+        matched_terms = []
+        matched_columns = []
+
+        for column in valid_columns:
+            column_value = str(getattr(entry, column))
+            column_matches = get_matched_terms(column_value, parsed_query)
+            
+            if column_matches:
+                matched_terms.extend(column_matches)
+                matched_columns.append(column)
+
         result = {
             'person_id': entry.person_id,
             'name': entry.name,
@@ -864,13 +905,14 @@ def search_table(session, table_id, query, column):
             'department': entry.department,
             'rank': entry.rank,
             'organization_id': entry.organization_id,
-            'matched_terms': get_matched_terms(getattr(entry, column), parsed_query),
-            'hierarchical_structure': entry.hierarchical_structure
+            'matched_terms': list(set(matched_terms)),  # Remove duplicates
+            'hierarchical_structure': entry.hierarchical_structure,
+            'matched_columns': matched_columns
         }
         search_results.append(result)
         logger.debug(f"Result added: {result}")
 
-    logger.info("Search completed and results prepared.")
+    logger.info(f"Search completed and results prepared. Total results: {len(search_results)}")
     
     return search_results
 
@@ -920,33 +962,30 @@ def parse_complex_query(query):
         logger.error(f"Error parsing query '{query}': {str(e)}")
         raise ValueError(f"Invalid query format: {str(e)}")
 
-def build_sqlalchemy_condition(parsed_query, column):
+def build_sqlalchemy_condition(parsed_query, columns):
     logger.info(f"Building SQLAlchemy condition for parsed query: {parsed_query}")
-    
-    if not parsed_query:
-        logger.warning("Empty parsed query, returning True condition")
-        return True  # This will match all rows
     
     def build_condition(expr):
         logger.debug(f"Building condition for expression: {expr}")
         if isinstance(expr, list):
             if len(expr) == 1:
                 return build_condition(expr[0])
+            elif expr[0] == 'NOT':
+                return not_(or_(*[build_condition([expr[1]]) for column in columns]))
             elif 'OR' in expr:
                 return or_(*[build_condition(e) for e in expr if e != 'OR'])
             elif 'AND' in expr:
                 return and_(*[build_condition(e) for e in expr if e != 'AND'])
-            elif expr[0] == 'NOT':
-                return not_(build_condition(expr[1]))
             else:
                 return and_(*[build_condition(e) for e in expr])
         else:
-            if expr.startswith('"') and expr.endswith('"'):
-                logger.debug(f"Building exact match condition for: {expr}")
-                return func.lower(getattr(DataEntry, column)) == func.lower(expr.strip('"'))
-            else:
-                logger.debug(f"Building partial match condition for: {expr}")
-                return func.lower(getattr(DataEntry, column)).like(f"%{expr.lower()}%")
+            column_conditions = []
+            for column in columns:
+                if expr.startswith('"') and expr.endswith('"'):
+                    column_conditions.append(func.lower(getattr(DataEntry, column)) == func.lower(expr.strip('"')))
+                else:
+                    column_conditions.append(func.lower(getattr(DataEntry, column)).like(f"%{expr.lower()}%"))
+            return or_(*column_conditions)
 
     try:
         condition = build_condition(parsed_query)
@@ -1052,7 +1091,7 @@ def update_node_data(folder_id):
 
             for table in tables:
                 # Search for the node in each table
-                search_results = search_table(session, table.id, search_query, search_column)
+                search_results = search_table_specified_columns(session, table.id, search_query, search_column)
 
                 if not search_results:
                     update_results.append({
@@ -1155,6 +1194,159 @@ def update_person_data(session, table_id, person_id, updates):
         logger.error(f"Error updating data for person {person_id} in table {table_id}: {str(e)}")
         session.rollback()
         raise
+
+def compute_hierarchical_changes(session, table_id, person_id, hierarchical_update_params):
+    current_entry = session.query(DataEntry).filter_by(table_id=table_id, person_id=person_id).first()
+    if not current_entry:
+        return {"error": f"Person with ID {person_id} not found in table {table_id}"}
+
+    changes = {}
+
+    if hierarchical_update_params.get('type') == 'create_new':
+        new_parent_id = hierarchical_update_params['new_parent_id']
+        new_role = hierarchical_update_params.get('new_role')
+        
+        if not new_role:
+            return {"error": "New role must be provided for create_new operation"}
+
+        new_parent = session.query(DataEntry).filter_by(table_id=table_id, person_id=new_parent_id).first()
+        if not new_parent:
+            return {"error": f"New parent node with ID {new_parent_id} not found"}
+
+        try:
+            new_hierarchy = generate_hierarchical_structure(session, table_id, new_parent.hierarchical_structure)
+        except ValueError as e:
+            return {"error": str(e)}
+
+        changes['new_node'] = {
+            "table_id": table_id,
+            "person_id": current_entry.person_id,
+            "upload_date": current_entry.upload_date,
+            "hierarchical_structure": new_hierarchy,
+            "name": current_entry.name,
+            "role": new_role,
+            "department": new_parent.department,
+            "birth_date": current_entry.birth_date,
+            "rank": current_entry.rank,
+            "organization_id": current_entry.organization_id
+        }
+
+        changes['null_node'] = {
+            "name": None,
+            "department": None,
+            "birth_date": None,
+            "rank": None,
+            "organization_id": None
+        }
+
+    elif hierarchical_update_params.get('type') == 'override':
+        override_person_id = hierarchical_update_params['override_person_id']
+        override_entry = session.query(DataEntry).filter_by(table_id=table_id, person_id=override_person_id).first()
+        if not override_entry:
+            return {"error": f"Person to override with ID {override_person_id} not found in table {table_id}"}
+
+        changes['update_node'] = {
+            "person_id": current_entry.person_id,
+            "upload_date": current_entry.upload_date,
+            "hierarchical_structure": override_entry.hierarchical_structure,
+            "name": current_entry.name,
+            "role": override_entry.role,
+            "department": override_entry.department,
+            "birth_date": current_entry.birth_date,
+            "rank": current_entry.rank,
+            "organization_id": current_entry.organization_id
+        }
+
+        changes['null_node'] = {
+            "name": None,
+            "department": None,
+            "birth_date": None,
+            "rank": None,
+            "organization_id": None
+        }
+
+    return changes
+
+def change_hierarchical_location(session, table_id, person_id, update_type, target_person_id, new_role=None):
+    hierarchical_update_params = {
+        'type': update_type,
+        'new_parent_id' if update_type == 'create_new' else 'override_person_id': target_person_id
+    }
+
+    if update_type == 'create_new':
+        if not new_role:
+            return {"error": "New role must be provided for create_new operation"}
+        hierarchical_update_params['new_role'] = new_role
+
+    changes = compute_hierarchical_changes(session, table_id, person_id, hierarchical_update_params)
+
+    if 'error' in changes:
+        return changes
+
+    try:
+        if 'new_node' in changes:
+            new_entry = DataEntry(**changes['new_node'])
+            session.add(new_entry)
+
+        if 'update_node' in changes:
+            # Update the target entry with the current entry's data
+            target_entry = session.query(DataEntry).filter_by(table_id=table_id, person_id=target_person_id).first()
+            for key, value in changes['update_node'].items():
+                setattr(target_entry, key, value)
+
+        # Convert the original entry to a null node
+        original_entry = session.query(DataEntry).filter_by(table_id=table_id, person_id=person_id).first()
+        for key, value in changes['null_node'].items():
+            setattr(original_entry, key, value)
+        
+        # If it's an override operation, ensure the role is retained
+        if update_type == 'override':
+            original_entry.role = original_entry.role  # This line ensures the role is not changed
+
+        session.commit()
+        return {"message": "Hierarchical location updated successfully", "changes": changes}
+    except Exception as e:
+        session.rollback()
+        return {"error": f"An error occurred while updating the hierarchical location: {str(e)}"}
+
+
+@app.route("/update_hierarchical_structure/<int:folder_id>/<int:table_id>", methods=["POST"])
+def update_hierarchical_structure(folder_id, table_id):
+    data = request.json
+    person_id = data.get('person_id')
+    update_type = data.get('update_type')
+    target_person_id = data.get('target_person_id')
+    new_role = data.get('new_role')
+
+    if not all([person_id, update_type, target_person_id]):
+        return jsonify({"error": "Missing required parameters"}), 400
+
+    if update_type not in ['create_new', 'override']:
+        return jsonify({"error": "Invalid update type. Must be 'create_new' or 'override'"}), 400
+
+    if update_type == 'create_new' and not new_role:
+        return jsonify({"error": "New role must be provided for create_new operation"}), 400
+
+    try:
+        with session_scope() as session:
+            # Verify the folder and table exist
+            folder = session.query(Folder).filter_by(id=folder_id).first()
+            if not folder:
+                return jsonify({"error": f"Folder with id {folder_id} not found"}), 404
+
+            table = session.query(Table).filter_by(id=table_id, folder_id=folder_id).first()
+            if not table:
+                return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
+
+            result = change_hierarchical_location(session, table_id, person_id, update_type, target_person_id, new_role)
+
+            if 'error' in result:
+                return jsonify(result), 400
+
+            return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 if __name__ == "__main__":
     print("Starting application...")

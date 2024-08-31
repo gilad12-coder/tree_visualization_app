@@ -139,16 +139,14 @@ const TreeNode = ({
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         className={`${colorClass} rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer overflow-hidden
-          ${isSearchResult && !isCurrentSearchResult ? 'ring-2 ring-yellow-400' : ''}
-          ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}
-          ${isDirectSearchResult ? 'ring-2 ring-black' : ''}`}
+          ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         onContextMenu={handleToggle}
       >
         <AnimatePresence>
-          {(isHighlighted || isDirectSearchResult) && (
+          {(isHighlighted || isSearchResult || isDirectSearchResult) && (
             <motion.div
               className="absolute inset-0 border-2 border-black rounded-xl"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -158,8 +156,8 @@ const TreeNode = ({
             />
           )}
         </AnimatePresence>
-        {isSearchResult && (
-          <div className={`absolute inset-0 ${isCurrentSearchResult ? 'bg-orange-200' : 'bg-yellow-200'} opacity-30 rounded-xl`} />
+        {isCurrentSearchResult && (
+          <div className="absolute inset-0 bg-orange-200 opacity-30 rounded-xl" />
         )}
         <div className={`flex justify-between items-center mb-2 ${isOrgMode ? (roleLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row') : (nameLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row')}`}>
           <h3 

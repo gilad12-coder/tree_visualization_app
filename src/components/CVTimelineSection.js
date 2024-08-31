@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronDown, Download, Clock } from 'react-feather';
+import { ArrowLeft, ChevronDown, Clock } from 'react-feather';
 import { getLanguage, getFontClass, getTextAlignClass, getTextDirection } from '../Utilities/languageUtils';
+import '../styles/scrollbar.css';
 
-const TIMELINE_AND_CV_DISPLAY_THRESHOLD = 10;
+const MAX_HEIGHT = 160; // Maximum height in pixels
 
 const CVTimelineSection = ({ node, folderId, tableId, onBack }) => {
   const [showTimeline, setShowTimeline] = useState(false);
@@ -11,8 +12,12 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack }) => {
   const [cv, setCV] = useState([]);
   const [error, setError] = useState(null);
   const [dataStatus, setDataStatus] = useState('idle');
+  const [roleHistoryHeight, setRoleHistoryHeight] = useState('auto');
+  const [timelineHeight, setTimelineHeight] = useState('auto');
 
-  // TODO: use the person_id hook
+  const roleHistoryRef = useRef(null);
+  const timelineRef = useRef(null);
+
   useEffect(() => {
     const fetchTimelineAndCV = async () => {
       if (!folderId || !tableId) return;
@@ -44,41 +49,19 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack }) => {
     fetchTimelineAndCV();
   }, [folderId, node.name, tableId, node.person_id]);
 
-  const handleDownload = useCallback((data, filename) => {
-    const jsonString = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, []);
+  useEffect(() => {
+    if (roleHistoryRef.current) {
+      const contentHeight = roleHistoryRef.current.scrollHeight;
+      setRoleHistoryHeight(contentHeight > MAX_HEIGHT ? `${MAX_HEIGHT}px` : 'auto');
+    }
+  }, [cv]);
 
-  const handleTimelineDownload = useCallback(() => {
-    const timelineData = timeline.map(entry => ({
-      date: entry.upload_date,
-      name: entry.name,
-      role: entry.person_info ? entry.person_info.role : 'N/A'
-    }));
-    
-    const csvContent = [
-      ['Date', 'Snapshot Name', 'Role'],
-      ...timelineData.map(item => [item.date, item.name, item.role])
-    ].map(e => e.join(',')).join('\n');
-  
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${node.name}_timeline.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [timeline, node.name]);
+  useEffect(() => {
+    if (timelineRef.current && showTimeline) {
+      const contentHeight = timelineRef.current.scrollHeight;
+      setTimelineHeight(contentHeight > MAX_HEIGHT ? `${MAX_HEIGHT}px` : 'auto');
+    }
+  }, [timeline, showTimeline]);
 
   return (
     <div className="p-6 space-y-6">
@@ -140,39 +123,34 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack }) => {
           {cv && cv.length > 0 && (
             <div>
               <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">Role History</h3>
-              <ul className="text-sm text-gray-700 list-none pl-0">
-                {cv.slice(0, TIMELINE_AND_CV_DISPLAY_THRESHOLD).map((record, index) => {
-                  const roleLanguage = getLanguage(record.role);
-                  return (
-                    <motion.li
-                      key={index}
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className={`${getTextAlignClass(roleLanguage)} ${getFontClass(roleLanguage)} mb-2 pb-2 border-b border-gray-200 last:border-b-0`}
-                      dir={getTextDirection(roleLanguage)}
-                    >
-                      <span className="font-semibold">{record.role}</span>
-                      <br />
-                      <span className="text-xs text-gray-600">
-                        {new Date(record.startDate).toLocaleDateString()} - 
-                        {record.endDate ? new Date(record.endDate).toLocaleDateString() : 'Present'}
-                      </span>
-                    </motion.li>
-                  );
-                })}
-              </ul>
-              {cv.length > TIMELINE_AND_CV_DISPLAY_THRESHOLD && (
-                <motion.button
-                  onClick={() => handleDownload(cv, `${node.name}_cv.json`)}
-                  className="mt-4 flex items-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors mx-auto"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Download size={16} />
-                  <span>Download full CV</span>
-                </motion.button>
-              )}
+              <div 
+                ref={roleHistoryRef}
+                style={{ height: roleHistoryHeight, maxHeight: `${MAX_HEIGHT}px` }}
+                className="overflow-y-auto custom-scrollbar"
+              >
+                <ul className="text-sm text-gray-700 list-none pl-0">
+                  {cv.map((record, index) => {
+                    const roleLanguage = getLanguage(record.role);
+                    return (
+                      <motion.li
+                        key={index}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className={`${getTextAlignClass(roleLanguage)} ${getFontClass(roleLanguage)} mb-2 pb-2 border-b border-gray-200 last:border-b-0`}
+                        dir={getTextDirection(roleLanguage)}
+                      >
+                        <span className="font-semibold">{record.role}</span>
+                        <br />
+                        <span className="text-xs text-gray-600">
+                          {new Date(record.startDate).toLocaleDateString()} - 
+                          {record.endDate ? new Date(record.endDate).toLocaleDateString() : 'Present'}
+                        </span>
+                      </motion.li>
+                    );
+                  })}
+                </ul>
+              </div>
             </div>
           )}
           
@@ -203,8 +181,12 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack }) => {
                     transition={{ duration: 0.3 }}
                     className="mt-4 space-y-4"
                   >
-                    <div className="relative pl-4 border-l-2 border-blue-200">
-                      {timeline.slice(0, TIMELINE_AND_CV_DISPLAY_THRESHOLD).map((entry, index) => (
+                    <div 
+                      ref={timelineRef}
+                      style={{ height: timelineHeight, maxHeight: `${MAX_HEIGHT}px` }}
+                      className="relative pl-4 border-l-2 border-blue-200 overflow-y-auto custom-scrollbar"
+                    >
+                      {timeline.map((entry, index) => (
                         <motion.div
                           key={index}
                           initial={{ opacity: 0, x: -10 }}
@@ -225,17 +207,6 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack }) => {
                         </motion.div>
                       ))}
                     </div>
-                    {timeline.length > TIMELINE_AND_CV_DISPLAY_THRESHOLD && (
-                      <motion.button
-                        onClick={handleTimelineDownload}
-                        className="mt-4 flex items-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors mx-auto"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Download size={16} />
-                        <span>Download full timeline</span>
-                      </motion.button>
-                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
