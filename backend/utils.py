@@ -449,11 +449,3 @@ def generate_hierarchical_structure(session, table_id, parent_structure):
         else:
             # If no alphabetical suffixes exist, start with 'A'
             return f"{parent_structure}/A"
-        
-        
-def is_valid_json(data):
-    try:
-        json.dumps(data)
-        return True
-    except (TypeError, OverflowError):
-        return False
