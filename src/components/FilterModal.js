@@ -46,7 +46,6 @@ const columnTypes = [
 const FilterModal = ({
   isOpen,
   onClose,
-  onApplyFilters,
   onSearch,
   folderId,
   tableId,
@@ -116,14 +115,14 @@ const FilterModal = ({
   };
 
   const handleSelectAll = () => {
-    setSelectedResults(results.map((result) => result.person_id));
+    setSelectedResults(results.map((result) => result.hierarchical_structure));
   };
 
-  const toggleResultSelection = (personId) => {
+  const toggleResultSelection = (hierarchicalStructure) => {
     setSelectedResults((prev) =>
-      prev.includes(personId)
-        ? prev.filter((id) => id !== personId)
-        : [...prev, personId]
+      prev.includes(hierarchicalStructure)
+        ? prev.filter((id) => id !== hierarchicalStructure)
+        : [...prev, hierarchicalStructure]
     );
   };
 
@@ -133,7 +132,7 @@ const FilterModal = ({
       return;
     }
     const selectedResultsData = results.filter((result) =>
-      selectedResults.includes(result.person_id)
+      selectedResults.includes(result.hierarchical_structure)
     );
     onSearch(selectedResultsData);
     onClose();
@@ -166,9 +165,9 @@ const FilterModal = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {results.map((result) => (
           <ResultCard
-            key={result.person_id}
+            key={result.hierarchical_structure}
             result={result}
-            isSelected={selectedResults.includes(result.person_id)}
+            isSelected={selectedResults.includes(result.hierarchical_structure)}
             onSelect={toggleResultSelection}
           />
         ))}

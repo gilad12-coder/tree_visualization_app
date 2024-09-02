@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import func
 from datetime import datetime
 import json
+import math
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -52,7 +53,8 @@ def parse_org_data(df):
             "disconnected_nodes": [],
             "excluded_nodes": [],
             "disconnected_and_excluded": [],
-            "missing_root": []
+            "missing_root": [],
+            "duplicated_nodes": []
         },
         "info": {
             "root_selection": None,
@@ -94,15 +96,32 @@ def parse_org_data(df):
 
     def process_node(row):
         structure = row['hierarchical_structure']
+        name = row.get('name', '')
         if not structure:
-            add_error('missing_structure', {"row": int(row.name), "message": "Missing hierarchical structure"})
+            add_error('missing_structure', {
+                "name": name,
+                "row": int(row.name),
+                "message": "Missing hierarchical structure"
+            })
             return None
 
         if structure in nodes:
+            add_error('duplicated_nodes', {
+                "structure": structure,
+                "existing_node": {
+                    "name": nodes[structure]['name'],
+                    "row": int(nodes[structure]['row'])
+                },
+                "duplicate_node": {
+                    "name": name,
+                    "row": int(row.name)
+                },
+                "message": f"Duplicate hierarchical structure: '{structure}'. This node duplicates the existing node '{nodes[structure]['name']}' at row {nodes[structure]['row']}."
+            })
             return nodes[structure]
 
         new_node = {
-            "name": row.get('name', ''),
+            "name": name,
             "role": row.get('role', ''),
             "person_id": row.get('person_id', None),
             "department": row.get('department', ''),
@@ -110,7 +129,9 @@ def parse_org_data(df):
             "rank": row.get('rank', ''),
             "organization_id": row.get('organization_id', ''),
             "upload_date": datetime.now().date().isoformat(),
-            "children": []
+            "children": [],
+            "row": row.name,
+            "hierarchical_structure": row.hierarchical_structure
         }
 
         if new_node['birth_date']:
@@ -119,7 +140,12 @@ def parse_org_data(df):
                 upload_date = pd.to_datetime(new_node['upload_date']).date()
                 new_node['age'] = (upload_date - birth_date).days // 365
             except ValueError as e:
-                add_error('invalid_date', {"structure": structure, "message": str(e)})
+                add_error('invalid_date', {
+                    "name": name,
+                    "row": int(row.name),
+                    "structure": structure,
+                    "message": str(e)
+                })
                 new_node['age'] = None
 
         nodes[structure] = new_node
@@ -139,8 +165,14 @@ def parse_org_data(df):
     # Process all nodes
     for _, row in df.iterrows():
         structure = row['hierarchical_structure']
+        name = row.get('name', '')
         if not isinstance(structure, str) or not structure.startswith('/'):
-            add_error('invalid_structure', {"row": int(_), "structure": str(structure), "message": "Structure must start with a slash"})
+            add_error('invalid_structure', {
+                "name": name,
+                "row": int(_),
+                "structure": str(structure),
+                "message": "Structure must start with a slash"
+            })
             continue
         process_node(row)
 
@@ -171,15 +203,30 @@ def parse_org_data(df):
     # Report on categorized nodes
     if only_disconnected:
         for node in sorted(only_disconnected):
-            add_error('disconnected_nodes', {"node": node, "expected_parent": disconnected_nodes[node]})
+            add_error('disconnected_nodes', {
+                "name": nodes[node]['name'],
+                "row": int(nodes[node]['row']),
+                "node": node,
+                "expected_parent": disconnected_nodes[node]
+            })
 
     if only_excluded:
         for node in sorted(only_excluded):
-            add_error('excluded_nodes', {"node": node, "main_root": main_root})
+            add_error('excluded_nodes', {
+                "name": nodes[node]['name'],
+                "row": int(nodes[node]['row']),
+                "node": node,
+                "main_root": main_root
+            })
 
     if disconnected_and_excluded:
         for node in sorted(disconnected_and_excluded):
-            add_error('disconnected_and_excluded', {"node": node, "expected_parent": disconnected_nodes[node]})
+            add_error('disconnected_and_excluded', {
+                "name": nodes[node]['name'],
+                "row": int(nodes[node]['row']),
+                "node": node,
+                "expected_parent": disconnected_nodes[node]
+            })
 
     # Prepare the result
     result = nodes[main_root] if main_root else None
@@ -193,26 +240,25 @@ def parse_org_data(df):
     else:
         return result, None
 
-def compare_id_column(previous_df, new_df):
-    def get_person_id_set(df):
-        person_id_set = set(df["person_id"].tolist())
-        return person_id_set
+def compare_structure_column(previous_df, new_df):
+    def get_structure_set(df):
+        structure_set = set(df["hierarchical_structure"].tolist())
+        return structure_set
 
-    set1 = get_person_id_set(previous_df)
-    set2 = get_person_id_set(new_df)
+    set1 = get_structure_set(previous_df)
+    set2 = get_structure_set(new_df)
     
-    shared_person_ids = set1.intersection(set2)
-    total_person_ids = set1.union(set2)
+    shared_structures = set1.intersection(set2)
+    total_structures = set1.union(set2)
     
-    if not total_person_ids:
+    if not total_structures:
         return 0
     
-    similarity_percentage = (len(shared_person_ids) / len(total_person_ids)) * 100
+    similarity_percentage = (len(shared_structures) / len(total_structures)) * 100
     logger.info(f"Found similarity percentage: {similarity_percentage}")
     return similarity_percentage
-
 def is_valid_continuation(previous_df, new_df):
-    similarity = compare_id_column(previous_df=previous_df, new_df=new_df)
+    similarity = compare_structure_column(previous_df=previous_df, new_df=new_df)
     return similarity >= 50
 
 def process_excel_data(file_content, file_extension):
@@ -234,7 +280,7 @@ def insert_data_entries(session, table_id, df):
     df.columns = df.columns.str.lower()
     
     # Ensure required columns are present (case-insensitive)
-    required_columns = ['person_id', 'hierarchical_structure', 'name', 'role']
+    required_columns = ['hierarchical_structure', 'name', 'role']
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         raise ValueError(f"Required column(s) {', '.join(missing_columns)} are missing from the DataFrame")
@@ -287,19 +333,6 @@ def get_org_chart(table_id):
         else:
             logger.info(f"Org chart generated successfully for table ID {table_id}")
         return org_chart, log
-    finally:
-        session.close()
-
-def get_person_history(person_id):
-    session = get_session()
-    try:
-        entries = session.query(DataEntry).filter_by(person_id=person_id).order_by(DataEntry.upload_date).all()
-        history = []
-        for entry in entries:
-            entry_dict = entry.__dict__
-            entry_dict.pop('_sa_instance_state', None)
-            history.append(entry_dict)
-        return history
     finally:
         session.close()
 
@@ -416,3 +449,11 @@ def generate_hierarchical_structure(session, table_id, parent_structure):
         else:
             # If no alphabetical suffixes exist, start with 'A'
             return f"{parent_structure}/A"
+        
+        
+def is_valid_json(data):
+    try:
+        json.dumps(data)
+        return True
+    except (TypeError, OverflowError):
+        return False

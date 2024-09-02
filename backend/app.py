@@ -4,7 +4,7 @@ from models import (Folder, Table, DataEntry, get_session,
                     dispose_db, create_new_db, init_db, set_db_path, 
                     check_db_schema, is_valid_sqlite_db)
 from utils import (process_excel_data, 
-                   insert_data_entries, get_org_chart, get_person_history, 
+                   insert_data_entries, get_org_chart, 
                    get_department_structure, get_age_distribution, export_excel_data, generate_hierarchical_structure)
 from sqlalchemy.exc import SQLAlchemyError
 import logging
@@ -284,11 +284,6 @@ def get_org_data(table_id):
         response["log"] = log
     return jsonify(response), 200
 
-@app.route("/person_history/<int:person_id>", methods=["GET"])
-def fetch_person_history(person_id):
-    history = get_person_history(person_id)
-    return jsonify(history), 200
-
 @app.route("/department_structure", methods=["GET"], endpoint='fetch_department_structure')
 @validate_input(table_id=int, department=str)
 def fetch_department_structure(table_id, department):
@@ -353,7 +348,7 @@ def get_timeline(folder_id):
                 }
                 
                 if person_id:
-                    person_node = find_person_in_tree(org_tree, person_id)
+                    person_node = find_person_in_tree_for_timeline(org_tree, person_id)
                     if person_node:
                         timeline_entry["person_info"] = {
                             "name": person_node.get('name'),
@@ -711,23 +706,23 @@ def entry_to_dict(entry):
 
     
 @app.route("/highlight_nodes", methods=["GET"], endpoint='highlight_nodes')
-@validate_input(person_id=int, table_id=int)
-def highlight_nodes(person_id, table_id):
+@validate_input(hierarchical_structure=str, table_id=int)
+def highlight_nodes(hierarchical_structure, table_id):
     org_chart = get_org_chart(table_id)[0]
-    highlighted_nodes = find_node_path(org_chart, person_id)
+    highlighted_nodes = find_node_path(org_chart, hierarchical_structure)
     
     if highlighted_nodes is None:
-        return jsonify({"error": f"Node with person_id '{person_id}' not found in the organization chart"}), 404
+        return jsonify({"error": f"Node with hierarchical structure '{hierarchical_structure}' not found in the organization chart"}), 404
 
     return jsonify({"highlighted_nodes": highlighted_nodes}), 200
 
-def find_node_path(node, target_id):
+def find_node_path(node, target_structure):
     def dfs(current_node, path):
-        if current_node['person_id'] == target_id:
-            return path + [current_node['person_id']]
+        if current_node['hierarchical_structure'] == target_structure:
+            return path + [current_node['hierarchical_structure']]
         
         for child in current_node.get('children', []):
-            result = dfs(child, path + [current_node['person_id']])
+            result = dfs(child, path + [current_node['hierarchical_structure']])
             if result:
                 return result
         
@@ -743,7 +738,7 @@ def serve(path):
     else:
         return send_from_directory(app.static_folder, 'index.html')
 
-def find_person_in_tree(node, target_person_id):
+def find_person_in_tree_for_timeline(node, target_person_id):
     """
     Recursively search for a person in the organization tree.
     
@@ -758,7 +753,7 @@ def find_person_in_tree(node, target_person_id):
         return node
     
     for child in node.get('children', []):
-        result = find_person_in_tree(child, target_person_id)
+        result = find_person_in_tree_for_timeline(child, target_person_id)
         if result:
             return result
     
@@ -1113,7 +1108,7 @@ def update_node_data(folder_id):
                 node = search_results[0]
 
                 # Update the node data using the update_person_data function
-                updated_data = update_person_data(session, table.id, node['person_id'], updates)
+                updated_data = update_person_data(session, table.id, node['hierarchical_structure'], updates)
 
                 if updated_data is None:
                     update_results.append({
@@ -1137,14 +1132,14 @@ def update_node_data(folder_id):
         logger.error(f"Error updating nodes in folder {folder_id}: {str(e)}")
         return jsonify({"error": "An unexpected error occurred while updating the nodes"}), 500
 
-def update_person_data(session, table_id, person_id, updates):
+def update_person_data(session, table_id, hierarchical_structure, updates):
     """
     Update a person's data in a specific table.
 
     Args:
     session (Session): The database session.
     table_id (int): The ID of the table containing the person's data.
-    person_id (int): The ID of the person to update.
+    hierarchical_structure (str): The hierarchical structure of the person to update.
     updates (dict): A dictionary containing the fields to update and their new values.
 
     Returns:
@@ -1154,16 +1149,16 @@ def update_person_data(session, table_id, person_id, updates):
         # Find the person's data entry
         data_entry = session.query(DataEntry).filter_by(
             table_id=table_id,
-            person_id=person_id
+            hierarchical_structure=hierarchical_structure
         ).first()
 
         if not data_entry:
-            logger.warning(f"Person with ID {person_id} not found in table {table_id}")
+            logger.warning(f"Person with hierarchical structure {hierarchical_structure} not found in table {table_id}")
             return None
 
         # Update fields
         for key, value in updates.items():
-            if hasattr(data_entry, key) and key != 'hierarchical_structure':
+            if hasattr(data_entry, key):
                 if key == 'birth_date' and value:
                     # Convert string to datetime object
                     value = datetime.strptime(value, '%Y-%m-%d').date()
@@ -1177,41 +1172,41 @@ def update_person_data(session, table_id, person_id, updates):
 
         # Prepare the updated data to return
         updated_data = {
+            "hierarchical_structure": data_entry.hierarchical_structure,
             "person_id": data_entry.person_id,
             "name": data_entry.name,
             "role": data_entry.role,
             "department": data_entry.department,
             "rank": data_entry.rank,
             "birth_date": data_entry.birth_date.isoformat() if data_entry.birth_date else None,
-            "organization_id": data_entry.organization_id,
-            "hierarchical_structure": data_entry.hierarchical_structure
+            "organization_id": data_entry.organization_id
         }
 
-        logger.info(f"Successfully updated data for person {person_id} in table {table_id}")
+        logger.info(f"Successfully updated data for person with hierarchical structure {hierarchical_structure} in table {table_id}")
         return updated_data
 
     except Exception as e:
-        logger.error(f"Error updating data for person {person_id} in table {table_id}: {str(e)}")
+        logger.error(f"Error updating data for person with hierarchical structure {hierarchical_structure} in table {table_id}: {str(e)}")
         session.rollback()
         raise
 
-def compute_hierarchical_changes(session, table_id, person_id, hierarchical_update_params):
-    current_entry = session.query(DataEntry).filter_by(table_id=table_id, person_id=person_id).first()
+def compute_hierarchical_changes(session, table_id, hierarchical_structure, hierarchical_update_params):
+    current_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=hierarchical_structure).first()
     if not current_entry:
-        return {"error": f"Person with ID {person_id} not found in table {table_id}"}
+        return {"error": f"Node with hierarchical structure {hierarchical_structure} not found in table {table_id}"}
 
     changes = {}
 
     if hierarchical_update_params.get('type') == 'create_new':
-        new_parent_id = hierarchical_update_params['new_parent_id']
+        new_parent_structure = hierarchical_update_params['new_parent_structure']
         new_role = hierarchical_update_params.get('new_role')
         
         if not new_role:
             return {"error": "New role must be provided for create_new operation"}
 
-        new_parent = session.query(DataEntry).filter_by(table_id=table_id, person_id=new_parent_id).first()
+        new_parent = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=new_parent_structure).first()
         if not new_parent:
-            return {"error": f"New parent node with ID {new_parent_id} not found"}
+            return {"error": f"New parent node with hierarchical structure {new_parent_structure} not found"}
 
         try:
             new_hierarchy = generate_hierarchical_structure(session, table_id, new_parent.hierarchical_structure)
@@ -1231,19 +1226,11 @@ def compute_hierarchical_changes(session, table_id, person_id, hierarchical_upda
             "organization_id": current_entry.organization_id
         }
 
-        changes['null_node'] = {
-            "name": None,
-            "department": None,
-            "birth_date": None,
-            "rank": None,
-            "organization_id": None
-        }
-
     elif hierarchical_update_params.get('type') == 'override':
-        override_person_id = hierarchical_update_params['override_person_id']
-        override_entry = session.query(DataEntry).filter_by(table_id=table_id, person_id=override_person_id).first()
+        override_structure = hierarchical_update_params['override_structure']
+        override_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=override_structure).first()
         if not override_entry:
-            return {"error": f"Person to override with ID {override_person_id} not found in table {table_id}"}
+            return {"error": f"Node to override with hierarchical structure {override_structure} not found in table {table_id}"}
 
         changes['update_node'] = {
             "person_id": current_entry.person_id,
@@ -1257,20 +1244,21 @@ def compute_hierarchical_changes(session, table_id, person_id, hierarchical_upda
             "organization_id": current_entry.organization_id
         }
 
-        changes['null_node'] = {
-            "name": None,
-            "department": None,
-            "birth_date": None,
-            "rank": None,
-            "organization_id": None
-        }
+    changes['null_node'] = {
+        "name": "nan",
+        "department": "nan",
+        "birth_date": None,
+        "rank": "nan",
+        "organization_id": "nan",
+        "person_id": "nan"
+    }
 
     return changes
 
-def change_hierarchical_location(session, table_id, person_id, update_type, target_person_id, new_role=None):
+def change_hierarchical_location(session, table_id, hierarchical_structure, update_type, target_hierarchical_structure, new_role=None):
     hierarchical_update_params = {
         'type': update_type,
-        'new_parent_id' if update_type == 'create_new' else 'override_person_id': target_person_id
+        'new_parent_structure' if update_type == 'create_new' else 'override_structure': target_hierarchical_structure
     }
 
     if update_type == 'create_new':
@@ -1278,30 +1266,35 @@ def change_hierarchical_location(session, table_id, person_id, update_type, targ
             return {"error": "New role must be provided for create_new operation"}
         hierarchical_update_params['new_role'] = new_role
 
-    changes = compute_hierarchical_changes(session, table_id, person_id, hierarchical_update_params)
+    changes = compute_hierarchical_changes(session, table_id, hierarchical_structure, hierarchical_update_params)
 
     if 'error' in changes:
         return changes
 
     try:
-        if 'new_node' in changes:
+        # Find the original entry
+        original_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=hierarchical_structure).first()
+        if not original_entry:
+            return {"error": f"No entry found with hierarchical_structure: {hierarchical_structure}"}
+
+        if update_type == 'create_new':
+            # Create a new entry
             new_entry = DataEntry(**changes['new_node'])
             session.add(new_entry)
 
-        if 'update_node' in changes:
-            # Update the target entry with the current entry's data
-            target_entry = session.query(DataEntry).filter_by(table_id=table_id, person_id=target_person_id).first()
+        elif update_type == 'override':
+            # Find the target entry
+            target_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=target_hierarchical_structure).first()
+            if not target_entry:
+                return {"error": f"No entry found with hierarchical_structure: {target_hierarchical_structure}"}
+
+            # Update the target entry with the original entry's data
             for key, value in changes['update_node'].items():
                 setattr(target_entry, key, value)
 
         # Convert the original entry to a null node
-        original_entry = session.query(DataEntry).filter_by(table_id=table_id, person_id=person_id).first()
         for key, value in changes['null_node'].items():
             setattr(original_entry, key, value)
-        
-        # If it's an override operation, ensure the role is retained
-        if update_type == 'override':
-            original_entry.role = original_entry.role  # This line ensures the role is not changed
 
         session.commit()
         return {"message": "Hierarchical location updated successfully", "changes": changes}
@@ -1313,12 +1306,12 @@ def change_hierarchical_location(session, table_id, person_id, update_type, targ
 @app.route("/update_hierarchical_structure/<int:folder_id>/<int:table_id>", methods=["POST"])
 def update_hierarchical_structure(folder_id, table_id):
     data = request.json
-    person_id = data.get('person_id')
+    hierarchical_structure = data.get('hierarchical_structure')
     update_type = data.get('update_type')
-    target_person_id = data.get('target_person_id')
+    target_hierarchical_structure = data.get('target_hierarchical_structure')
     new_role = data.get('new_role')
 
-    if not all([person_id, update_type, target_person_id]):
+    if not all([hierarchical_structure, update_type, target_hierarchical_structure]):
         return jsonify({"error": "Missing required parameters"}), 400
 
     if update_type not in ['create_new', 'override']:
@@ -1338,7 +1331,7 @@ def update_hierarchical_structure(folder_id, table_id):
             if not table:
                 return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
 
-            result = change_hierarchical_location(session, table_id, person_id, update_type, target_person_id, new_role)
+            result = change_hierarchical_location(session, table_id, hierarchical_structure, update_type, target_hierarchical_structure, new_role)
 
             if 'error' in result:
                 return jsonify(result), 400

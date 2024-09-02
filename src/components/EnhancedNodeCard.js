@@ -49,7 +49,6 @@ const EnhancedNodeCard = ({
   };
 
   const handleCloseUpdateScreen = () => {
-    onUpdateComplete(); // Trigger update before closing
     setActiveScreen('main');
     onCloseUpdateModal();
   };
