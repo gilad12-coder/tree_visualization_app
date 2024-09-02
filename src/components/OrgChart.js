@@ -105,6 +105,8 @@ const OrgChart = ({
         
         toast.warning("Parsing encountered issues. The log has been downloaded for your review.");
       }
+
+      console.log(orgDataResponse.data)
       
       setOrgData(orgDataResponse.data.org_chart);
       setFilteredOrgData(orgDataResponse.data.org_chart);
@@ -444,35 +446,40 @@ const OrgChart = ({
 
   useEffect(() => {
     if (orgData) {
-      console.log("useEffect triggered with:", { orgData, searchResults, activeFilters });
-      if (searchResults && searchResults.length > 0) {
-        console.log("Applying search results");
-        const searchedData = findNodesInTree(orgData, searchResults);
-        if (searchedData) {
-          console.log("Search results applied successfully");
-          setFilteredOrgData(searchedData);
-          setExpandAll(true);
+      console.log("Processing org data:", orgData);
+      try {
+        if (searchResults && searchResults.length > 0) {
+          const searchedData = findNodesInTree(orgData, searchResults);
+          if (searchedData) {
+            console.log("Search results applied successfully");
+            setFilteredOrgData(searchedData);
+            setExpandAll(true);
+          } else {
+            console.warn("Failed to apply search results");
+            toast.warning("The search results couldn't be rendered in the tree view. Please try a different search.");
+            setFilteredOrgData(orgData);
+            setExpandAll(false);
+          }
+        } else if (activeFilters.length > 0) {
+          const filtered = filterOrgData(orgData, activeFilters);
+          if (filtered === null) {
+            console.warn("Failed to apply filters");
+            toast.warning("The current filter couldn't be rendered in the tree view. Please adjust your filter criteria.");
+            setFilteredOrgData(orgData);
+            setExpandAll(false);
+          } else {
+            console.log("Filters applied successfully");
+            setFilteredOrgData(filtered);
+            setExpandAll(true);
+          }
         } else {
-          console.log("Failed to apply search results");
-          toast.warning("The search results couldn't be rendered in the tree view. Please try a different search.");
+          console.log("No search or filters active, using original data");
           setFilteredOrgData(orgData);
           setExpandAll(false);
         }
-      } else if (activeFilters.length > 0) {
-        console.log("Applying active filters");
-        const filtered = filterOrgData(orgData, activeFilters);
-        if (filtered === null) {
-          console.log("Failed to apply filters");
-          toast.warning("The current filter couldn't be rendered in the tree view. Please adjust your filter criteria.");
-          setFilteredOrgData(orgData);
-          setExpandAll(false);
-        } else {
-          console.log("Filters applied successfully");
-          setFilteredOrgData(filtered);
-          setExpandAll(true);
-        }
-      } else {
-        console.log("No search or filters active, using original data");
+      } catch (error) {
+        console.error("Error processing org data:", error);
+        toast.error("An error occurred while processing the organizational data. Please try refreshing the page.");
         setFilteredOrgData(orgData);
         setExpandAll(false);
       }
@@ -569,37 +576,37 @@ const OrgChart = ({
 
   const handleSearch = useCallback((results) => {
     console.log("Search results received:", results);
-    const resultIds = results.map(result => result.person_id);
+    const resultStructures = results.map(result => result.hierarchical_structure);
     setSearchResults(results);
-    setDirectSearchResults(resultIds);
+    setDirectSearchResults(resultStructures);
     setActiveFilters([]);
     setFilterModalResetTrigger(prev => prev + 1);
-    setTreeSearchResults(resultIds);
+    setTreeSearchResults(resultStructures);
     setCurrentTreeSearchIndex(0);
   
-    const findAncestors = (node, targetIds, ancestors = []) => {
-      if (targetIds.includes(node.person_id)) {
-        return [...ancestors, node.person_id];
+    const findAncestors = (node, targetStructures, ancestors = []) => {
+      if (targetStructures.includes(node.hierarchical_structure)) {
+        return [...ancestors, node.hierarchical_structure];
       }
       if (node.children) {
         for (let child of node.children) {
-          const result = findAncestors(child, targetIds, [...ancestors, node.person_id]);
+          const result = findAncestors(child, targetStructures, [...ancestors, node.hierarchical_structure]);
           if (result.length > 0) return result;
         }
       }
       return [];
     };
   
-    const allIncludedIds = new Set();
+    const allIncludedStructures = new Set();
     const addAncestors = (tree) => {
-      resultIds.forEach(id => {
-        const ancestors = findAncestors(tree, [id]);
-        ancestors.forEach(ancestorId => allIncludedIds.add(ancestorId));
+      resultStructures.forEach(structure => {
+        const ancestors = findAncestors(tree, [structure]);
+        ancestors.forEach(ancestorStructure => allIncludedStructures.add(ancestorStructure));
       });
     };
   
     addAncestors(orgData);
-    setFilteredSearchResults(Array.from(allIncludedIds));
+    setFilteredSearchResults(Array.from(allIncludedStructures));
   }, [orgData, setActiveFilters, setFilteredSearchResults, setTreeSearchResults]);
 
   const handleClearFilter = useCallback(() => {
@@ -739,14 +746,14 @@ const OrgChart = ({
       node.name.toLowerCase().includes(term.toLowerCase()) || 
       node.role.toLowerCase().includes(term.toLowerCase())
     );
-    setTreeSearchResults(results.map(node => node.person_id));
+    setTreeSearchResults(results.map(node => node.hierarchical_structure));
     setCurrentTreeSearchIndex(results.length > 0 ? 0 : -1);
     console.log("Search results:", results);
   }, [renderedNodes]);
 
   const handleNodeRendered = useCallback((node) => {
     setRenderedNodes(prev => {
-      const existing = prev.find(n => n.person_id === node.person_id);
+      const existing = prev.find(n => n.hierarchical_structure === node.hierarchical_structure);
       if (!existing) {
         return [...prev, node];
       }
@@ -754,8 +761,8 @@ const OrgChart = ({
     });
   }, []);
 
-  const handleNodeUnrendered = useCallback((nodeId) => {
-    setRenderedNodes(prev => prev.filter(node => node.person_id !== nodeId));
+  const handleNodeUnrendered = useCallback((nodeStructure) => {
+    setRenderedNodes(prev => prev.filter(node => node.hierarchical_structure !== nodeStructure));
   }, []);
 
   const handleTreeSearchNavigation = useCallback((direction) => {
@@ -768,12 +775,12 @@ const OrgChart = ({
       newIndex = (currentTreeSearchIndex - 1 + treeSearchResults.length) % treeSearchResults.length;
     }
     setCurrentTreeSearchIndex(newIndex);
-    
+
     console.log(`Navigating ${direction}. New index: ${newIndex}`);
 
-    const currentNodeId = treeSearchResults[newIndex];
-    if (currentNodeId) {
-      const element = document.getElementById(`node-${currentNodeId}`);
+    const currentNodeStructure = treeSearchResults[newIndex];
+    if (currentNodeStructure) {
+      const element = document.getElementById(`node-${currentNodeStructure}`);
       if (element) {
         const rect = element.getBoundingClientRect();
         const { width: nodeWidth, height: nodeHeight } = rect;
@@ -814,7 +821,7 @@ const OrgChart = ({
           chartRef.current.style.transition = '';
         }, 300);
       } else {
-        console.warn(`Element with id node-${currentNodeId} not found`);
+        console.warn(`Element with id node-${currentNodeStructure} not found`);
       }
     } else {
       console.warn(`No node found for index ${newIndex}`);
@@ -822,14 +829,14 @@ const OrgChart = ({
   }, [treeSearchResults, currentTreeSearchIndex, transform, chartRef, settings.searchZoomLevel]);
 
   const handleHighlight = useCallback(
-    async (personId) => {
+    async (hierarchicalNodeStructure) => {
       try {
-        if (highlightedNodes.includes(personId)) {
+        if (highlightedNodes.includes(hierarchicalNodeStructure)) {
           setHighlightedNodes([]);
         } else {
           const response = await axios.get(`${API_BASE_URL}/highlight_nodes`, {
             params: {
-              person_id: personId,
+              hierarchical_structure: hierarchicalNodeStructure,
               table_id: selectedTableId,
             },
           });

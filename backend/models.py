@@ -1,6 +1,6 @@
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, DateTime, create_engine, inspect, func
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, DateTime, create_engine, inspect, func, UniqueConstraint
 import glob
 import os
 import logging
@@ -10,8 +10,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 Base = declarative_base()
-
-#TODO: Rethink how the database works to enable lego like behaviors. this will fix the issue with null nodes.
 
 class Folder(Base):
     __tablename__ = 'folders'
@@ -34,22 +32,23 @@ class DataEntry(Base):
     __tablename__ = 'data_entries'
     id = Column(Integer, primary_key=True)
     table_id = Column(Integer, ForeignKey('tables.id'), nullable=False)
-    person_id = Column(Integer, nullable=False)
+    hierarchical_structure = Column(String, nullable=False, index=True)
     upload_date = Column(Date, nullable=False)
     
+    # Personal Info (including person_id as a regular field now)
+    person_id = Column(String, nullable=True)
+    name = Column(String)
+    birth_date = Column(Date)
+    
     # Org Data
-    hierarchical_structure = Column(String, nullable=False)
     role = Column(String)
     department = Column(String)
-    
-    # Personal Info
-    birth_date = Column(Date)
     rank = Column(String)
     organization_id = Column(String)
-    name = Column(String)
-    
     
     table = relationship('Table', back_populates='data_entries')
+
+    __table_args__ = (UniqueConstraint('table_id', 'hierarchical_structure', name='_table_hierarchical_uc'),)
 
     @property
     def age(self):
@@ -110,7 +109,7 @@ def dispose_db():
     if Session:
         logger.info("Removing existing session")
         Session.remove()
-    if Session:
+    if engine:
         logger.info("Disposing existing engine")
         engine.dispose()
     engine = None

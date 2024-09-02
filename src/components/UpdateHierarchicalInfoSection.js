@@ -24,7 +24,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
         const response = await axios.get(`${API_BASE_URL}/search/${folderId}/${tableId}`, {
           params: {
             query: '',
-            columns: 'name,person_id,role,department'
+            columns: 'name,person_id,role,department,hierarchical_structure'
           }
         });
         
@@ -35,7 +35,8 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
               value: person.person_id,
               label: person.name,
               role: person.role,
-              department: person.department
+              department: person.department,
+              hierarchical_structure: person.hierarchical_structure
             }));
           setAvailablePersons(persons);
         } else {
@@ -63,9 +64,9 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
 
     try {
       const response = await axios.post(`${API_BASE_URL}/update_hierarchical_structure/${folderId}/${tableId}`, {
-        person_id: node.person_id,
+        hierarchical_structure: node.hierarchical_structure,
         update_type: updateType.value,
-        target_person_id: targetPerson.value,
+        target_hierarchical_structure: targetPerson.hierarchical_structure,
         new_role: updateType.value === 'create_new' ? newRole : undefined
       });
 
@@ -318,6 +319,14 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
           <div className="w-2/3 px-2">
             <span className="inline-block py-1 px-2 rounded bg-green-100 text-green-800 font-medium">
               {targetPerson?.label}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center py-3 border-b border-gray-200">
+          <div className="w-1/3 font-medium text-gray-700">Target Hierarchical Structure</div>
+          <div className="w-2/3 px-2">
+            <span className="inline-block py-1 px-2 rounded bg-purple-100 text-purple-800 font-medium">
+              {targetPerson?.hierarchical_structure}
             </span>
           </div>
         </div>

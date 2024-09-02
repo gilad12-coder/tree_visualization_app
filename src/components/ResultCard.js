@@ -38,7 +38,7 @@ const ResultCard = ({ result, isSelected, onSelect }) => {
       className={`bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer transition-all duration-200 relative ${
         isSelected ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
       }`}
-      onClick={() => onSelect(result.person_id)} // Pass the person_id to onSelect
+      onClick={() => onSelect(result.hierarchical_structure)}
     >
       <div className="absolute top-2 right-2">
         <HelpCircle

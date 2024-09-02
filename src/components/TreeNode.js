@@ -37,20 +37,20 @@ const TreeNode = ({
   const nodeRef = useRef(null);
   const isRendered = useRef(false);
 
-  const hasChildren = node?.children && node.children.length > 0;
+  const hasChildren = node?.children && Array.isArray(node.children) && node.children.length > 0;
   const isSingleChild = hasChildren && node.children.length === 1;
   const colorClass = colors[`level${(depth % 5) + 1}`];
 
   const nameLanguage = getLanguage(node?.name || '');
   const roleLanguage = getLanguage(node?.role || '');
 
-  const isHighlighted = node ? highlightedNodes.includes(node.person_id) : false;
+  const isHighlighted = node?.hierarchical_structure ? highlightedNodes.includes(node.hierarchical_structure) : false;
   const isSearchResult = searchTerm && node && (
-    node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    node.role.toLowerCase().includes(searchTerm.toLowerCase())
+    (node.name && node.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (node.role && node.role.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-  const isCurrentSearchResult = isSearchResult && searchResults[currentSearchIndex] === node.person_id;
-  const isDirectSearchResult = node && directSearchResults.includes(node.person_id);
+  const isCurrentSearchResult = isSearchResult && searchResults[currentSearchIndex] === node?.hierarchical_structure;
+  const isDirectSearchResult = node?.hierarchical_structure && directSearchResults.includes(node.hierarchical_structure);
 
   useEffect(() => {
     if (expandAll) {
@@ -62,16 +62,16 @@ const TreeNode = ({
 
   useEffect(() => {
     const updatePosition = () => {
-      if (nodeRef.current) {
+      if (nodeRef.current && node?.hierarchical_structure) {
         const rect = nodeRef.current.getBoundingClientRect();
-        onNodePosition(node.person_id, rect.left, rect.top);
+        onNodePosition(node.hierarchical_structure, rect.left, rect.top);
       }
     };
 
     updatePosition();
     window.addEventListener('resize', updatePosition);
     return () => window.removeEventListener('resize', updatePosition);
-  }, [node.person_id, onNodePosition]);
+  }, [node, onNodePosition]);
 
   useEffect(() => {
     if (node && !isRendered.current) {
@@ -81,7 +81,7 @@ const TreeNode = ({
 
     return () => {
       if (node && isRendered.current) {
-        onNodeUnrendered(node.person_id);
+        onNodeUnrendered(node.hierarchical_structure);
         isRendered.current = false;
       }
     };
@@ -92,7 +92,7 @@ const TreeNode = ({
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
-      onHighlight(node.person_id);
+      onHighlight(node.hierarchical_structure);
     }, 500);
   }, [node, onHighlight]);
 
@@ -120,10 +120,8 @@ const TreeNode = ({
     }
   }, [hasChildren]);
 
-  if (!node) return null;
-
   const highlightText = (text, term) => {
-    if (!term) return text;
+    if (!text || !term) return text;
     const parts = text.split(new RegExp(`(${term})`, 'gi'));
     return parts.map((part, index) => 
       part.toLowerCase() === term.toLowerCase() ? 
@@ -131,10 +129,12 @@ const TreeNode = ({
     );
   };
 
+  if (!node) return null;
+
   return (
     <div className="flex flex-col items-center">
       <motion.div
-        id={`node-${node.person_id}`}
+        id={`node-${node.hierarchical_structure}`}
         ref={nodeRef}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -164,7 +164,7 @@ const TreeNode = ({
             className={`text-lg font-bold text-black ${getFontClass(isOrgMode ? roleLanguage : nameLanguage)}`}
             dir={getTextDirection(isOrgMode ? roleLanguage : nameLanguage)}
           >
-            {isOrgMode ? highlightText(node.role || 'No Role', searchTerm) : highlightText(node.name, searchTerm)}
+            {isOrgMode ? highlightText(node.role || 'No Role', searchTerm) : highlightText(node.name || 'Unnamed', searchTerm)}
           </h3>
           {hasChildren && (
             <motion.div
@@ -187,7 +187,7 @@ const TreeNode = ({
           className={`text-sm font-medium text-black ${getFontClass(isOrgMode ? nameLanguage : roleLanguage)} text-center`}
           dir={getTextDirection(isOrgMode ? nameLanguage : roleLanguage)}
         >
-          {isOrgMode ? highlightText(node.name, searchTerm) : highlightText(node.role, searchTerm)}
+          {isOrgMode ? highlightText(node.name || 'Unnamed', searchTerm) : highlightText(node.role || 'No Role', searchTerm)}
         </div>
       </motion.div>
       <AnimatePresence initial={false}>
@@ -202,7 +202,7 @@ const TreeNode = ({
             <div className={`absolute left-1/2 -translate-x-px w-1 bg-gray-400 ${isSingleChild ? 'h-16' : 'h-8'} top-0`} />
             <div className={`relative flex justify-center ${isSingleChild ? 'mt-10' : ''}`}>
               {node.children.map((child, index, array) => (
-                <div key={child.person_id || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
+                <div key={child.hierarchical_structure || `${depth}-${index}`} className="flex flex-col items-center px-4 relative">
                   {!isSingleChild && (
                     <>
                       {index === 0 && (
