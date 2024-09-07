@@ -33,7 +33,8 @@ const EnhancedNodeCard = ({
   folderStructure, 
   onUpdateComplete,
   onOpenUpdateModal,
-  onCloseUpdateModal
+  onCloseUpdateModal,
+  getParentNode
 }) => {
   const [activeScreen, setActiveScreen] = useState('main');
   const bgOpacity = useMotionValue(0);
@@ -176,30 +177,26 @@ const EnhancedNodeCard = ({
                 exit={{ opacity: 0, x: -50 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="p-3 max-w-7xl mx-auto w-full">
+                <div className="p-6 space-y-4">
                   {renderNavigationButton(handleCloseUpdateScreen, <ArrowLeft size={20} className="mr-2" />, "Back to Main Info")}
-                  <motion.div
-                    className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-4 shadow-lg mt-3 space-y-4"
+                  <motion.button
+                    onClick={() => setActiveScreen('updatePersonal')}
+                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <motion.button
-                      onClick={() => setActiveScreen('updatePersonal')}
-                      className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <span className="font-bold">Update Personal Information</span>
-                      <User size={20} />
-                    </motion.button>
-                    <motion.button
-                      onClick={() => setActiveScreen('updateHierarchical')}
-                      className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <span className="font-bold">Update Hierarchical Information</span>
-                      <GitBranch size={20} />
-                    </motion.button>
-                  </motion.div>
+                    <span className="font-bold">Update Personal Information</span>
+                    <User size={20} />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setActiveScreen('updateHierarchical')}
+                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="font-bold">Update Hierarchical Information</span>
+                    <GitBranch size={20} />
+                  </motion.button>
                 </div>
               </motion.div>
             )}
@@ -250,6 +247,7 @@ const EnhancedNodeCard = ({
                   tableId={tableId}
                   folderStructure={folderStructure}
                   onUpdateComplete={onUpdateComplete}
+                  getParentNode={getParentNode}
                 />
               </motion.div>
             )}

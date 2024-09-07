@@ -1,12 +1,10 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, Filter } from 'react-feather';
+import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, Filter } from 'lucide-react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import '../styles/datepicker.css';
 import { format, parseISO } from 'date-fns';
+import DatePickerWrapper from './DatePickerWrapper';
 
 const MotionPath = motion.path;
 
@@ -74,8 +72,6 @@ const TableCard = ({ table, onClick, isActive }) => {
 };
 
 const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode, currentTableId }) => {
-  console.log('TableSelectionModal rendered with folderStructure:', folderStructure);
-
   const [step, setStep] = useState('folder');
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -84,6 +80,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
   const [dateFilter, setDateFilter] = useState({ start: null, end: null });
 
   const filterMenuRef = useRef(null);
+  const filterButtonRef = useRef(null);
   const isFilterActive = dateFilter.start !== null || dateFilter.end !== null;
 
   useEffect(() => {
@@ -103,7 +100,8 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target)) {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target) &&
+          filterButtonRef.current && !filterButtonRef.current.contains(event.target)) {
         setFilterMenuOpen(false);
       }
     };
@@ -142,7 +140,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
         if (!a.upload_date) return 1;
         if (!b.upload_date) return -1;
         const comparison = new Date(b.upload_date) - new Date(a.upload_date);
-        return sortByDate ? -comparison : comparison; // Most recent first when not sorted, least recent first when sorted
+        return sortByDate ? -comparison : comparison;
       });
   }, [selectedFolder, folderStructure, searchTerm, sortByDate, dateFilter]);
 
@@ -155,6 +153,18 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
   const handleTableSelect = useCallback((tableId) => {
     onSelectTable(tableId, selectedFolder);
   }, [onSelectTable, selectedFolder]);
+
+  const handleDateFilterChange = (dates) => {
+    setDateFilter({ start: dates[0], end: dates[1] });
+    if (dates[0] && dates[1]) {
+      setFilterMenuOpen(false);
+    }
+  };
+
+  const toggleFilterMenu = useCallback((e) => {
+    e.stopPropagation();
+    setFilterMenuOpen(prevState => !prevState);
+  }, []);
 
   const renderFolder = useCallback(({ index, style }) => {
     const folder = filteredFolders[index];
@@ -286,71 +296,57 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                       <span className="text-sm font-medium">Sort by Date</span>
                     </motion.button>
                     <div className="relative">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
-                          isFilterActive
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-blue-100 text-black'
-                        } transition-colors duration-200`}
-                      >
-                        <Filter size={18} />
-                        <span className="text-sm font-medium">Filter</span>
-                      </motion.button>
-                      <AnimatePresence>
-                        {filterMenuOpen && (
-                          <motion.div
-                            ref={filterMenuRef}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
-                            className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg p-4 z-10"
-                          >
-                            <h3 className="text-lg font-semibold mb-2">Date Filter</h3>
-                            <div className="space-y-2">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">Start Date</label>
-                                <DatePicker
-                                  selected={dateFilter.start}
-                                  onChange={(date) => setDateFilter(prev => ({ ...prev, start: date }))}
-                                  dateFormat="yyyy-MM-dd"
-                                  placeholderText="Select start date"
-                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                  showMonthDropdown
-                                  showYearDropdown
-                                  dropdownMode="select"
-                                  isClearable
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">End Date</label>
-                                <DatePicker
-                                  selected={dateFilter.end}
-                                  onChange={(date) => setDateFilter(prev => ({ ...prev, end: date }))}
-                                  dateFormat="yyyy-MM-dd"
-                                  placeholderText="Select end date"
-                                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                  showMonthDropdown
-                                  showYearDropdown
-                                  dropdownMode="select"
-                                  isClearable
-                                />
-                              </div>
-                            </div>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => setDateFilter({ start: null, end: null })}
-                              className="mt-4 w-full bg-red-500 text-white rounded-md py-2 text-sm font-medium"
-                            >
-                              Clear Filter
-                            </motion.button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
+        <motion.button
+          ref={filterButtonRef}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={toggleFilterMenu}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full ${
+            isFilterActive
+              ? 'bg-blue-500 text-white'
+              : 'bg-blue-100 text-black'
+          } transition-colors duration-200`}
+        >
+          <Filter size={18} />
+          <span className="text-sm font-medium">Filter</span>
+        </motion.button>
+        <AnimatePresence>
+          {filterMenuOpen && (
+            <motion.div
+              ref={filterMenuRef}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg p-4 z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold mb-2">Date Filter</h3>
+              <div className="space-y-2">
+                <DatePickerWrapper
+                  date={[dateFilter.start, dateFilter.end]}
+                  handleDateChange={handleDateFilterChange}
+                  isRange={true}
+                  placeholderText="Select date range"
+                  wrapperColor="bg-blue-50"
+                  wrapperOpacity="bg-opacity-50"
+                />
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDateFilter({ start: null, end: null });
+                  setFilterMenuOpen(false);
+                }}
+                className="mt-4 w-full bg-red-500 text-white rounded-md py-2 text-sm font-medium"
+              >
+                Clear Filter
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
                   </>
                 )}
               </div>

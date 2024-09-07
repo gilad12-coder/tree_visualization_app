@@ -1,22 +1,100 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Save, ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Save, ArrowRight, ArrowRightCircle, ChevronDown } from 'lucide-react';
 import Select from 'react-select';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
+import '../styles/datepicker.css';
 import '../styles/scrollbar.css';
 import '../styles/fonts.css';
+import DatePickerWrapper from './DatePickerWrapper';
+import PopupInfoModal from './PopupInfoModal';
 
 const API_BASE_URL = "http://localhost:5000";
+const MAX_HEIGHT_FOR_REVIEW_CHANGES = 200;
+const MAX_HEIGHT_FOR_TABLE_REVIEW = 100;
 
-const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folderStructure, onUpdateComplete }) => {
+const formatDateForAPI = (date) => date.toISOString().split('T')[0];
+
+const ComparisonRow = ({ label, before, after, onChangeCount }) => {
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [popupContent, setPopupContent] = useState('');
+  const triggerRef = useRef(null);
+
+  const hasChanged = before !== after;
+
+  useEffect(() => {
+    if (hasChanged) {
+      onChangeCount(1);
+    }
+    return () => {
+      if (hasChanged) {
+        onChangeCount(-1);
+      }
+    };
+  }, [hasChanged, onChangeCount]);
+
+  const handleClick = (content, event) => {
+    triggerRef.current = event.currentTarget;
+    setPopupContent(content);
+    setIsPopupOpen(true);
+  };
+
+  const truncateText = (text) => {
+    return text && text.length > 10 ? `${text.substring(0, 5)}...` : text || 'Not set';
+  };
+
+  return (
+    <div className="flex items-center py-3 border-b border-gray-200 last:border-b-0">
+      <div className="w-1/4 font-medium text-gray-700">{label}</div>
+      <div className="w-5/12 px-2">
+        <span
+          className={`inline-block py-1 px-2 rounded cursor-pointer ${hasChanged ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}
+          onClick={(e) => handleClick(before || 'Not set', e)}
+        >
+          {truncateText(before || 'Not set')}
+        </span>
+      </div>
+      <ArrowRightCircle className={`w-1/12 ${hasChanged ? 'text-blue-500' : 'text-gray-300'}`} size={20} />
+      <div className="w-5/12 px-2">
+        <span
+          className={`inline-block py-1 px-2 rounded cursor-pointer ${hasChanged ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-100 text-gray-800'}`}
+          onClick={(e) => handleClick(after || 'Not set', e)}
+        >
+          {truncateText(after || 'Not set')}
+        </span>
+      </div>
+      <PopupInfoModal
+        isOpen={isPopupOpen}
+        onClose={() => setIsPopupOpen(false)}
+        content={popupContent}
+        title="Field Value"
+        triggerRef={triggerRef}
+      />
+    </div>
+  );
+};
+
+const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpdateComplete, getParentNode }) => {
   const [updateType, setUpdateType] = useState(null);
   const [targetPerson, setTargetPerson] = useState(null);
   const [newRole, setNewRole] = useState('');
   const [availablePersons, setAvailablePersons] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [currentParent, setCurrentParent] = useState(null);
+  const [dateRange, setDateRange] = useState([
+    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    new Date()
+  ]);
+  const [relevantTables, setRelevantTables] = useState([]);
+  const [changeCount, setChangeCount] = useState(0);
+
+  useEffect(() => {
+    const parent = getParentNode(node.hierarchical_structure);
+    setCurrentParent(parent || { name: 'Root' });
+  }, [node.hierarchical_structure, getParentNode]);
 
   useEffect(() => {
     const fetchAvailablePersons = async () => {
@@ -30,15 +108,19 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
         
         if (response.data && response.data.results) {
           const persons = response.data.results
-            .filter(person => person.person_id !== node.person_id)
+            .filter(person => person.hierarchical_structure !== node.hierarchical_structure)
             .map(person => ({
-              value: person.person_id,
+              value: person.hierarchical_structure,
               label: person.name,
               role: person.role,
               department: person.department,
               hierarchical_structure: person.hierarchical_structure
             }));
           setAvailablePersons(persons);
+  
+          if (updateType?.value === 'create_new') {
+            setNewRole(node.role);
+          }
         } else {
           console.warn("Unexpected response format when fetching available persons");
           setAvailablePersons([]);
@@ -46,11 +128,45 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
       } catch (error) {
         console.error("Error fetching available persons:", error);
         toast.error("Failed to fetch available persons. Please try again.");
+        setAvailablePersons([]);
       }
     };
-
+  
     fetchAvailablePersons();
-  }, [folderId, tableId, node.person_id]);
+  }, [folderId, tableId, node.hierarchical_structure, node.role, updateType]);
+
+  const fetchRelevantTables = useCallback(async () => {
+    if (!targetPerson) {
+      toast.error("Please select a target person before fetching relevant tables.");
+      return false;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/get_relevant_tables/${folderId}`, {
+        params: {
+          start_date: formatDateForAPI(dateRange[0]),
+          end_date: formatDateForAPI(dateRange[1]),
+          field_type: 'hierarchical_structure',
+          field_value: targetPerson.hierarchical_structure
+        }
+      });
+
+      setRelevantTables(response.data.tables);
+
+      if (response.data.tables.length === 0) {
+        toast.warning("No tables found in the selected date range. Please adjust the dates and try again.");
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Error fetching relevant tables:", error);
+      toast.error("Failed to fetch relevant tables. Please try again.");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [folderId, dateRange, targetPerson]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,16 +179,19 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/update_hierarchical_structure/${folderId}/${tableId}`, {
+      const response = await axios.post(`${API_BASE_URL}/update_hierarchical_structure/${folderId}`, {
         hierarchical_structure: node.hierarchical_structure,
         update_type: updateType.value,
         target_hierarchical_structure: targetPerson.hierarchical_structure,
-        new_role: updateType.value === 'create_new' ? newRole : undefined
+        new_role: updateType.value === 'create_new' ? newRole : undefined,
+        start_date: formatDateForAPI(dateRange[0]),
+        end_date: formatDateForAPI(dateRange[1]),
+        tables: relevantTables
       });
 
-      if (response.data.message === "Hierarchical location updated successfully") {
+      if (response.data.message === "Hierarchical location updated across relevant tables") {
         toast.success("Hierarchical information updated successfully!");
-        onUpdateComplete(); // Trigger the tree reset
+        onUpdateComplete();
         onBack();
       } else if (response.data.error) {
         handleErrorResponse(response.data.error);
@@ -103,18 +222,19 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
       case "New role must be provided for create_new operation":
         toast.error("Please provide a new role when creating a new node.");
         break;
-      case "Person with ID not found in table":
-        toast.error("The selected person was not found in the current table.");
+      case "Invalid date format. Use YYYY-MM-DD":
+        toast.error("Invalid date format. Please select valid dates.");
         break;
-      case "New parent node with ID not found":
-        toast.error("The selected new parent node was not found.");
-        break;
-      case "Person to override with ID not found in table":
-        toast.error("The person to override was not found in the current table.");
+      case "Hierarchical structure not found in any tables within the date range":
+        toast.error("The selected node was not found in any tables within the date range.");
         break;
       default:
         toast.error(`An error occurred: ${errorMessage}`);
     }
+  };
+
+  const handleChangeCount = (change) => {
+    setChangeCount(prevCount => prevCount + change);
   };
 
   const renderUpdateTypeSelection = () => (
@@ -138,6 +258,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
             borderRadius: '0.75rem',
             padding: '0.25rem',
             boxShadow: 'none',
+            fontFamily: 'Merriweather, serif',
           }),
           option: (base, state) => ({
             ...base,
@@ -145,7 +266,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
             color: state.isSelected ? 'white' : '#1f2937',
             fontSize: '0.875rem',
             fontWeight: '500',
-            fontFamily: 'inherit',
+            fontFamily: 'Merriweather, serif',
             padding: '0.5rem 1rem',
             '&:hover': {
               backgroundColor: '#bfdbfe',
@@ -176,6 +297,14 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
               background: '#555',
             },
           }),
+          singleValue: (base) => ({
+            ...base,
+            fontFamily: 'Merriweather, serif',
+          }),
+          placeholder: (base) => ({
+            ...base,
+            fontFamily: 'Merriweather, serif',
+          }),
         }}
         components={{
           IndicatorSeparator: () => null,
@@ -187,7 +316,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
         }}
       />
       <motion.div 
-        className="mt-2 text-sm text-gray-600"
+        className="mt-2 text-sm text-gray-600 font-merriweather"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
@@ -200,7 +329,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
   );
 
   const renderTargetPersonSelection = () => (
-    <div className="bg-white rounded-xl p-3 shadow-md">
+    <div className="bg-white rounded-xl p-3 shadow-md mb-4">
       <label className="block text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">
         {updateType?.value === 'override' ? 'Person to Override' : 'New Parent Node'}
       </label>
@@ -261,7 +390,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
               },
             }),
           }}
-          formatOptionLabel={({ label, role, department }) => (
+          formatOptionLabel={({ label, role, department, hierarchical_structure }) => (
             <div className="text-left">
               <div className="font-semibold">{label}</div>
               <div className="text-xs text-gray-500">{role} - {department}</div>
@@ -280,11 +409,17 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
       </div>
     </div>
   );
-
+  
   const renderNewRoleInput = () => {
     const language = getLanguage(newRole);
     return (
-      <div className="bg-white rounded-xl p-3 shadow-md">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white rounded-xl p-3 shadow-md mt-4"
+      >
         <label htmlFor="newRole" className="block text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">New Role</label>
         <input
           type="text"
@@ -296,50 +431,110 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
           dir={getTextDirection(language)}
           placeholder="Enter the new role"
         />
-      </div>
+      </motion.div>
     );
   };
 
+  const renderDateRangeSelection = () => (
+    <div className="bg-white rounded-xl p-3 shadow-md mt-4">
+      <label htmlFor="dateRange" className="block text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 text-center">
+        Apply changes to tables within date range
+      </label>
+      <div className="flex justify-center">
+        <DatePickerWrapper
+          date={dateRange}
+          handleDateChange={setDateRange}
+          isRange={true}
+          placeholderText="Select date range"
+          wrapperColor="bg-white"
+          wrapperOpacity="bg-opacity-100"
+        />
+      </div>
+    </div>
+  );
+
   const renderReviewChanges = () => (
-    <div className="bg-white rounded-xl p-6 shadow-md">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">Review Changes</h3>
-      <div className="space-y-3">
-        <div className="flex items-center py-3 border-b border-gray-200">
-          <div className="w-1/3 font-medium text-gray-700">Update Type</div>
-          <div className="w-2/3 px-2">
-            <span className="inline-block py-1 px-2 rounded bg-blue-100 text-blue-800 font-medium">
-              {updateType?.label}
-            </span>
+    <div className="bg-white rounded-xl p-6 shadow-md space-y-8">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          Review Changes ({changeCount} {changeCount === 1 ? 'change' : 'changes'})
+        </h3>
+        <div 
+          className="overflow-y-auto custom-scrollbar"
+          style={{ maxHeight: `${MAX_HEIGHT_FOR_REVIEW_CHANGES}px` }}
+        >
+          <div className="space-y-3">
+            {updateType?.value === 'override' ? (
+              <>
+                <ComparisonRow 
+                  label="Person"
+                  before={targetPerson?.label}
+                  after={node.name}
+                  onChangeCount={handleChangeCount}
+                />
+                <ComparisonRow 
+                  label="Role"
+                  before={node.role}
+                  after={targetPerson?.role}
+                  onChangeCount={handleChangeCount}
+                />
+                <ComparisonRow 
+                  label="Department"
+                  before={node.department}
+                  after={targetPerson?.department}
+                  onChangeCount={handleChangeCount}
+                />
+              </>
+            ) : (
+              <>
+                <ComparisonRow 
+                  label="Parent"
+                  before={currentParent?.name || 'Root'}
+                  after={targetPerson?.label}
+                  onChangeCount={handleChangeCount}
+                />
+                <ComparisonRow 
+                  label="Role"
+                  before={node.role}
+                  after={newRole}
+                  onChangeCount={handleChangeCount}
+                />
+                <ComparisonRow 
+                  label="Department"
+                  before={node.department}
+                  after={targetPerson?.department}
+                  onChangeCount={handleChangeCount}
+                />
+              </>
+            )}
           </div>
         </div>
-        <div className="flex items-center py-3 border-b border-gray-200">
-          <div className="w-1/3 font-medium text-gray-700">
-            {updateType?.value === 'override' ? 'Person to Override' : 'New Parent Node'}
-          </div>
-          <div className="w-2/3 px-2">
-            <span className="inline-block py-1 px-2 rounded bg-green-100 text-green-800 font-medium">
-              {targetPerson?.label}
-            </span>
-          </div>
+      </div>
+      <div className="pt-4 border-t border-gray-200">
+        <h4 className="text-lg font-semibold text-gray-800 mb-3 text-center">
+          Tables to be Updated ({relevantTables.length})
+        </h4>
+        <div 
+          className="overflow-y-auto custom-scrollbar"
+          style={{ maxHeight: `${MAX_HEIGHT_FOR_TABLE_REVIEW}px` }}
+        >
+          {isLoading ? (
+            <p className="text-sm text-gray-600 italic text-center">Loading relevant tables...</p>
+          ) : relevantTables.length > 0 ? (
+            <ul className="space-y-2">
+              {relevantTables.map((table, index) => (
+                <li key={index} className="bg-gray-50 rounded-md p-3 flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">{table.name}</span>
+                  <span className="text-xs text-gray-500">
+                    Uploaded: {new Date(table.upload_date).toLocaleDateString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-600 italic text-center">No tables found in the selected date range.</p>
+          )}
         </div>
-        <div className="flex items-center py-3 border-b border-gray-200">
-          <div className="w-1/3 font-medium text-gray-700">Target Hierarchical Structure</div>
-          <div className="w-2/3 px-2">
-            <span className="inline-block py-1 px-2 rounded bg-purple-100 text-purple-800 font-medium">
-              {targetPerson?.hierarchical_structure}
-            </span>
-          </div>
-        </div>
-        {updateType?.value === 'create_new' && (
-          <div className="flex items-center py-3 border-b border-gray-200">
-            <div className="w-1/3 font-medium text-gray-700">New Role</div>
-            <div className="w-2/3 px-2">
-              <span className="inline-block py-1 px-2 rounded bg-yellow-100 text-yellow-800 font-medium">
-                {newRole}
-              </span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -361,18 +556,47 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-4">
+          <>
             {renderUpdateTypeSelection()}
-            {updateType && renderTargetPersonSelection()}
-            <AnimatePresence>
-              {updateType?.value === 'create_new' && renderNewRoleInput()}
+            <AnimatePresence mode="wait">
+              {updateType && (
+                <motion.div
+                  key={updateType.value}
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4"
+                >
+                  {renderTargetPersonSelection()}
+                  {updateType.value === 'create_new' && renderNewRoleInput()}
+                </motion.div>
+              )}
             </AnimatePresence>
-          </div>
+            {renderDateRangeSelection()}
+          </>
         );
       case 2:
         return renderReviewChanges();
       default:
         return null;
+    }
+  };
+
+  const handleReviewChanges = async () => {
+    if (!updateType || !targetPerson) {
+      toast.warning("Please select an update type and target person before proceeding.");
+      return;
+    }
+    
+    if (updateType.value === 'create_new' && !newRole.trim()) {
+      toast.warning("Please enter a new role for the 'Create New Node' operation.");
+      return;
+    }
+    
+    const tablesFound = await fetchRelevantTables();
+    if (tablesFound) {
+      setCurrentStep(2);
     }
   };
 
@@ -398,7 +622,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, folder
             
             <div className="flex justify-end">
               {currentStep === 1 ? (
-                renderNavigationButton(() => setCurrentStep(2), <ArrowRight size={20} className="ml-2" />, "Review Changes")
+                renderNavigationButton(handleReviewChanges, <ArrowRight size={20} className="ml-2" />, "Review Changes")
               ) : (
                 renderNavigationButton(handleSubmit, <Save size={20} className="mr-2" />, isLoading ? "Updating..." : "Confirm Changes", isLoading, true)
               )}

@@ -295,24 +295,70 @@ def fetch_age_distribution(table_id):
     distribution = get_age_distribution(table_id)
     return jsonify(distribution), 200
 
-#TODO: Fix the CV part.
+def find_person_in_tree_for_timeline(node, target_person_id):
+    """
+    Recursively search for a person in the organization tree.
+    
+    Args:
+    node (dict): The current node in the org tree
+    target_person_id (str): The ID of the person to find
+    
+    Returns:
+    dict: The node containing the person, or None if not found
+    """
+    if str(node.get('person_id')) == str(target_person_id):
+        return node
+    
+    for child in node.get('children', []):
+        result = find_person_in_tree_for_timeline(child, target_person_id)
+        if result:
+            return result
+    
+    return None
+
+def find_nodes_by_structure_for_timeline(node, target_structure):
+    """
+    Recursively search for nodes in the organization tree that match the given hierarchical structure.
+    
+    Args:
+    node (dict): The current node in the org tree
+    target_structure (str): The hierarchical structure to match (e.g., "/1/1/2")
+    
+    Returns:
+    list: A list of nodes that match the given structure, or an empty list if none found
+    """
+    matching_nodes = []
+    
+    if node.get('hierarchical_structure') == target_structure:
+        matching_nodes.append(node)
+    
+    for child in node.get('children', []):
+        matching_nodes.extend(find_nodes_by_structure_for_timeline(child, target_structure))
+    
+    return matching_nodes
+
 @app.route("/timeline/<int:folder_id>", methods=["GET"])
 def get_timeline(folder_id):
     """
-    Generate a timeline and CV for a person based on organizational data.
+    Generate a timeline and CV based on organizational data, either for a person or a hierarchical structure.
     
     Args:
     folder_id (int): The ID of the folder containing the data tables
     
     Query Parameters:
     person_id (str): The ID of the person to generate the timeline/CV for
+    hierarchical_structure (str): The hierarchical structure to retrieve data for (e.g., "Engineering/Frontend")
     table_id (str): Optional. If provided, only process up to this table ID
     
     Returns:
     JSON: A dictionary containing the timeline and CV data
     """
     person_id = request.args.get('person_id')
+    hierarchical_structure = request.args.get('hierarchical_structure')
     table_id = request.args.get('table_id')
+    
+    if not person_id and not hierarchical_structure:
+        return jsonify({"error": "Either person_id or hierarchical_structure must be provided"}), 400
     
     try:
         with session_scope() as session:
@@ -335,10 +381,10 @@ def get_timeline(folder_id):
             
             timeline = []
             cv = []
-            current_role = None
+            current_structure = None
             
             for table in tables:
-                org_tree, _ = get_org_chart(table.id)  # Ignoring the log
+                org_tree, _ = get_org_chart(table.id)
                 
                 timeline_entry = {
                     "table_id": table.id,
@@ -347,46 +393,59 @@ def get_timeline(folder_id):
                     "org_tree": org_tree,
                 }
                 
-                if person_id:
-                    person_node = find_person_in_tree_for_timeline(org_tree, person_id)
-                    if person_node:
-                        timeline_entry["person_info"] = {
-                            "name": person_node.get('name'),
-                            "role": person_node.get('role'),
-                            "department": person_node.get('department'),
-                            "rank": person_node.get('rank')
-                        }
-                        
-                        if current_role is None or current_role['role'] != person_node['role']:
-                            if current_role:
-                                cv.append({
-                                    "role": current_role['role'],
-                                    "department": current_role['department'],
-                                    "startDate": current_role['start_date'],
-                                    "endDate": table.upload_date.isoformat()
-                                })
-                            current_role = {
-                                "role": person_node['role'],
-                                "department": person_node['department'],
-                                "start_date": table.upload_date.isoformat()
-                            }
+                if hierarchical_structure:
+                    matching_nodes = find_nodes_by_structure_for_timeline(org_tree, hierarchical_structure)
+                else:
+                    matching_nodes = [find_person_in_tree_for_timeline(org_tree, person_id)]
+                
+                matching_nodes = [node for node in matching_nodes if node]  # Remove None values
+                
+                if matching_nodes:
+                    timeline_entry["nodes_info"] = [
+                        {
+                            "name": node.get('name'),
+                            "role": node.get('role'),
+                            "department": node.get('department'),
+                            "rank": node.get('rank')
+                        } for node in matching_nodes
+                    ]
+                    
+                    if current_structure is None or current_structure != matching_nodes:
+                        if current_structure:
+                            cv.append({
+                                "roles": [
+                                    {
+                                        "role": node['role'],
+                                        "department": node['department'],
+                                        "startDate": node['start_date'],
+                                        "endDate": table.upload_date.isoformat()
+                                    } for node in current_structure
+                                ]
+                            })
+                        for node in matching_nodes:
+                            node['start_date'] = table.upload_date.isoformat()
+                        current_structure = matching_nodes
                 
                 timeline.append(timeline_entry)
                 
                 if table_id and table.id == table_id:
                     break
             
-            if current_role:
+            if current_structure:
                 cv.append({
-                    "role": current_role['role'],
-                    "department": current_role['department'],
-                    "startDate": current_role['start_date'],
-                    "endDate": None
+                    "roles": [
+                        {
+                            "role": node['role'],
+                            "department": node['department'],
+                            "startDate": node['start_date'],
+                            "endDate": None
+                        } for node in current_structure
+                    ]
                 })
             
             result = {
                 "timeline": timeline,
-                "cv": cv if person_id else None
+                "cv": cv
             }
             
             return jsonify(result), 200
@@ -738,27 +797,6 @@ def serve(path):
     else:
         return send_from_directory(app.static_folder, 'index.html')
 
-def find_person_in_tree_for_timeline(node, target_person_id):
-    """
-    Recursively search for a person in the organization tree.
-    
-    Args:
-    node (dict): The current node in the org tree
-    target_person_id (str): The ID of the person to find
-    
-    Returns:
-    dict: The node containing the person, or None if not found
-    """
-    if str(node.get('person_id')) == str(target_person_id):
-        return node
-    
-    for child in node.get('children', []):
-        result = find_person_in_tree_for_timeline(child, target_person_id)
-        if result:
-            return result
-    
-    return None
-
 @app.route("/columns/<int:folder_id>/<int:table_id>", methods=["GET"])
 def get_available_columns(folder_id, table_id):
     logger.info(f"Fetching available columns for folder_id: {folder_id}, table_id: {table_id}")
@@ -1055,114 +1093,138 @@ def export_excel(table_id):
     except Exception as e:
         logger.error(f"Error exporting Excel for table {table_id}: {str(e)}")
         return jsonify({"error": "An unexpected error occurred while exporting the Excel file"}), 500
-    
-@app.route("/update_node/<int:folder_id>", methods=["POST"])
-def update_node_data(folder_id):
-    data = request.json
-    table_ids = data.get('table_ids')
-    search_query = data.get('search_query')
-    search_column = data.get('search_column')
-    updates = data.get('updates')
 
-    if not table_ids or not search_query or not search_column or not updates:
+@app.route("/get_relevant_tables/<int:folder_id>", methods=["GET"])
+def fetch_relevant_tables_by_field(folder_id):
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    field_type = request.args.get('field_type')
+    field_value = request.args.get('field_value')
+
+    if not all([start_date, end_date, field_type, field_value]):
         return jsonify({"error": "Missing required parameters"}), 400
 
-    if not isinstance(table_ids, list):
-        return jsonify({"error": "table_ids must be a list"}), 400
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
 
     try:
         with session_scope() as session:
-            # Verify the folder exists
-            folder = session.query(Folder).filter_by(id=folder_id).first()
-            if not folder:
-                return jsonify({"error": f"Folder with id {folder_id} not found"}), 404
+            query = session.query(Table).filter(
+                Table.folder_id == folder_id,
+                Table.upload_date.between(start_date, end_date)
+            )
 
-            # Verify all tables exist and belong to the folder
-            tables = session.query(Table).filter(Table.id.in_(table_ids), Table.folder_id == folder_id).all()
-            if len(tables) != len(table_ids):
-                return jsonify({"error": "One or more tables not found or don't belong to the specified folder"}), 404
+            if field_type == 'hierarchical_structure':
+                query = query.filter(Table.id.in_(
+                    session.query(DataEntry.table_id).filter(DataEntry.hierarchical_structure == field_value)
+                ))
+            elif field_type == 'person_id':
+                query = query.filter(Table.id.in_(
+                    session.query(DataEntry.table_id).filter(DataEntry.person_id == int(field_value))
+                ))
+            else:
+                return jsonify({"error": "Invalid field_type. Use 'hierarchical_structure' or 'person_id'"}), 400
 
-            update_results = []
+            relevant_tables = query.all()
 
-            for table in tables:
-                # Search for the node in each table
-                search_results = search_table_specified_columns(session, table.id, search_query, search_column)
+            if not relevant_tables:
+                return jsonify({"message": f"No relevant tables found for the given {field_type} and date range",
+                                "tables": relevant_tables}), 200
 
-                if not search_results:
+            return jsonify({
+                "message": "Relevant tables fetched successfully",
+                "tables": [{"id": table.id, "name": table.name, "upload_date": table.upload_date.isoformat()} for table in relevant_tables]
+            }), 200
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route("/update_node_by_person/<int:folder_id>/<int:person_id>", methods=["POST"])
+def update_node_data_by_person(folder_id, person_id):
+    data = request.json
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    updates = data.get('updates')
+    relevant_tables = data.get("tables")
+
+    if not all([start_date, end_date, updates]):
+        return jsonify({"error": "Missing required parameters"}), 400
+
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    try:
+        update_results = []
+
+        with session_scope() as session:
+            for table in relevant_tables:
+                updated_data = update_person_data(session, table["id"], person_id, updates)
+
+                if 'error' in updated_data:
                     update_results.append({
-                        "table_id": table.id,
+                        "table_id": table["id"],
+                        "upload_date": table["upload_date"],
                         "status": "error",
-                        "message": "No matching nodes found"
-                    })
-                    continue
-
-                if len(search_results) > 1:
-                    update_results.append({
-                        "table_id": table.id,
-                        "status": "error",
-                        "message": "Multiple matching nodes found. Please refine your search."
-                    })
-                    continue
-
-                # Get the single matching node
-                node = search_results[0]
-
-                # Update the node data using the update_person_data function
-                updated_data = update_person_data(session, table.id, node['hierarchical_structure'], updates)
-
-                if updated_data is None:
-                    update_results.append({
-                        "table_id": table.id,
-                        "status": "error",
-                        "message": "Failed to update node data"
+                        "message": updated_data['error']
                     })
                 else:
                     update_results.append({
-                        "table_id": table.id,
+                        "table_id": table["id"],
+                        "upload_date": table["upload_date"],
                         "status": "success",
                         "updated_data": updated_data
                     })
 
-            return jsonify({
-                "message": "Update operation completed",
-                "results": update_results
-            }), 200
+        return jsonify({
+            "message": "Update operation completed",
+            "results": update_results
+        }), 200
 
     except Exception as e:
-        logger.error(f"Error updating nodes in folder {folder_id}: {str(e)}")
-        return jsonify({"error": "An unexpected error occurred while updating the nodes"}), 500
+        return jsonify({"error": f"An unexpected error occurred while updating the nodes: {str(e)}"}), 500
 
-def update_person_data(session, table_id, hierarchical_structure, updates):
+def update_person_data(session, table_id, person_id, updates):
     """
     Update a person's data in a specific table.
 
     Args:
     session (Session): The database session.
     table_id (int): The ID of the table containing the person's data.
-    hierarchical_structure (str): The hierarchical structure of the person to update.
+    person_id (int): The ID of the person to update.
     updates (dict): A dictionary containing the fields to update and their new values.
 
     Returns:
-    dict: The updated person data or None if the person was not found.
+    dict: The updated person data or an error dictionary if the person was not found.
     """
     try:
         # Find the person's data entry
         data_entry = session.query(DataEntry).filter_by(
             table_id=table_id,
-            hierarchical_structure=hierarchical_structure
+            person_id=person_id
         ).first()
 
         if not data_entry:
-            logger.warning(f"Person with hierarchical structure {hierarchical_structure} not found in table {table_id}")
-            return None
+            error_msg = f"Person with ID {person_id} not found in table {table_id}"
+            logger.warning(error_msg)
+            return {"error": error_msg}
 
         # Update fields
         for key, value in updates.items():
             if hasattr(data_entry, key):
                 if key == 'birth_date' and value:
                     # Convert string to datetime object
-                    value = datetime.strptime(value, '%Y-%m-%d').date()
+                    try:
+                        value = datetime.strptime(value, '%Y-%m-%d').date()
+                    except ValueError:
+                        return {"error": f"Invalid date format for birth_date. Use YYYY-MM-DD"}
                 setattr(data_entry, key, value)
+            else:
+                return {"error": f"Invalid field: {key}"}
 
         # Commit the changes
         session.commit()
@@ -1172,7 +1234,6 @@ def update_person_data(session, table_id, hierarchical_structure, updates):
 
         # Prepare the updated data to return
         updated_data = {
-            "hierarchical_structure": data_entry.hierarchical_structure,
             "person_id": data_entry.person_id,
             "name": data_entry.name,
             "role": data_entry.role,
@@ -1182,13 +1243,112 @@ def update_person_data(session, table_id, hierarchical_structure, updates):
             "organization_id": data_entry.organization_id
         }
 
-        logger.info(f"Successfully updated data for person with hierarchical structure {hierarchical_structure} in table {table_id}")
+        logger.info(f"Successfully updated data for person with ID {person_id} in table {table_id}")
         return updated_data
 
     except Exception as e:
-        logger.error(f"Error updating data for person with hierarchical structure {hierarchical_structure} in table {table_id}: {str(e)}")
+        error_msg = f"Error updating data for person with ID {person_id} in table {table_id}: {str(e)}"
+        logger.error(error_msg)
         session.rollback()
-        raise
+        return {"error": error_msg}
+
+@app.route("/update_hierarchical_structure/<int:folder_id>", methods=["POST"])
+def update_hierarchical_structure(folder_id):
+    data = request.json
+    hierarchical_structure = data.get('hierarchical_structure')
+    update_type = data.get('update_type')
+    target_hierarchical_structure = data.get('target_hierarchical_structure')
+    new_role = data.get('new_role')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    relevant_tables = data.get('tables')
+
+    if not all([hierarchical_structure, update_type, target_hierarchical_structure, start_date, end_date]):
+        return jsonify({"error": "Missing required parameters"}), 400
+
+    if update_type not in ['create_new', 'override']:
+        return jsonify({"error": "Invalid update type. Must be 'create_new' or 'override'"}), 400
+
+    if update_type == 'create_new' and not new_role:
+        return jsonify({"error": "New role must be provided for create_new operation"}), 400
+
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    if not relevant_tables:
+        return jsonify({"error": "Hierarchical structure not found in any tables within the date range"}), 404
+
+    results = []
+    with session_scope() as session:
+        for table in relevant_tables:
+            result = change_hierarchical_location(
+                session,
+                table["id"],
+                hierarchical_structure,
+                update_type,
+                target_hierarchical_structure,
+                new_role
+            )
+            results.append({
+                "table_id": table["id"],
+                "upload_date": table["upload_date"],
+                "result": result
+            })
+
+    return jsonify({
+        "message": "Hierarchical location updated across relevant tables",
+        "results": results
+    }), 200
+
+def change_hierarchical_location(session, table_id, hierarchical_structure, update_type, target_hierarchical_structure, new_role=None):
+    hierarchical_update_params = {
+        'type': update_type,
+        'new_parent_structure' if update_type == 'create_new' else 'override_structure': target_hierarchical_structure
+    }
+
+    if update_type == 'create_new':
+        if not new_role:
+            return {"error": "New role must be provided for create_new operation"}
+        hierarchical_update_params['new_role'] = new_role
+
+    changes = compute_hierarchical_changes(session, table_id, hierarchical_structure, hierarchical_update_params)
+
+    if 'error' in changes:
+        return changes
+
+    try:
+        # Find the original entry
+        original_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=hierarchical_structure).first()
+        if not original_entry:
+            return {"error": f"No entry found with hierarchical_structure: {hierarchical_structure}"}
+
+        if update_type == 'create_new':
+            # Create a new entry
+            new_entry = DataEntry(**changes['new_node'])
+            session.add(new_entry)
+
+        elif update_type == 'override':
+            # Find the target entry
+            target_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=target_hierarchical_structure).first()
+            if not target_entry:
+                return {"error": f"No entry found with hierarchical_structure: {target_hierarchical_structure}"}
+
+            # Update the target entry with the original entry's data
+            for key, value in changes['update_node'].items():
+                setattr(target_entry, key, value)
+
+        # Convert the original entry to a null node
+        for key, value in changes['null_node'].items():
+            setattr(original_entry, key, value)
+
+        session.commit()
+        return {"message": "Hierarchical location updated successfully", "changes": changes}
+    except Exception as e:
+        session.rollback()
+        return {"error": f"An error occurred while updating the hierarchical location: {str(e)}"}
 
 def compute_hierarchical_changes(session, table_id, hierarchical_structure, hierarchical_update_params):
     current_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=hierarchical_structure).first()
@@ -1254,92 +1414,6 @@ def compute_hierarchical_changes(session, table_id, hierarchical_structure, hier
     }
 
     return changes
-
-def change_hierarchical_location(session, table_id, hierarchical_structure, update_type, target_hierarchical_structure, new_role=None):
-    hierarchical_update_params = {
-        'type': update_type,
-        'new_parent_structure' if update_type == 'create_new' else 'override_structure': target_hierarchical_structure
-    }
-
-    if update_type == 'create_new':
-        if not new_role:
-            return {"error": "New role must be provided for create_new operation"}
-        hierarchical_update_params['new_role'] = new_role
-
-    changes = compute_hierarchical_changes(session, table_id, hierarchical_structure, hierarchical_update_params)
-
-    if 'error' in changes:
-        return changes
-
-    try:
-        # Find the original entry
-        original_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=hierarchical_structure).first()
-        if not original_entry:
-            return {"error": f"No entry found with hierarchical_structure: {hierarchical_structure}"}
-
-        if update_type == 'create_new':
-            # Create a new entry
-            new_entry = DataEntry(**changes['new_node'])
-            session.add(new_entry)
-
-        elif update_type == 'override':
-            # Find the target entry
-            target_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=target_hierarchical_structure).first()
-            if not target_entry:
-                return {"error": f"No entry found with hierarchical_structure: {target_hierarchical_structure}"}
-
-            # Update the target entry with the original entry's data
-            for key, value in changes['update_node'].items():
-                setattr(target_entry, key, value)
-
-        # Convert the original entry to a null node
-        for key, value in changes['null_node'].items():
-            setattr(original_entry, key, value)
-
-        session.commit()
-        return {"message": "Hierarchical location updated successfully", "changes": changes}
-    except Exception as e:
-        session.rollback()
-        return {"error": f"An error occurred while updating the hierarchical location: {str(e)}"}
-
-
-@app.route("/update_hierarchical_structure/<int:folder_id>/<int:table_id>", methods=["POST"])
-def update_hierarchical_structure(folder_id, table_id):
-    data = request.json
-    hierarchical_structure = data.get('hierarchical_structure')
-    update_type = data.get('update_type')
-    target_hierarchical_structure = data.get('target_hierarchical_structure')
-    new_role = data.get('new_role')
-
-    if not all([hierarchical_structure, update_type, target_hierarchical_structure]):
-        return jsonify({"error": "Missing required parameters"}), 400
-
-    if update_type not in ['create_new', 'override']:
-        return jsonify({"error": "Invalid update type. Must be 'create_new' or 'override'"}), 400
-
-    if update_type == 'create_new' and not new_role:
-        return jsonify({"error": "New role must be provided for create_new operation"}), 400
-
-    try:
-        with session_scope() as session:
-            # Verify the folder and table exist
-            folder = session.query(Folder).filter_by(id=folder_id).first()
-            if not folder:
-                return jsonify({"error": f"Folder with id {folder_id} not found"}), 404
-
-            table = session.query(Table).filter_by(id=table_id, folder_id=folder_id).first()
-            if not table:
-                return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
-
-            result = change_hierarchical_location(session, table_id, hierarchical_structure, update_type, target_hierarchical_structure, new_role)
-
-            if 'error' in result:
-                return jsonify(result), 400
-
-            return jsonify(result), 200
-
-    except Exception as e:
-        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 if __name__ == "__main__":
     print("Starting application...")

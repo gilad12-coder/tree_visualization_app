@@ -485,6 +485,24 @@ const OrgChart = ({
       }
     }
   }, [orgData, activeFilters, searchResults, filterOrgData, setExpandAll, findNodesInTree]);
+
+  const getParentNode = useCallback((hierarchicalStructure) => {
+    const findParent = (node, targetStructure) => {
+      if (!node) return null;
+      if (node.children) {
+        for (let child of node.children) {
+          if (child.hierarchical_structure === targetStructure) {
+            return node;
+          }
+          const result = findParent(child, targetStructure);
+          if (result) return result;
+        }
+      }
+      return null;
+    };
+
+    return findParent(filteredOrgData, hierarchicalStructure);
+  }, [filteredOrgData]);
   
   const handleFileUpload = async (uploadedData) => {
     console.log("File uploaded:", uploadedData);
@@ -1219,6 +1237,7 @@ useEffect(() => {
             onUpdateComplete={fetchData}
             onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
             onCloseUpdateModal={() => setIsUpdateModalOpen(false)}
+            getParentNode={getParentNode}
           />
         )}
       </AnimatePresence>
