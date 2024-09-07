@@ -5,19 +5,17 @@ import {
   Upload,
   Folder,
   File,
-  Calendar,
   Plus,
   HelpCircle,
   ChevronDown,
   Search,
   FileText,
 } from "react-feather";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import "../styles/datepicker.css";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
+import DatePickerWrapper from "./DatePickerWrapper";
+import "../styles/datepicker.css";
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -375,7 +373,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   </div>
                 )}
 
-                {folderSelectionType === "new" && (
+{folderSelectionType === "new" && (
                   <motion.div
                     className="bg-blue-100 bg-opacity-50 rounded-xl p-3 flex items-center space-x-3"
                     whileHover={{
@@ -393,29 +391,14 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   </motion.div>
                 )}
 
-                <motion.div
-                  className="bg-blue-100 bg-opacity-50 rounded-xl p-3 flex items-center space-x-3"
-                  whileHover={{
-                    boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
-                  }}
-                >
-                  <Calendar size={20} className="text-black" />
-                  <DatePicker
-                    selected={uploadDate}
-                    onChange={handleUploadDateChange}
-                    dateFormat="yyyy-MM-dd"
-                    placeholderText="Select upload date"
-                    className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500 font-semibold"
-                    showMonthDropdown
-                    showYearDropdown
-                    dropdownMode="select"
-                    yearDropdownItemNumber={15}
-                    scrollableYearDropdown
-                    popperClassName="date-picker-popper"
-                    calendarClassName="custom-calendar"
-                    wrapperClassName="date-picker-wrapper"
-                  />
-                </motion.div>
+                <DatePickerWrapper
+                  date={uploadDate}
+                  handleDateChange={handleUploadDateChange}
+                  placeholderText="Select upload date"
+                  wrapperColor="bg-blue-100"
+                  wrapperOpacity="bg-opacity-50"
+                />
+
                 <div className="flex space-x-2">
                   <motion.button
                     whileHover={!isUploadDisabled ? { scale: 1.02 } : {}}

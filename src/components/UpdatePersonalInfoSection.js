@@ -1,32 +1,47 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Save, Calendar, CheckSquare, ArrowRightCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Save, ArrowRightCircle } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import Select, { components } from 'react-select';
-import DatePicker from 'react-datepicker';
 import PopupInfoModal from './PopupInfoModal';
-import 'react-datepicker/dist/react-datepicker.css';
 import '../styles/datepicker.css';
 import '../styles/fonts.css';
+import '../styles/scrollbar.css';
+import DatePickerWrapper from './DatePickerWrapper';
 
 const API_BASE_URL = "http://localhost:5000";
+const MAX_HEIGHT_FOR_REVIEW_CHANGES = 200;
+const MAX_HEIGHT_FOR_TABLE_REVIEW = 100;
 
-const convertToUTCDate = (date) => new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 const formatDateForAPI = (date) => date.toISOString().split('T')[0];
 
-const ComparisonRow = ({ label, before, after }) => {
+const ComparisonRow = ({ label, before, after, onChangeCount }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [popupContent, setPopupContent] = useState('');
   const triggerRef = useRef(null);
 
   const hasChanged = before !== after;
 
+  useEffect(() => {
+    if (hasChanged) {
+      onChangeCount(1);
+    }
+    return () => {
+      if (hasChanged) {
+        onChangeCount(-1);
+      }
+    };
+  }, [hasChanged, onChangeCount]);
+
   const handleClick = (content, event) => {
     triggerRef.current = event.currentTarget;
     setPopupContent(content);
     setIsPopupOpen(true);
+  };
+
+  const truncateText = (text) => {
+    return text && text.length > 10 ? `${text.substring(0, 5)}...` : text || 'Not set';
   };
 
   return (
@@ -37,7 +52,7 @@ const ComparisonRow = ({ label, before, after }) => {
           className={`inline-block py-1 px-2 rounded cursor-pointer ${hasChanged ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}
           onClick={(e) => handleClick(before || 'Not set', e)}
         >
-          {(before || 'Not set').substring(0, 20)}...
+          {truncateText(before || 'Not set')}
         </span>
       </div>
       <ArrowRightCircle className={`w-1/12 ${hasChanged ? 'text-blue-500' : 'text-gray-300'}`} size={20} />
@@ -46,7 +61,7 @@ const ComparisonRow = ({ label, before, after }) => {
           className={`inline-block py-1 px-2 rounded cursor-pointer ${hasChanged ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-100 text-gray-800'}`}
           onClick={(e) => handleClick(after || 'Not set', e)}
         >
-          {(after || 'Not set').substring(0, 20)}...
+          {truncateText(after || 'Not set')}
         </span>
       </div>
       <PopupInfoModal
@@ -60,7 +75,7 @@ const ComparisonRow = ({ label, before, after }) => {
   );
 };
 
-const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStructure, onUpdateComplete }) => {
+const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete }) => {
   const [formData, setFormData] = useState({
     name: node.name || '',
     role: node.role || '',
@@ -70,35 +85,15 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
     organization_id: node.organization_id || '',
   });
 
-  const [selectedTables, setSelectedTables] = useState([]);
-  const [availableTables, setAvailableTables] = useState([]);
+  const [dateRange, setDateRange] = useState([
+    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    new Date()
+  ]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [relevantTables, setRelevantTables] = useState([]);
+  const [changeCount, setChangeCount] = useState(0);
   const timeoutRef = useRef(null);
-
-  useEffect(() => {
-    if (folderStructure && Array.isArray(folderStructure)) {
-      const currentFolder = folderStructure.find(folder => folder.id === folderId);
-      if (currentFolder && currentFolder.tables) {
-        const tables = currentFolder.tables.map(table => ({ value: table.id, label: table.name }));
-        setAvailableTables([
-          { value: 'all', label: 'Select All Tables' },
-          ...tables
-        ]);
-
-        const currentTable = tables.find(table => table.value === tableId);
-        if (currentTable) {
-          setSelectedTables([currentTable]);
-        }
-      } else {
-        console.warn(`No tables found for folder ID ${folderId}`);
-        setAvailableTables([]);
-      }
-    } else {
-      console.warn('folderStructure is undefined or not an array');
-      setAvailableTables([]);
-    }
-  }, [folderStructure, folderId, tableId]);
 
   useEffect(() => {
     return () => {
@@ -107,6 +102,34 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
       }
     };
   }, []);
+
+  const fetchRelevantTables = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/get_relevant_tables/${folderId}`, {
+        params: {
+          start_date: formatDateForAPI(dateRange[0]),
+          end_date: formatDateForAPI(dateRange[1]),
+          field_type: 'person_id',
+          field_value: node.person_id
+        }
+      });
+      
+      setRelevantTables(response.data.tables);
+
+      if (response.data.tables.length === 0) {
+        toast.warning("No tables found in the selected date range. Please adjust the dates and try again.");
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Error fetching relevant tables:", error);
+      toast.error("Failed to fetch relevant tables. Please try again.");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [folderId, dateRange, node.person_id]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -117,12 +140,12 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
     setFormData(prev => ({ ...prev, birth_date: date }));
   };
 
-  const handleTableSelection = (selectedOptions) => {
-    if (selectedOptions.some(option => option.value === 'all')) {
-      setSelectedTables(availableTables.filter(table => table.value !== 'all'));
-    } else {
-      setSelectedTables(selectedOptions);
-    }
+  const handleDateRangeChange = (dates) => {
+    setDateRange(dates);
+  };
+
+  const handleChangeCount = (change) => {
+    setChangeCount(prevCount => prevCount + change);
   };
 
   const handleSubmit = async (e) => {
@@ -131,33 +154,55 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
 
     const updatedFormData = {
       ...formData,
-      birth_date: formData.birth_date ? formatDateForAPI(convertToUTCDate(formData.birth_date)) : null,
+      birth_date: formData.birth_date ? formatDateForAPI(formData.birth_date) : null,
     };
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/update_node/${folderId}`, {
-        table_ids: selectedTables.map(table => table.value),
-        search_query: node.name,
-        search_column: 'name',
-        updates: updatedFormData
+      const response = await axios.post(`${API_BASE_URL}/update_node_by_person/${folderId}/${node.person_id}`, {
+        start_date: formatDateForAPI(dateRange[0]),
+        end_date: formatDateForAPI(dateRange[1]),
+        updates: updatedFormData,
+        tables: relevantTables
       });
 
       if (response.data.message === "Update operation completed") {
         toast.success("Personal information updated successfully!");
-        
+
         timeoutRef.current = setTimeout(() => {
           onUpdateComplete();
           onBack();
         }, 500);
+      } else if (response.data.error) {
+        handleErrorResponse(response.data.error);
       } else {
         toast.warn("Update completed with some issues. Please check the results.");
         console.log("Update results:", response.data.results);
       }
     } catch (error) {
       console.error("Error updating personal information:", error);
-      toast.error("Failed to update personal information. Please try again.");
+      if (error.response && error.response.data && error.response.data.error) {
+        handleErrorResponse(error.response.data.error);
+      } else {
+        toast.error("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleErrorResponse = (errorMessage) => {
+    switch (errorMessage) {
+      case "Missing required parameters":
+        toast.error("Missing required information. Please fill all fields.");
+        break;
+      case "Invalid date format. Use YYYY-MM-DD":
+        toast.error("Invalid date format. Please select valid dates.");
+        break;
+      case "No relevant tables found for the given person ID and date range":
+        toast.error("The selected person was not found in any tables within the date range.");
+        break;
+      default:
+        toast.error(`An error occurred: ${errorMessage}`);
     }
   };
 
@@ -171,23 +216,13 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
               <label htmlFor={key} className="block text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">
                 {key.replace('_', ' ')}
               </label>
-              <div className="relative">
-                <DatePicker
-                  selected={value}
-                  onChange={handleDateChange}
-                  dateFormat="yyyy-MM-dd"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-transparent"
-                  showMonthDropdown
-                  showYearDropdown
-                  dropdownMode="select"
-                  yearDropdownItemNumber={100}
-                  scrollableYearDropdown
-                  popperClassName="date-picker-popper"
-                  calendarClassName="custom-calendar"
-                  wrapperClassName="date-picker-wrapper"
-                />
-                <Calendar size={18} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
+              <DatePickerWrapper
+                date={value}
+                handleDateChange={handleDateChange}
+                placeholderText="Select birth date"
+                wrapperColor="bg-white"
+                wrapperOpacity="bg-opacity-100"
+              />
             </div>
           );
         }
@@ -211,104 +246,81 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
     </div>
   );
 
-  const renderTableSelection = () => (
+  const renderDateRangeSelection = () => (
     <div className="bg-white rounded-xl p-3 shadow-md mt-4">
-      <label htmlFor="tables" className="block text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">
-        Apply changes to tables ({selectedTables.length} selected)
+      <label htmlFor="dateRange" className="block text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 text-center">
+        Apply changes to tables within date range
       </label>
-      <Select
-        isMulti
-        name="tables"
-        options={availableTables}
-        value={selectedTables}
-        onChange={handleTableSelection}
-        className="basic-multi-select"
-        classNamePrefix="select"
-        styles={{
-          control: (base) => ({
-            ...base,
-            borderColor: '#d1d5db',
-            borderRadius: '0.75rem',
-            padding: '0.25rem',
-            boxShadow: 'none',
-            '&:hover': {
-              borderColor: '#9ca3af',
-            },
-          }),
-          multiValue: (base) => ({
-            ...base,
-            backgroundColor: '#e5e7eb',
-            borderRadius: '0.5rem',
-          }),
-          valueContainer: (base) => ({
-            ...base,
-            maxHeight: '60px',
-            overflow: 'auto',
-          }),
-          option: (base, state) => ({
-            ...base,
-            backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#bfdbfe' : 'white',
-            color: state.isSelected ? 'white' : '#1f2937',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            fontFamily: 'inherit',
-            padding: '0.5rem 1rem',
-            '&:hover': {
-              backgroundColor: '#bfdbfe',
-              color: '#1f2937',
-            },
-          }),
-          menu: (base) => ({
-            ...base,
-            borderRadius: '0.75rem',
-            overflow: 'hidden',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-          }),
-          menuList: (base) => ({
-            ...base,
-            padding: '0.5rem 0',
-          }),
-        }}
-        components={{
-          Option: ({ children, ...props }) => (
-            <components.Option {...props}>
-              {props.data.value === 'all' && <CheckSquare size={16} className="inline-block mr-2" />}
-              {children}
-            </components.Option>
-          ),
-          MultiValue: ({ children, ...props }) => {
-            return selectedTables.length <= 2 ? (
-              <components.MultiValue {...props}>
-                {children}
-              </components.MultiValue>
-            ) : null;
-          },
-        }}
-      />
+      <div className="flex justify-center">
+        <DatePickerWrapper
+          date={dateRange}
+          handleDateChange={handleDateRangeChange}
+          isRange={true}
+          placeholderText="Select date range"
+          wrapperColor="bg-white"
+          wrapperOpacity="bg-opacity-100"
+        />
+      </div>
     </div>
   );
-
+  
   const renderBeforeAfterComparison = () => {
     const fieldsToCompare = ['name', 'role', 'department', 'rank', 'birth_date', 'organization_id'];
     const formatValue = (key, value) => {
       if (key === 'birth_date') {
-        return value instanceof Date ? value.toLocaleDateString() : value;
+        return value instanceof Date ? formatDateForAPI(value) : value;
       }
       return value;
     };
-
+  
     return (
-      <div className="bg-white rounded-xl p-6 shadow-md">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Review Changes</h3>
-        <div className="space-y-3">
-          {fieldsToCompare.map(key => (
-            <ComparisonRow 
-              key={key}
-              label={key.replace('_', ' ')}
-              before={formatValue(key, node[key])}
-              after={formatValue(key, formData[key])}
-            />
-          ))}
+      <div className="bg-white rounded-xl p-6 shadow-md space-y-8">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            Review Changes ({changeCount} {changeCount === 1 ? 'change' : 'changes'})
+          </h3>
+          <div 
+            className="overflow-y-auto custom-scrollbar"
+            style={{ maxHeight: `${MAX_HEIGHT_FOR_REVIEW_CHANGES}px` }}
+          >
+            <div className="space-y-3">
+              {fieldsToCompare.map(key => (
+                <ComparisonRow 
+                  key={key}
+                  label={key.replace('_', ' ')}
+                  before={formatValue(key, node[key])}
+                  after={formatValue(key, formData[key])}
+                  onChangeCount={handleChangeCount}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="pt-4 border-t border-gray-200">
+          <h4 className="text-lg font-semibold text-gray-800 mb-3 text-center">
+          Tables to be Updated ({relevantTables.length})
+          </h4>
+          <div 
+            className="overflow-y-auto custom-scrollbar"
+            style={{ maxHeight: `${MAX_HEIGHT_FOR_TABLE_REVIEW}px` }}
+          >
+            {isLoading ? (
+              <p className="text-sm text-gray-600 italic text-center">Loading relevant tables...</p>
+            ) : relevantTables.length > 0 ? (
+              <ul className="space-y-2">
+                {relevantTables.map((table, index) => (
+                  <li key={index} className="bg-gray-50 rounded-md p-3 flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">{table.name}</span>
+                    <span className="text-xs text-gray-500">
+                      Uploaded: {new Date(table.upload_date).toLocaleDateString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-600 italic text-center">No tables found in the selected date range.</p>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -320,7 +332,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
         return (
           <>
             {renderFormFields()}
-            {renderTableSelection()}
+            {renderDateRangeSelection()}
           </>
         );
       case 2:
@@ -352,7 +364,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
       )}
 
       <AnimatePresence mode="wait">
-      <motion.div
+        <motion.div
           key={currentStep}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -365,7 +377,12 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, tableId, folderStru
             
             <div className="flex justify-end">
               {currentStep === 1 ? (
-                renderNavigationButton(() => setCurrentStep(2), <ArrowRight size={20} className="ml-2" />, "Review Changes")
+                renderNavigationButton(async () => {
+                  const tablesFound = await fetchRelevantTables();
+                  if (tablesFound) {
+                    setCurrentStep(2);
+                  }
+                }, <ArrowRight size={20} className="ml-2" />, "Review Changes")
               ) : (
                 renderNavigationButton(handleSubmit, <Save size={20} className="mr-2" />, isLoading ? "Updating..." : "Confirm Changes", isLoading, true)
               )}
