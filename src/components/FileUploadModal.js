@@ -16,6 +16,7 @@ import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import DatePickerWrapper from "./DatePickerWrapper";
 import "../styles/datepicker.css";
+import '../styles/scrollbar.css';
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -246,7 +247,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   </motion.button>
                 </div>
               </div>
-              <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+              <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
                 <motion.div
                   className={`bg-blue-100 bg-opacity-50 rounded-xl p-6 flex flex-col items-center justify-center space-y-4 border-2 border-dashed ${
                     isDragging
@@ -351,7 +352,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                           </div>
                         </div>
                         <div
-                          className="overflow-y-auto"
+                          className="overflow-y-auto custom-scrollbar"
                           style={{ maxHeight: "150px" }}
                         >
                           {filteredFolders.map((folder) => (
@@ -369,67 +370,66 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                           ))}
                         </div>
                       </motion.div>
-                    )}
+                    )}</div>
+                  )}
+  
+                  {folderSelectionType === "new" && (
+                    <motion.div
+                      className="bg-blue-100 bg-opacity-50 rounded-xl p-3 flex items-center space-x-3"
+                      whileHover={{
+                        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+                      }}
+                    >
+                      <Plus size={20} className="text-black" />
+                      <input
+                        type="text"
+                        value={folderName}
+                        onChange={handleNewFolderNameChange}
+                        placeholder="Enter new folder name"
+                        className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500 font-semibold"
+                      />
+                    </motion.div>
+                  )}
+  
+                  <DatePickerWrapper
+                    date={uploadDate}
+                    handleDateChange={handleUploadDateChange}
+                    placeholderText="Select upload date"
+                    wrapperColor="bg-blue-100"
+                    wrapperOpacity="bg-opacity-50"
+                  />
+  
+                  <div className="flex space-x-2">
+                    <motion.button
+                      whileHover={!isUploadDisabled ? { scale: 1.02 } : {}}
+                      whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}
+                      onClick={handleUpload}
+                      className={`flex-grow px-4 py-3 bg-blue-500 text-white rounded-xl transition-colors flex items-center justify-center space-x-2 ${
+                        isUploadDisabled
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:bg-blue-600"
+                      }`}
+                      disabled={isUploadDisabled}
+                    >
+                      <Upload size={20} />
+                      <span className="font-bold text-sm">Upload</span>
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleDownloadGuide}
+                      className="px-4 py-3 bg-blue-100 text-black rounded-xl transition-colors flex items-center justify-center"
+                    >
+                      <HelpCircle size={20} />
+                    </motion.button>
                   </div>
-                )}
-
-{folderSelectionType === "new" && (
-                  <motion.div
-                    className="bg-blue-100 bg-opacity-50 rounded-xl p-3 flex items-center space-x-3"
-                    whileHover={{
-                      boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
-                    }}
-                  >
-                    <Plus size={20} className="text-black" />
-                    <input
-                      type="text"
-                      value={folderName}
-                      onChange={handleNewFolderNameChange}
-                      placeholder="Enter new folder name"
-                      className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500 font-semibold"
-                    />
-                  </motion.div>
-                )}
-
-                <DatePickerWrapper
-                  date={uploadDate}
-                  handleDateChange={handleUploadDateChange}
-                  placeholderText="Select upload date"
-                  wrapperColor="bg-blue-100"
-                  wrapperOpacity="bg-opacity-50"
-                />
-
-                <div className="flex space-x-2">
-                  <motion.button
-                    whileHover={!isUploadDisabled ? { scale: 1.02 } : {}}
-                    whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}
-                    onClick={handleUpload}
-                    className={`flex-grow px-4 py-3 bg-blue-500 text-white rounded-xl transition-colors flex items-center justify-center space-x-2 ${
-                      isUploadDisabled
-                        ? "opacity-50 cursor-not-allowed"
-                        : "hover:bg-blue-600"
-                    }`}
-                    disabled={isUploadDisabled}
-                  >
-                    <Upload size={20} />
-                    <span className="font-bold text-sm">Upload</span>
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleDownloadGuide}
-                    className="px-4 py-3 bg-blue-100 text-black rounded-xl transition-colors flex items-center justify-center"
-                  >
-                    <HelpCircle size={20} />
-                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-};
-
-export default FileUploadModal;
+          )}
+        </AnimatePresence>
+      </>
+    );
+  };
+  
+  export default FileUploadModal;

@@ -19,6 +19,7 @@ import sys
 import re
 from sqlalchemy import and_, or_, not_, inspect
 from datetime import datetime, date
+import subprocess
 
 def resource_path(relative_path):
     try:
@@ -85,6 +86,15 @@ def check_if_db_has_data():
             if session.query(table).first():
                 return True
     return False
+
+@app.route("/open_file_explorer", methods=["GET"])
+def open_file_explorer():
+    try:
+        subprocess.Popen(['explorer', os.path.expanduser('~')])
+            
+        return jsonify({"message": "File explorer opened successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to open file explorer: {str(e)}"}), 500
 
 @app.route("/check_existing_db", methods=["POST"])
 def check_existing_db():
@@ -382,16 +392,10 @@ def get_timeline(folder_id):
             timeline = []
             cv = []
             current_structure = None
+            last_entry = None
             
             for table in tables:
                 org_tree, _ = get_org_chart(table.id)
-                
-                timeline_entry = {
-                    "table_id": table.id,
-                    "name": table.name,
-                    "upload_date": table.upload_date.isoformat(),
-                    "org_tree": org_tree,
-                }
                 
                 if hierarchical_structure:
                     matching_nodes = find_nodes_by_structure_for_timeline(org_tree, hierarchical_structure)
@@ -401,7 +405,7 @@ def get_timeline(folder_id):
                 matching_nodes = [node for node in matching_nodes if node]  # Remove None values
                 
                 if matching_nodes:
-                    timeline_entry["nodes_info"] = [
+                    nodes_info = [
                         {
                             "name": node.get('name'),
                             "role": node.get('role'),
@@ -410,36 +414,52 @@ def get_timeline(folder_id):
                         } for node in matching_nodes
                     ]
                     
-                    if current_structure is None or current_structure != matching_nodes:
-                        if current_structure:
-                            cv.append({
-                                "roles": [
-                                    {
-                                        "role": node['role'],
-                                        "department": node['department'],
-                                        "startDate": node['start_date'],
-                                        "endDate": table.upload_date.isoformat()
-                                    } for node in current_structure
-                                ]
-                            })
-                        for node in matching_nodes:
-                            node['start_date'] = table.upload_date.isoformat()
-                        current_structure = matching_nodes
-                
-                timeline.append(timeline_entry)
+                    if current_structure is None or current_structure != nodes_info:
+                        timeline_entry = {
+                            "table_id": table.id,
+                            "name": table.name,
+                            "upload_date": table.upload_date.isoformat(),
+                            "nodes_info": nodes_info
+                        }
+                        
+                        if last_entry and last_entry["nodes_info"] == nodes_info:
+                            last_entry["end_date"] = table.upload_date.isoformat()
+                        else:
+                            if last_entry:
+                                last_entry["end_date"] = table.upload_date.isoformat()
+                                timeline.append(last_entry)
+                                
+                                cv.append({
+                                    "roles": [
+                                        {
+                                            "role": node['role'],
+                                            "department": node['department'],
+                                            "startDate": last_entry["upload_date"],
+                                            "endDate": table.upload_date.isoformat()
+                                        } for node in last_entry["nodes_info"]
+                                    ]
+                                })
+                            
+                            timeline_entry["start_date"] = table.upload_date.isoformat()
+                            last_entry = timeline_entry
+                        
+                        current_structure = nodes_info
                 
                 if table_id and table.id == table_id:
                     break
             
-            if current_structure:
+            if last_entry:
+                last_entry["end_date"] = None
+                timeline.append(last_entry)
+                
                 cv.append({
                     "roles": [
                         {
                             "role": node['role'],
                             "department": node['department'],
-                            "startDate": node['start_date'],
+                            "startDate": last_entry["start_date"],
                             "endDate": None
-                        } for node in current_structure
+                        } for node in last_entry["nodes_info"]
                     ]
                 })
             
