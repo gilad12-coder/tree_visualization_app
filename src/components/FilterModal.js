@@ -17,6 +17,7 @@ import Button from "./Button";
 import axios from "axios";
 import { toast } from "react-toastify";
 import ResultCard from "./ResultCard.js";
+import '../styles/scrollbar.css';
 
 const MotionPath = motion.path;
 
@@ -235,7 +236,7 @@ const FilterModal = ({
               </motion.button>
             </div>
           </div>
-          <div className="p-6 max-h-[70vh] overflow-y-auto">
+          <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center space-x-4 mb-4">
               <div className="relative flex-grow">
                 <input
@@ -270,7 +271,7 @@ const FilterModal = ({
                       className="absolute z-10 right-0 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 overflow-hidden"
                     >
                       <motion.div
-                        className="py-1 max-h-60 overflow-y-auto"
+                        className="py-1 max-h-60 overflow-y-auto custom-scrollbar"
                         role="menu"
                         aria-orientation="vertical"
                         aria-labelledby="options-menu"
@@ -316,7 +317,7 @@ const FilterModal = ({
               </div>
             </div>
 
-            <div className="mt-2 bg-blue-100 bg-opacity-50 rounded-xl p-3 max-h-96 overflow-y-auto mb-6">
+            <div className="mt-2 bg-blue-100 bg-opacity-50 rounded-xl p-3 max-h-96 overflow-y-auto custom-scrollbar mb-6">
               {isLoading ? (
                 <div className="text-center py-4">
                   <p className="text-gray-500">Loading results...</p>

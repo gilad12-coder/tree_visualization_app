@@ -7,6 +7,7 @@ import {
   Database,
   FolderPlus,
   Info,
+  Clock,
 } from "react-feather";
 import { ReactComponent as OrgChartSVG } from "../assets/landing_page_image.svg";
 import axios from "axios";
@@ -97,10 +98,18 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   const [step, setStep] = useState("initial");
   const [isLoading, setIsLoading] = useState(false);
   const [dbPath, setDbPath] = useState(currentDbPath);
+  const [recentDbPath, setRecentDbPath] = useState(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
   const [dbInfo, setDbInfo] = useState(null);
   const [folderStructure, setFolderStructure] = useState([]);
+
+  useEffect(() => {
+    const storedRecentDbPath = localStorage.getItem("recentDbPath");
+    if (storedRecentDbPath) {
+      setRecentDbPath(storedRecentDbPath);
+    }
+  }, []);
 
   const fetchFolderStructure = useCallback(async (path) => {
     try {
@@ -136,6 +145,8 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
         } else {
           setStep("upload");
         }
+        localStorage.setItem("recentDbPath", response.data.path);
+        setRecentDbPath(response.data.path);
       } else {
         setDbInfo(null);
         setFolderStructure([]);
@@ -217,6 +228,12 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
     setIsTableSelectionOpen(true);
   };
 
+  const handleUseRecentDB = async () => {
+    if (recentDbPath) {
+      await handleUseExistingDB(recentDbPath);
+    }
+  };
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -295,6 +312,23 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   transition={{ delay: 0.6 }}
                   className="space-y-4"
                 >
+                  {recentDbPath && (
+                    <div className="flex items-center space-x-2">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleUseRecentDB}
+                        className="flex-grow px-6 py-3 bg-blue-500 bg-opacity-20 text-black rounded-xl hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-between"
+                      >
+                        <span className="flex items-center">
+                          <Clock size={20} className="mr-2" />
+                          <span className="font-bold">Use Recent Database</span>
+                        </span>
+                        <ChevronRight size={20} />
+                      </motion.button>
+                      <InfoIcon text="Connect to your most recently used database." />
+                    </div>
+                  )}
                   <div className="flex items-center space-x-2">
                     <motion.button
                       whileHover={{ scale: 1.02 }}
