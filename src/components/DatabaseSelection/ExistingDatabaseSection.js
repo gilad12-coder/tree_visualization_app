@@ -9,10 +9,8 @@ const ExistingDatabaseSection = ({ onUseExistingDB }) => {
 
   const validatePath = (path) => {
     path = path.trim();
-    if (path === '') return null;
-    if (!path.toLowerCase().endsWith('.db')) return false;
-    const validPathRegex = /^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$/;
-    return validPathRegex.test(path);
+    if (path === '') return false;
+    return path.toLowerCase().endsWith('.db');
   };
 
   const handleOpenFileExplorer = async () => {
