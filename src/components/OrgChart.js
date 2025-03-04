@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Filter, List, Target, Home, Menu, Upload,Download, Camera, FileText, X, Users, Layers} from "react-feather";
 import axios from "axios";
@@ -18,7 +18,7 @@ import ToolbarMenu from "./ToolbarMenu";
 import html2canvas from 'html2canvas'; 
 import SearchBar from './SearchBar.js';
 
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = "http://localhost:5001";
 
 const OrgChart = ({
   dbPath,
@@ -325,6 +325,26 @@ const OrgChart = ({
       return newMode;
     });
   }, [filteredOrgData]);
+
+const duplicatePersonIds = useMemo(() => {
+  const personIdCounts = {};
+  const countPersonIds = (node) => {
+    if (!node) return;
+    
+    // If the node has a person_id, increment its count
+    if (node.person_id) {
+      personIdCounts[node.person_id] = (personIdCounts[node.person_id] || 0) + 1;
+    }
+    
+    // Recursively process children
+    if (node.children && Array.isArray(node.children)) {
+      node.children.forEach(child => countPersonIds(child));
+    }
+  };
+  countPersonIds(filteredOrgData);
+  
+  return personIdCounts;
+}, [filteredOrgData]);
 
   const filterOrgData = useCallback((node, filters) => {
     const matchesFilter = (n) => {
@@ -1208,6 +1228,7 @@ useEffect(() => {
   onNodeUnrendered={handleNodeUnrendered}
   filteredSearchResults={filteredSearchResults}
   directSearchResults={directSearchResults}
+  duplicatePersonIds={duplicatePersonIds}
 />
               </div>
             </div>

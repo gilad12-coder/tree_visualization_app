@@ -18,7 +18,7 @@ import DatePickerWrapper from "./DatePickerWrapper";
 import "../styles/datepicker.css";
 import '../styles/scrollbar.css';
 
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = "http://localhost:5001";
 
 const AnimatedLogo = () => (
   <svg width="40" height="40" viewBox="0 0 50 50">

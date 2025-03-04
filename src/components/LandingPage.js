@@ -18,7 +18,7 @@ import {
   NewDatabaseSection,
 } from "../components/DatabaseSelection";
 
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = "http://localhost:5001";
 
 const MotionPath = motion.path;
 

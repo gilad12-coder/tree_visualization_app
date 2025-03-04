@@ -30,7 +30,7 @@ def resource_path(relative_path):
 
 def open_browser():
     time.sleep(1)
-    webbrowser.open_new('http://localhost:5000/')
+    webbrowser.open_new('http://localhost:5001/')
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -780,7 +780,10 @@ def entry_to_dict(entry):
         "role": entry.role,
         "department": entry.department,
         "rank": entry.rank,
-        "hierarchical_structure": entry.hierarchical_structure
+        "hierarchical_structure": entry.hierarchical_structure,
+        "personal_information": entry.personal_information,
+        "role_information": entry.role_information,
+        "is_dead": entry.is_dead
     }
 
     
@@ -1260,7 +1263,10 @@ def update_person_data(session, table_id, person_id, updates):
             "department": data_entry.department,
             "rank": data_entry.rank,
             "birth_date": data_entry.birth_date.isoformat() if data_entry.birth_date else None,
-            "organization_id": data_entry.organization_id
+            "organization_id": data_entry.organization_id,
+            "personal_information": data_entry.personal_information,
+            "role_information": data_entry.role_information,
+            "is_dead": data_entry.is_dead
         }
 
         logger.info(f"Successfully updated data for person with ID {person_id} in table {table_id}")
@@ -1403,7 +1409,10 @@ def compute_hierarchical_changes(session, table_id, hierarchical_structure, hier
             "department": new_parent.department,
             "birth_date": current_entry.birth_date,
             "rank": current_entry.rank,
-            "organization_id": current_entry.organization_id
+            "organization_id": current_entry.organization_id,
+            "personal_information": current_entry.personal_information,
+            "role_information": current_entry.role_information,
+            "is_dead": current_entry.is_dead
         }
 
     elif hierarchical_update_params.get('type') == 'override':
@@ -1421,7 +1430,8 @@ def compute_hierarchical_changes(session, table_id, hierarchical_structure, hier
             "department": override_entry.department,
             "birth_date": current_entry.birth_date,
             "rank": current_entry.rank,
-            "organization_id": current_entry.organization_id
+            "organization_id": current_entry.organization_id,
+            "information": current_entry.information
         }
 
     changes['null_node'] = {
@@ -1430,7 +1440,8 @@ def compute_hierarchical_changes(session, table_id, hierarchical_structure, hier
         "birth_date": None,
         "rank": "nan",
         "organization_id": "nan",
-        "person_id": "nan"
+        "person_id": "nan",
+        "information": "nan"
     }
 
     return changes
@@ -1442,4 +1453,4 @@ if __name__ == "__main__":
     print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
     
     threading.Thread(target=open_browser).start()
-    app.run(host='0.0.0.0', port=5000, use_reloader=False)
+    app.run(host='0.0.0.0', port=5001, use_reloader=False)

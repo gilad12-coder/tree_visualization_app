@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight } from 'react-feather';
+import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users } from 'react-feather';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 
 const colors = {
@@ -29,7 +29,9 @@ const TreeNode = ({
   onNodeRendered,
   onNodeUnrendered,
   filteredSearchResults = [],
-  directSearchResults = []
+  directSearchResults = [],
+  // Add this new prop to track duplicate person IDs
+  duplicatePersonIds = {}
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const longPressTimer = useRef(null);
@@ -51,6 +53,13 @@ const TreeNode = ({
   );
   const isCurrentSearchResult = isSearchResult && searchResults[currentSearchIndex] === node?.hierarchical_structure;
   const isDirectSearchResult = node?.hierarchical_structure && directSearchResults.includes(node.hierarchical_structure);
+  
+  // Check if this person has multiple roles in the organization
+  const hasDuplicateRoles = node?.person_id && duplicatePersonIds[node.person_id] > 1;
+
+  // Determine node status
+  const isDead = node?.is_dead?.toLowerCase() === 'dead';
+  const isStatusUnknown = node?.is_dead?.toLowerCase() === 'unknown';
 
   useEffect(() => {
     if (expandAll) {
@@ -139,12 +148,29 @@ const TreeNode = ({
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         className={`${colorClass} rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer overflow-hidden
-          ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}`}
+          ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}
+          ${isDead ? 'opacity-70 grayscale' : ''}
+          ${isStatusUnknown ? 'border-2 border-yellow-500 border-dashed' : ''}
+          ${isDead ? 'border-2 border-gray-700' : ''}
+          ${hasDuplicateRoles ? 'ring-2 ring-indigo-600' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         onContextMenu={handleToggle}
       >
+        {/* Status indicators */}
+        <div className="absolute top-2 right-2 flex space-x-1">
+          {isStatusUnknown && (
+            <AlertCircle size={18} className="text-yellow-600" />
+          )}
+          {isDead && (
+            <XCircle size={18} className="text-gray-700" />
+          )}
+          {hasDuplicateRoles && (
+            <Users size={18} className="text-indigo-600" />
+          )}
+        </div>
+        
         <AnimatePresence>
           {(isHighlighted || isSearchResult || isDirectSearchResult) && (
             <motion.div
@@ -161,7 +187,7 @@ const TreeNode = ({
         )}
         <div className={`flex justify-between items-center mb-2 ${isOrgMode ? (roleLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row') : (nameLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row')}`}>
           <h3 
-            className={`text-lg font-bold text-black ${getFontClass(isOrgMode ? roleLanguage : nameLanguage)}`}
+            className={`text-lg font-bold ${isDead ? 'text-gray-700 line-through' : 'text-black'} ${getFontClass(isOrgMode ? roleLanguage : nameLanguage)}`}
             dir={getTextDirection(isOrgMode ? roleLanguage : nameLanguage)}
           >
             {isOrgMode ? highlightText(node.role || 'No Role', searchTerm) : highlightText(node.name || 'Unnamed', searchTerm)}
@@ -184,10 +210,23 @@ const TreeNode = ({
           )}
         </div>
         <div 
-          className={`text-sm font-medium text-black ${getFontClass(isOrgMode ? nameLanguage : roleLanguage)} text-center`}
+          className={`text-sm font-medium ${isDead ? 'text-gray-700' : 'text-black'} ${getFontClass(isOrgMode ? nameLanguage : roleLanguage)} text-center`}
           dir={getTextDirection(isOrgMode ? nameLanguage : roleLanguage)}
         >
           {isOrgMode ? highlightText(node.name || 'Unnamed', searchTerm) : highlightText(node.role || 'No Role', searchTerm)}
+        </div>
+        
+        {/* Status text */}
+        <div className="mt-2 text-xs text-center font-medium flex flex-col gap-1">
+          {isDead && (
+            <span className="text-gray-700">Deceased</span>
+          )}
+          {isStatusUnknown && (
+            <span className="text-yellow-600">Status Unknown</span>
+          )}
+          {hasDuplicateRoles && (
+            <span className="text-indigo-600">Multiple Roles</span>
+          )}
         </div>
       </motion.div>
       <AnimatePresence initial={false}>
@@ -236,6 +275,7 @@ const TreeNode = ({
                     onNodeUnrendered={onNodeUnrendered}
                     filteredSearchResults={filteredSearchResults}
                     directSearchResults={directSearchResults}
+                    duplicatePersonIds={duplicatePersonIds}
                   />
                 </div>
               ))}

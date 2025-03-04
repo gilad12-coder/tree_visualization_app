@@ -12,6 +12,7 @@
     "babel-plugin-react-compiler": "^0.0.0-experimental-334f00b-20240725",
     "d3": "^7.9.0",
     "date-fns": "^3.6.0",
+    "dompurify": "^3.2.4",
     "eslint": "^8.57.0",
     "eslint-plugin-react-compiler": "^0.0.0-experimental-9ed098e-20240725",
     "framer-motion": "^11.3.19",

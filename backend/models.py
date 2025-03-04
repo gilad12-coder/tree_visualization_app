@@ -39,12 +39,15 @@ class DataEntry(Base):
     person_id = Column(String, nullable=True)
     name = Column(String)
     birth_date = Column(Date)
+    personal_information = Column(String, nullable=True)
     
     # Org Data
     role = Column(String)
     department = Column(String)
     rank = Column(String)
     organization_id = Column(String)
+    role_information = Column(String, nullable=True)
+    is_dead = Column(String, default="alive")
     
     table = relationship('Table', back_populates='data_entries')
 

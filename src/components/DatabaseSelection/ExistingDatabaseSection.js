@@ -15,7 +15,7 @@ const ExistingDatabaseSection = ({ onUseExistingDB }) => {
 
   const handleOpenFileExplorer = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/open_file_explorer');
+      const response = await axios.get('http://localhost:5001/open_file_explorer');
       if (response.data.message) {
         console.log(response.data.message);
       }

@@ -5,8 +5,6 @@ import logging
 from datetime import datetime
 from sqlalchemy import func
 from datetime import datetime
-import json
-import math
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -128,10 +126,13 @@ def parse_org_data(df):
             "birth_date": row.get('birth_date', None),
             "rank": row.get('rank', ''),
             "organization_id": row.get('organization_id', ''),
+            "personal_information": row.get('personal_information', ''),
+            "role_information": row.get('role_information', ''),
+            "is_dead": row.get('is_dead', 'unknown'),
             "upload_date": datetime.now().date().isoformat(),
             "children": [],
             "row": row.name,
-            "hierarchical_structure": row.hierarchical_structure
+            "hierarchical_structure": row.hierarchical_structure,
         }
 
         if new_node['birth_date']:
@@ -300,7 +301,10 @@ def insert_data_entries(session, table_id, df):
         'department': 'department',
         'birth_date': 'birth_date',
         'rank': 'rank',
-        'organization_id': 'organization_id'
+        'organization_id': 'organization_id',
+        'personal_information': 'personal_information',
+        'role_information': 'role_information',
+        'is_dead': 'is_dead'
     }
     
     for _, row in df.iterrows():
@@ -373,7 +377,11 @@ def export_excel_data(session, table_id):
             "Birth Date": entry.birth_date,
             "Rank": entry.rank,
             "Organization ID": entry.organization_id,
-            "Hierarchical Structure": entry.hierarchical_structure
+            "Hierarchical Structure": entry.hierarchical_structure,
+            "Hierarchical Structure": entry.hierarchical_structure,
+            "Personal Information": entry.personal_information,
+            "Role Information": entry.role_information,
+            "is_dead": entry.is_dead
         }
         for entry in data_entries
     ])

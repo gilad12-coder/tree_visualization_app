@@ -65,7 +65,7 @@ const FilterModal = ({
       setIsLoading(true);
       try {
         const response = await axios.get(
-          `http://localhost:5000/search/${folderId}/${tableId}`,
+          `http://localhost:5001/search/${folderId}/${tableId}`,
           {
             params: {
               query: query,

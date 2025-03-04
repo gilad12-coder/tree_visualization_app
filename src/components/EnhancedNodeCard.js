@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { X, ArrowRight, User, Edit, GitBranch, ArrowLeft } from 'lucide-react';
+import { X, ArrowRight, User, Edit, GitBranch, ArrowLeft, FileText } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 import DirectReportsSection from './DirectReportsSection';
 import CVTimelineSection from './CVTimelineSection';
-import PersonalInfoSection from './PersonalInfoSection';
 import UpdatePersonalInfoSection from './UpdatePersonalInfoSection.js';
 import UpdateHierarchicalInfoSection from './UpdateHierarchicalInfoSection.js';
+import NodeInformation from './NodeInformation.js';
 import '../styles/fonts.css';
 
 const MotionPath = motion.path;
@@ -140,13 +140,13 @@ const EnhancedNodeCard = ({
                   </motion.div>
                   <DirectReportsSection node={node} />
                   <motion.button
-                    onClick={() => setActiveScreen('personal')}
+                    onClick={() => setActiveScreen('information')}
                     className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <span className="font-bold">View Personal Info</span>
-                    <User size={20} />
+                    <span className="font-bold">View Information</span>
+                    <FileText size={20} />
                   </motion.button>
                   <motion.button
                     onClick={() => setActiveScreen('cv')}
@@ -200,15 +200,16 @@ const EnhancedNodeCard = ({
                 </div>
               </motion.div>
             )}
-            {activeScreen === 'personal' && (
+
+            {activeScreen === 'information' && (
               <motion.div
-                key="personal"
+                key="information"
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -50 }}
                 transition={{ duration: 0.3 }}
               >
-                <PersonalInfoSection
+                <NodeInformation
                   node={node}
                   onBack={() => setActiveScreen('main')}
                 />
