@@ -3,14 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users } from 'react-feather';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 
-const colors = {
-  level1: 'bg-blue-500 bg-opacity-20',
-  level2: 'bg-green-500 bg-opacity-20',
-  level3: 'bg-purple-500 bg-opacity-20',
-  level4: 'bg-yellow-500 bg-opacity-20',
-  level5: 'bg-pink-500 bg-opacity-20',
-};
-
 const TreeNode = ({ 
   node, 
   onNodeClick, 
@@ -30,34 +22,43 @@ const TreeNode = ({
   onNodeUnrendered,
   filteredSearchResults = [],
   directSearchResults = [],
-  // Add this new prop to track duplicate person IDs
-  duplicatePersonIds = {}
+  duplicatePersonIds = {},
+  settings = {}
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const longPressTimer = useRef(null);
   const isLongPress = useRef(false);
   const nodeRef = useRef(null);
   const isRendered = useRef(false);
-
   const hasChildren = node?.children && Array.isArray(node.children) && node.children.length > 0;
   const isSingleChild = hasChildren && node.children.length === 1;
-  const colorClass = colors[`level${(depth % 5) + 1}`];
+  const levelKey = `level${(depth % 5) + 1}`;
+  const nodeColor = settings.nodeColors?.[levelKey];
+  const primaryField = settings.primaryField || 'name';
+  const secondaryField = settings.secondaryField || 'role';
+  const displayPrimaryField = isOrgMode ? 
+    (primaryField === 'name' ? 'role' : (primaryField === 'role' ? 'name' : primaryField)) : 
+    primaryField;
+  
+  const displaySecondaryField = isOrgMode ? 
+    (secondaryField === 'role' ? 'name' : (secondaryField === 'name' ? 'role' : secondaryField)) : 
+    secondaryField;
+  
+  const primaryValue = node?.[displayPrimaryField] || `No ${displayPrimaryField}`;
+  const secondaryValue = node?.[displaySecondaryField] || `No ${displaySecondaryField}`;
 
-  const nameLanguage = getLanguage(node?.name || '');
-  const roleLanguage = getLanguage(node?.role || '');
+  const primaryLanguage = getLanguage(primaryValue);
+  const secondaryLanguage = getLanguage(secondaryValue);
 
   const isHighlighted = node?.hierarchical_structure ? highlightedNodes.includes(node.hierarchical_structure) : false;
   const isSearchResult = searchTerm && node && (
-    (node.name && node.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (node.role && node.role.toLowerCase().includes(searchTerm.toLowerCase()))
+    Object.entries(node).some(([key, value]) => 
+      typeof value === 'string' && value.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   );
   const isCurrentSearchResult = isSearchResult && searchResults[currentSearchIndex] === node?.hierarchical_structure;
   const isDirectSearchResult = node?.hierarchical_structure && directSearchResults.includes(node.hierarchical_structure);
-  
-  // Check if this person has multiple roles in the organization
   const hasDuplicateRoles = node?.person_id && duplicatePersonIds[node.person_id] > 1;
-
-  // Determine node status
   const isDead = node?.is_dead?.toLowerCase() === 'dead';
   const isStatusUnknown = node?.is_dead?.toLowerCase() === 'unknown';
 
@@ -147,11 +148,15 @@ const TreeNode = ({
         ref={nodeRef}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        className={`${colorClass} rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer overflow-hidden
+        style={{ 
+          backgroundColor: nodeColor,
+          borderColor: isDead ? '#4A5568' : (isStatusUnknown ? '#ECC94B' : 'rgba(0,0,0,0.1)')
+        }}
+        className={`rounded-xl shadow-sm transition-all duration-300 ease-out p-4 w-72 relative z-10 cursor-pointer overflow-hidden
           ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}
           ${isDead ? 'opacity-70 grayscale' : ''}
-          ${isStatusUnknown ? 'border-2 border-yellow-500 border-dashed' : ''}
-          ${isDead ? 'border-2 border-gray-700' : ''}
+          ${isStatusUnknown ? 'border-2 border-dashed' : ''}
+          ${isDead ? 'border-2' : ''}
           ${hasDuplicateRoles ? 'ring-2 ring-indigo-600' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -185,12 +190,12 @@ const TreeNode = ({
         {isCurrentSearchResult && (
           <div className="absolute inset-0 bg-orange-200 opacity-30 rounded-xl" />
         )}
-        <div className={`flex justify-between items-center mb-2 ${isOrgMode ? (roleLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row') : (nameLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row')}`}>
+        <div className={`flex justify-between items-center mb-2 ${primaryLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row'}`}>
           <h3 
-            className={`text-lg font-bold ${isDead ? 'text-gray-700 line-through' : 'text-black'} ${getFontClass(isOrgMode ? roleLanguage : nameLanguage)}`}
-            dir={getTextDirection(isOrgMode ? roleLanguage : nameLanguage)}
+            className={`text-lg font-bold ${isDead ? 'text-gray-700 line-through' : 'text-black'} ${getFontClass(primaryLanguage)}`}
+            dir={getTextDirection(primaryLanguage)}
           >
-            {isOrgMode ? highlightText(node.role || 'No Role', searchTerm) : highlightText(node.name || 'Unnamed', searchTerm)}
+            {highlightText(primaryValue, searchTerm)}
           </h3>
           {hasChildren && (
             <motion.div
@@ -210,10 +215,10 @@ const TreeNode = ({
           )}
         </div>
         <div 
-          className={`text-sm font-medium ${isDead ? 'text-gray-700' : 'text-black'} ${getFontClass(isOrgMode ? nameLanguage : roleLanguage)} text-center`}
-          dir={getTextDirection(isOrgMode ? nameLanguage : roleLanguage)}
+          className={`text-sm font-medium ${isDead ? 'text-gray-700' : 'text-black'} ${getFontClass(secondaryLanguage)} text-center`}
+          dir={getTextDirection(secondaryLanguage)}
         >
-          {isOrgMode ? highlightText(node.name || 'Unnamed', searchTerm) : highlightText(node.role || 'No Role', searchTerm)}
+          {highlightText(secondaryValue, searchTerm)}
         </div>
         
         {/* Status text */}
@@ -276,6 +281,7 @@ const TreeNode = ({
                     filteredSearchResults={filteredSearchResults}
                     directSearchResults={directSearchResults}
                     duplicatePersonIds={duplicatePersonIds}
+                    settings={settings}
                   />
                 </div>
               ))}

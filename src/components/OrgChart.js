@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Filter, List, Target, Home, Menu, Upload,Download, Camera, FileText, X, Users, Layers} from "react-feather";
+import { List, Upload, Download, Camera, FileText } from "react-feather";
 import axios from "axios";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -14,18 +14,21 @@ import TableSelectionModal from "./TableSelectionModal";
 import ComparisonDashboard from "./ComparisonDashboard";
 import SettingsModal from "./SettingsModal";
 import HelpModal from "./HelpModal";
-import ToolbarMenu from "./ToolbarMenu";
 import html2canvas from 'html2canvas'; 
 import SearchBar from './SearchBar.js';
+import NavigationBar from "./NavigationBar.js";
 
 const API_BASE_URL = "http://localhost:5001";
 
-const OrgChart = ({
-  dbPath,
-  initialTableId,
-  initialFolderId,
-  onReturnToLanding,
-}) => {
+const DEFAULT_COLORS = {
+  level1: '#EBF4FF',
+  level2: '#EDF9EE',
+  level3: '#F5EEFF',
+  level4: '#FFFBEB',
+  level5: '#FEF1F7'
+};
+
+const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }) => {
   const [directSearchResults, setDirectSearchResults] = useState([]);
   const [filteredSearchResults, setFilteredSearchResults] = useState([]);
   const { activeFilters, setActiveFilters, expandAll, setExpandAll } = useOrgChartContext();
@@ -45,7 +48,6 @@ const OrgChart = ({
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isToolbarMenuOpen, setIsToolbarMenuOpen] = useState(false);
   const [collapseAll, setCollapseAll] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState(initialTableId);
   const [selectedFolderId, setSelectedFolderId] = useState(initialFolderId);
@@ -63,51 +65,45 @@ const OrgChart = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [renderedNodes, setRenderedNodes] = useState([]);
   const [isSearchBarVisible, setIsSearchBarVisible] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState(null);
   const [settings, setSettings] = useState({
     moveAmount: 30,
     zoomAmount: 0.1,
     searchZoomLevel: 0.85,
+    primaryField: 'name',
+    secondaryField: 'role',
+    nodeColors: { ...DEFAULT_COLORS }
   });
+  
   const dragRef = useRef(null);
   const chartRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     if (!dbPath || !selectedTableId) return;
-  
+
     setIsLoading(true);
     setError(null);
-  
+
     try {
       const [folderResponse, orgDataResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/folder_structure`, {
-          params: { db_path: dbPath },
-        }),
-        axios.get(`${API_BASE_URL}/org_data`, {
-          params: { table_id: selectedTableId, db_path: dbPath },
-        }),
+        axios.get(`${API_BASE_URL}/folder_structure`, { params: { db_path: dbPath } }),
+        axios.get(`${API_BASE_URL}/org_data`, { params: { table_id: selectedTableId, db_path: dbPath } }),
       ]);
-  
+
       setFolderStructure(folderResponse.data);
-      
+
       if (orgDataResponse.data.log) {
         console.warn("Parsing log received:", orgDataResponse.data.log);
-        
-        // Create a Blob from the parsing log
         const blob = new Blob([JSON.stringify(orgDataResponse.data.log, null, 2)], { type: 'application/json' });
-        
-        // Create a link element, use it to download the blob, then remove it
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = 'parsing_log.json';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
         toast.warning("Parsing encountered issues. The log has been downloaded for your review.");
       }
 
-      console.log(orgDataResponse.data)
-      
       setOrgData(orgDataResponse.data.org_chart);
       setFilteredOrgData(orgDataResponse.data.org_chart);
     } catch (error) {
@@ -116,21 +112,16 @@ const OrgChart = ({
       setFolderStructure([]);
       setOrgData(null);
       setFilteredOrgData(null);
-      
+
       if (error.response?.data?.log) {
         console.warn("Error log:", error.response.data.log);
-        
-        // Create a Blob from the error log
         const blob = new Blob([JSON.stringify(error.response.data.log, null, 2)], { type: 'application/json' });
-        
-        // Create a link element, use it to download the blob, then remove it
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = 'error_log.json';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
         toast.error("An error occurred. The error log has been downloaded for your review.");
       }
     } finally {
@@ -168,83 +159,58 @@ const OrgChart = ({
     setCollapseAll(true);
     setTimeout(() => setCollapseAll(false), 100);
   }, [setExpandAll]);
-  
+
   const handleExportImage = useCallback(() => {
     if (chartRef.current) {
       const element = chartRef.current;
-      const scaleFactor = 2; // Adjust based on desired quality
-  
+      const scaleFactor = 2;
+
       console.log("Starting image export process");
-  
-      // Store the original className
       const originalClassName = element.className;
-  
-      // Dynamically add the required classes to the element
       element.className += ' inline-block min-w-full min-h-full chart-container';
-  
       setExpandAll(true);
-  
-      // Wait for nodes to expand and re-render
+
       setTimeout(() => {
-        // Store original styles
-        const originalTransform = element.style.transform;
-        const originalTransition = element.style.transition;
-        const originalWidth = element.style.width;
-        const originalHeight = element.style.height;
-  
-        // Reset positioning and scaling
+        const originalStyles = {
+          transform: element.style.transform,
+          transition: element.style.transition,
+          width: element.style.width,
+          height: element.style.height,
+        };
+
         element.style.transform = 'none';
         element.style.transition = 'none';
         element.style.width = 'auto';
         element.style.height = 'auto';
-  
-        // Force layout recalculation without triggering ESLint warning
+
         const forceReflow = element.offsetHeight;
         console.log("Forced reflow, element height:", forceReflow);
-  
-        // Get the actual content size after expansion
+
         const rect = element.getBoundingClientRect();
-        const contentSize = {
-          width: rect.width,
-          height: rect.height
-        };
-  
+        const contentSize = { width: rect.width, height: rect.height };
         console.log("Chart content size:", contentSize);
-  
-        // Create a canvas with the full content size
+
         const canvas = document.createElement('canvas');
         canvas.width = contentSize.width * scaleFactor;
         canvas.height = contentSize.height * scaleFactor;
         const ctx = canvas.getContext('2d');
-  
-        // Scale the context
         ctx.scale(scaleFactor, scaleFactor);
-  
         console.log("Canvas created and context scaled");
-  
-        // Capture the element with html2canvas
+
         html2canvas(element, {
           canvas: canvas,
-          scale: 1, // We're handling scaling manually
+          scale: 1,
           width: contentSize.width,
           height: contentSize.height,
           scrollX: 0,
           scrollY: 0,
           useCORS: true,
-          logging: true, // Enable logging for debugging
+          logging: true,
         }).then((canvas) => {
           console.log("html2canvas capture completed");
-  
-          // Restore original styles
-          element.style.transform = originalTransform;
-          element.style.transition = originalTransition;
-          element.style.width = originalWidth;
-          element.style.height = originalHeight;
-  
-          // Restore original className after capture
+          Object.assign(element.style, originalStyles);
           element.className = originalClassName;
-  
-          // Convert canvas to blob
+
           canvas.toBlob((blob) => {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -252,24 +218,14 @@ const OrgChart = ({
             link.download = 'org_chart.png';
             link.click();
             URL.revokeObjectURL(url);
-  
             console.log("Image download initiated");
-  
           }, 'image/png');
         }).catch((error) => {
           console.error('Error capturing image', error);
-  
-          // Restore original className even if there's an error
+          Object.assign(element.style, originalStyles);
           element.className = originalClassName;
-  
-          // Restore original styles even if there's an error
-          element.style.transform = originalTransform;
-          element.style.transition = originalTransition;
-          element.style.width = originalWidth;
-          element.style.height = originalHeight;
-  
         });
-      }, 1000); // Adjust timeout as needed to ensure DOM updates are complete
+      }, 1000);
     }
     handleCenter();
   }, [setExpandAll, handleCenter]);
@@ -281,33 +237,18 @@ const OrgChart = ({
         console.log("Entering Org Mode. Initial data:", filteredOrgData);
         
         const processOrgMode = (node) => {
-          if (!node) {
-            console.log("Encountered null node");
-            return null;
-          }
-          
+          if (!node) return null;
           console.log("Processing node:", node.name, "Children:", node.children?.length);
-          
           const newNode = { ...node };
-          
+
           if (node.children && node.children.length > 0) {
-            newNode.children = node.children
-              .map(processOrgMode)
-              .filter(Boolean);
-            
+            newNode.children = node.children.map(processOrgMode).filter(Boolean);
             console.log("Processed children for", node.name, "Remaining children:", newNode.children.length);
           }
-          
-          // Keep this node if it originally had children, even if they're all filtered out
-          if (node.children && node.children.length > 0) {
-            console.log("Keeping node", node.name, "in Org Mode");
-            return newNode;
-          } else {
-            console.log("Removing leaf node", node.name, "from Org Mode");
-            return null;
-          }
+
+          return node.children && node.children.length > 0 ? newNode : null;
         };
-  
+
         const orgModeTree = processOrgMode(filteredOrgData);
         console.log("Org Mode processing complete. Result:", orgModeTree);
         
@@ -326,25 +267,20 @@ const OrgChart = ({
     });
   }, [filteredOrgData]);
 
-const duplicatePersonIds = useMemo(() => {
-  const personIdCounts = {};
-  const countPersonIds = (node) => {
-    if (!node) return;
-    
-    // If the node has a person_id, increment its count
-    if (node.person_id) {
-      personIdCounts[node.person_id] = (personIdCounts[node.person_id] || 0) + 1;
-    }
-    
-    // Recursively process children
-    if (node.children && Array.isArray(node.children)) {
-      node.children.forEach(child => countPersonIds(child));
-    }
-  };
-  countPersonIds(filteredOrgData);
-  
-  return personIdCounts;
-}, [filteredOrgData]);
+  const duplicatePersonIds = useMemo(() => {
+    const personIdCounts = {};
+    const countPersonIds = (node) => {
+      if (!node) return;
+      if (node.person_id) {
+        personIdCounts[node.person_id] = (personIdCounts[node.person_id] || 0) + 1;
+      }
+      if (node.children && Array.isArray(node.children)) {
+        node.children.forEach(countPersonIds);
+      }
+    };
+    countPersonIds(filteredOrgData);
+    return personIdCounts;
+  }, [filteredOrgData]);
 
   const filterOrgData = useCallback((node, filters) => {
     const matchesFilter = (n) => {
@@ -380,9 +316,7 @@ const duplicatePersonIds = useMemo(() => {
               return childResult ? childResult.node : { ...child, children: null };
             });
           } else {
-            newNode.children = childResults
-              .filter(result => result.node !== null)
-              .map(result => result.node);
+            newNode.children = childResults.filter(result => result.node !== null).map(result => result.node);
           }
           return { node: newNode, matchDepth: newMatchDepth };
         }
@@ -391,32 +325,26 @@ const duplicatePersonIds = useMemo(() => {
       return { node: null, matchDepth: -1 };
     };
 
-    const result = filterNode(node);
-    return result.node;
+    return filterNode(node).node;
   }, []);
 
   const findNodesInTree = useCallback((originalTree, searchResults) => {
-    console.log("Starting findNodesInTree with:", { originalTree, searchResults });
     if (!originalTree || !searchResults || searchResults.length === 0) {
-      console.log("Returning original tree due to invalid input");
       return originalTree;
     }
 
-    const markNodesInPath = (node, targetId, path = []) => {
-      console.log("Marking nodes in path:", { nodeId: node.person_id, targetId, path });
+    const markNodesInPath = (node, targetId) => {
       if (!node) return false;
 
       if (node.person_id.toString() === targetId.toString()) {
-        console.log("Target node found:", node.person_id);
         node.visible = true;
         return true;
       }
 
       if (node.children) {
         for (let child of node.children) {
-          if (markNodesInPath(child, targetId, [...path, node.person_id])) {
+          if (markNodesInPath(child, targetId)) {
             node.visible = true;
-            console.log("Parent node marked visible:", node.person_id);
             return true;
           }
         }
@@ -429,72 +357,42 @@ const duplicatePersonIds = useMemo(() => {
       if (!node) return null;
       const newNode = { ...node, visible: false };
       if (node.children) {
-        newNode.children = node.children.map(child => cloneTree(child));
+        newNode.children = node.children.map(cloneTree);
       }
       return newNode;
     };
 
     const newTree = cloneTree(originalTree);
-    console.log("Cloned tree:", newTree);
-
-    searchResults.forEach(result => {
-      console.log("Processing search result:", result);
-      markNodesInPath(newTree, result.person_id);
-    });
+    searchResults.forEach(result => markNodesInPath(newTree, result.person_id));
 
     const filterVisibleNodes = (node) => {
       if (!node) return null;
-      if (!node.visible) {
-        console.log("Node filtered out:", node.person_id);
-        return null;
-      }
+      if (!node.visible) return null;
       const filteredNode = { ...node };
       delete filteredNode.visible;
       if (node.children) {
-        filteredNode.children = node.children
-          .map(filterVisibleNodes)
-          .filter(Boolean);
+        filteredNode.children = node.children.map(filterVisibleNodes).filter(Boolean);
       }
-      console.log("Node kept in filtered tree:", filteredNode.person_id);
       return filteredNode;
     };
 
-    const filteredTree = filterVisibleNodes(newTree);
-    console.log("Final filtered tree:", filteredTree);
-    return filteredTree;
+    return filterVisibleNodes(newTree);
   }, []);
 
   useEffect(() => {
     if (orgData) {
-      console.log("Processing org data:", orgData);
       try {
+        let processedData = orgData;
         if (searchResults && searchResults.length > 0) {
-          const searchedData = findNodesInTree(orgData, searchResults);
-          if (searchedData) {
-            console.log("Search results applied successfully");
-            setFilteredOrgData(searchedData);
-            setExpandAll(true);
-          } else {
-            console.warn("Failed to apply search results");
-            toast.warning("The search results couldn't be rendered in the tree view. Please try a different search.");
-            setFilteredOrgData(orgData);
-            setExpandAll(false);
-          }
+          const searchedData = findNodesInTree(processedData, searchResults);
+          setFilteredOrgData(searchedData || processedData);
+          setExpandAll(!!searchedData);
         } else if (activeFilters.length > 0) {
-          const filtered = filterOrgData(orgData, activeFilters);
-          if (filtered === null) {
-            console.warn("Failed to apply filters");
-            toast.warning("The current filter couldn't be rendered in the tree view. Please adjust your filter criteria.");
-            setFilteredOrgData(orgData);
-            setExpandAll(false);
-          } else {
-            console.log("Filters applied successfully");
-            setFilteredOrgData(filtered);
-            setExpandAll(true);
-          }
+          const filtered = filterOrgData(processedData, activeFilters);
+          setFilteredOrgData(filtered || processedData);
+          setExpandAll(!!filtered);
         } else {
-          console.log("No search or filters active, using original data");
-          setFilteredOrgData(orgData);
+          setFilteredOrgData(processedData);
           setExpandAll(false);
         }
       } catch (error) {
@@ -523,97 +421,67 @@ const duplicatePersonIds = useMemo(() => {
 
     return findParent(filteredOrgData, hierarchicalStructure);
   }, [filteredOrgData]);
-  
+
   const handleFileUpload = async (uploadedData) => {
-    console.log("File uploaded:", uploadedData);
     setSelectedTableId(uploadedData.table_id);
     setSelectedFolderId(uploadedData.folder_id);
     await fetchData();
     setIsUploadOpen(false);
   };
 
-  const fetchComparisonData = useCallback(
-    async (table1Id, table2Id) => {
-      setIsComparisonLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get(
-          `${API_BASE_URL}/compare_tables/${selectedFolderId}`,
-          {
-            params: {
-              table1_id: table1Id,
-              table2_id: table2Id,
-              db_path: dbPath,
-            },
-          }
-        );
-        // Ensure the response data has the expected structure
-        console.log(response.data.aggregated_report)
-        const processedData = {
-          ...response.data,
-          aggregated_report: {
-            ...response.data.aggregated_report,
-            department_changes: response.data.aggregated_report.department_changes || { total: 0, details: {} },
-            role_changes: response.data.aggregated_report.role_changes || { total: 0, details: {} },
-            rank_changes: response.data.aggregated_report.rank_changes || { total: 0, details: {} },
-            reporting_line_changes: response.data.aggregated_report.reporting_line_changes || { total: 0, details: {} },
-            total_employees: response.data.aggregated_report.total_employees || { before: 0, after: 0 },
-            department_size_changes: response.data.aggregated_report.department_size_changes || {},
-          },
-        };
-        setComparisonData(processedData);
-        setIsComparing(true);
-      } catch (error) {
-        console.error("Error fetching comparison data:", error);
-        setError("Failed to fetch comparison data. Please try again.");
-        setIsComparing(false);
-      } finally {
-        setIsComparisonLoading(false);
-      }
-    },
-    [selectedFolderId, dbPath]
-  );
+  const fetchComparisonData = useCallback(async (table1Id, table2Id) => {
+    setIsComparisonLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/compare_tables/${selectedFolderId}`, {
+        params: { table1_id: table1Id, table2_id: table2Id, db_path: dbPath },
+      });
+      const processedData = {
+        ...response.data,
+        aggregated_report: {
+          ...response.data.aggregated_report,
+          department_changes: response.data.aggregated_report.department_changes || { total: 0, details: {} },
+          role_changes: response.data.aggregated_report.role_changes || { total: 0, details: {} },
+          rank_changes: response.data.aggregated_report.rank_changes || { total: 0, details: {} },
+          reporting_line_changes: response.data.aggregated_report.reporting_line_changes || { total: 0, details: {} },
+          total_employees: response.data.aggregated_report.total_employees || { before: 0, after: 0 },
+          department_size_changes: response.data.aggregated_report.department_size_changes || {},
+        },
+      };
+      setComparisonData(processedData);
+      setIsComparing(true);
+    } catch (error) {
+      console.error("Error fetching comparison data:", error);
+      setError("Failed to fetch comparison data. Please try again.");
+      setIsComparing(false);
+    } finally {
+      setIsComparisonLoading(false);
+    }
+  }, [selectedFolderId, dbPath]);
 
-  const handleTableSelection = useCallback(
-    async (tableId, folderId) => {
-      console.log("Table selected:", { tableId, folderId });
-      if (isComparing) {
-        setComparisonTableSelected(true);
-        await fetchComparisonData(selectedTableId, tableId);
-      } else {
-        setSelectedTableId(tableId);
-        setSelectedFolderId(folderId);
-        await fetchData();
-      }
-      setIsTableSelectionOpen(false);
-    },
-    [fetchData, isComparing, selectedTableId, fetchComparisonData]
-  );
+  const handleTableSelection = useCallback(async (tableId, folderId) => {
+    if (isComparing) {
+      setComparisonTableSelected(true);
+      await fetchComparisonData(selectedTableId, tableId);
+    } else {
+      setSelectedTableId(tableId);
+      setSelectedFolderId(folderId);
+      await fetchData();
+    }
+    setIsTableSelectionOpen(false);
+  }, [fetchData, isComparing, selectedTableId, fetchComparisonData]);
 
-  const handleNodeClick = useCallback(
-    (node) => {
-      console.log("Node clicked:", node);
-      setSelectedNode((prevNode) => ({
-        ...node,
-        folderId: selectedFolderId,
-        tableId: selectedTableId,
-      }));
-    },
-    [selectedFolderId, selectedTableId]
-  );
+  const handleNodeClick = useCallback((node) => {
+    setSelectedNode({ ...node, folderId: selectedFolderId, tableId: selectedTableId });
+  }, [selectedFolderId, selectedTableId]);
 
-  const handleFilterChange = useCallback(
-    (filters) => {
-      console.log("Filters changed:", filters);
-      setActiveFilters(filters);
-      setSearchResults(null);
-      setIsFilterOpen(false);
-    },
-    [setActiveFilters]
-  );
+  const handleFilterChange = useCallback((filters) => {
+    setActiveFilters(filters);
+    setSearchResults(null);
+    setIsFilterOpen(false);
+  }, [setActiveFilters]);
 
   const handleSearch = useCallback((results) => {
-    console.log("Search results received:", results);
     const resultStructures = results.map(result => result.hierarchical_structure);
     setSearchResults(results);
     setDirectSearchResults(resultStructures);
@@ -621,7 +489,7 @@ const duplicatePersonIds = useMemo(() => {
     setFilterModalResetTrigger(prev => prev + 1);
     setTreeSearchResults(resultStructures);
     setCurrentTreeSearchIndex(0);
-  
+
     const findAncestors = (node, targetStructures, ancestors = []) => {
       if (targetStructures.includes(node.hierarchical_structure)) {
         return [...ancestors, node.hierarchical_structure];
@@ -634,7 +502,7 @@ const duplicatePersonIds = useMemo(() => {
       }
       return [];
     };
-  
+
     const allIncludedStructures = new Set();
     const addAncestors = (tree) => {
       resultStructures.forEach(structure => {
@@ -642,7 +510,7 @@ const duplicatePersonIds = useMemo(() => {
         ancestors.forEach(ancestorStructure => allIncludedStructures.add(ancestorStructure));
       });
     };
-  
+
     addAncestors(orgData);
     setFilteredSearchResults(Array.from(allIncludedStructures));
   }, [orgData, setActiveFilters, setFilteredSearchResults, setTreeSearchResults]);
@@ -651,7 +519,7 @@ const duplicatePersonIds = useMemo(() => {
     setActiveFilters([]);
     setSearchResults(null);
     setFilteredSearchResults([]);
-    setDirectSearchResults([]); // Add this line
+    setDirectSearchResults([]);
     setFilteredOrgData(orgData);
     setExpandAll(false);
     setFilterModalResetTrigger(prev => prev + 1);
@@ -661,10 +529,9 @@ const duplicatePersonIds = useMemo(() => {
   }, [orgData, setActiveFilters, setExpandAll]);
 
   const handleClearSearch = useCallback(() => {
-    console.log("Clearing search");
     setSearchResults(null);
     setFilteredSearchResults([]);
-    setDirectSearchResults([]); // Add this line
+    setDirectSearchResults([]);
     setFilteredOrgData(orgData);
     setExpandAll(false);
     setTreeSearchResults([]);
@@ -679,18 +546,15 @@ const duplicatePersonIds = useMemo(() => {
     }
   }, []);
 
-  const handleMouseMove = useCallback(
-    (e) => {
-      if (isDragging) {
-        setTransform((prev) => ({
-          ...prev,
-          x: prev.x + e.movementX,
-          y: prev.y + e.movementY,
-        }));
-      }
-    },
-    [isDragging]
-  );
+  const handleMouseMove = useCallback((e) => {
+    if (isDragging) {
+      setTransform(prev => ({
+        ...prev,
+        x: prev.x + e.movementX,
+        y: prev.y + e.movementY,
+      }));
+    }
+  }, [isDragging]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -699,7 +563,7 @@ const duplicatePersonIds = useMemo(() => {
   const handleWheel = useCallback((e) => {
     e.preventDefault();
     const scaleFactor = 1 - e.deltaY * 0.001;
-    setTransform((prev) => {
+    setTransform(prev => {
       const newScale = Math.max(0.1, Math.min(3, prev.scale * scaleFactor));
       const scaleDiff = newScale - prev.scale;
       const mouseX = e.clientX - dragRef.current.offsetLeft;
@@ -711,31 +575,23 @@ const duplicatePersonIds = useMemo(() => {
   }, []);
 
   const toggleFilterModal = useCallback(() => {
-    setIsFilterOpen((prev) => !prev);
+    setIsFilterOpen(prev => !prev);
   }, []);
 
   const toggleSearchBar = useCallback(() => {
-    setIsSearchBarVisible((prev) => {
+    setIsSearchBarVisible(prev => {
       const newVisibility = !prev;
-      console.log("toggleSearchBar called. Setting visibility to:", newVisibility);
-      
       if (!newVisibility) {
-        // Reset search state when closing the search bar
         setSearchTerm('');
         setTreeSearchResults([]);
         setCurrentTreeSearchIndex(-1);
       }
-      
       return newVisibility;
     });
   }, [setSearchTerm, setTreeSearchResults, setCurrentTreeSearchIndex]);
 
   const toggleHelpModal = useCallback(() => {
-    setIsHelpOpen((prev) => !prev);
-  }, []);
-
-  const toggleToolbarMenu = useCallback(() => {
-    setIsToolbarMenuOpen((prev) => !prev);
+    setIsHelpOpen(prev => !prev);
   }, []);
 
   const handleExpandAll = useCallback(() => {
@@ -786,7 +642,6 @@ const duplicatePersonIds = useMemo(() => {
     );
     setTreeSearchResults(results.map(node => node.hierarchical_structure));
     setCurrentTreeSearchIndex(results.length > 0 ? 0 : -1);
-    console.log("Search results:", results);
   }, [renderedNodes]);
 
   const handleNodeRendered = useCallback((node) => {
@@ -806,54 +661,31 @@ const duplicatePersonIds = useMemo(() => {
   const handleTreeSearchNavigation = useCallback((direction) => {
     if (treeSearchResults.length === 0) return;
 
-    let newIndex;
-    if (direction === 'next') {
-      newIndex = (currentTreeSearchIndex + 1) % treeSearchResults.length;
-    } else {
-      newIndex = (currentTreeSearchIndex - 1 + treeSearchResults.length) % treeSearchResults.length;
-    }
+    let newIndex = direction === 'next' 
+      ? (currentTreeSearchIndex + 1) % treeSearchResults.length 
+      : (currentTreeSearchIndex - 1 + treeSearchResults.length) % treeSearchResults.length;
+
     setCurrentTreeSearchIndex(newIndex);
-
-    console.log(`Navigating ${direction}. New index: ${newIndex}`);
-
     const currentNodeStructure = treeSearchResults[newIndex];
     if (currentNodeStructure) {
       const element = document.getElementById(`node-${currentNodeStructure}`);
       if (element) {
         const rect = element.getBoundingClientRect();
         const { width: nodeWidth, height: nodeHeight } = rect;
-
         const chartRect = chartRef.current.getBoundingClientRect();
         const { width: chartWidth, height: chartHeight } = chartRect;
 
-        // Calculate the node's position relative to the chart
         const nodeX = (rect.left - chartRect.left) / transform.scale;
         const nodeY = (rect.top - chartRect.top) / transform.scale;
 
-        console.log(`Node position (relative): x=${nodeX}, y=${nodeY}`);
-        console.log(`Current transform: x=${transform.x}, y=${transform.y}, scale=${transform.scale}`);
-
-        // Use the searchZoomLevel from settings
         const NAVIGATION_ZOOM_LEVEL = settings.searchZoomLevel;
-
-        // Calculate the new position to center the node both horizontally and vertically
         const newX = -nodeX * NAVIGATION_ZOOM_LEVEL + (chartWidth - nodeWidth * NAVIGATION_ZOOM_LEVEL) / 2;
         const newY = -nodeY * NAVIGATION_ZOOM_LEVEL + (chartHeight - nodeHeight * NAVIGATION_ZOOM_LEVEL) / 2;
 
-        // Adjust for the toolbar height (estimate, adjust as needed)
         const toolbarHeight = 60;
         const adjustedY = newY + (toolbarHeight / 2);
 
-        console.log(`Calculated new position: x=${newX}, y=${adjustedY}`);
-
-        // Update the transform
-        setTransform(prev => {
-          console.log(`Previous transform: x=${prev.x}, y=${prev.y}, scale=${prev.scale}`);
-          console.log(`New transform: x=${newX}, y=${adjustedY}, scale=${NAVIGATION_ZOOM_LEVEL}`);
-          return { x: newX, y: adjustedY, scale: NAVIGATION_ZOOM_LEVEL };
-        });
-
-        // Optionally, add a smooth transition effect
+        setTransform(prev => ({ x: newX, y: adjustedY, scale: NAVIGATION_ZOOM_LEVEL }));
         chartRef.current.style.transition = 'transform 0.3s ease-out';
         setTimeout(() => {
           chartRef.current.style.transition = '';
@@ -866,27 +698,24 @@ const duplicatePersonIds = useMemo(() => {
     }
   }, [treeSearchResults, currentTreeSearchIndex, transform, chartRef, settings.searchZoomLevel]);
 
-  const handleHighlight = useCallback(
-    async (hierarchicalNodeStructure) => {
-      try {
-        if (highlightedNodes.includes(hierarchicalNodeStructure)) {
-          setHighlightedNodes([]);
-        } else {
-          const response = await axios.get(`${API_BASE_URL}/highlight_nodes`, {
-            params: {
-              hierarchical_structure: hierarchicalNodeStructure,
-              table_id: selectedTableId,
-            },
-          });
-          setHighlightedNodes(response.data.highlighted_nodes);
-        }
-      } catch (error) {
-        console.error("Error fetching highlighted nodes:", error);
+  const handleHighlight = useCallback(async (hierarchicalNodeStructure) => {
+    try {
+      if (highlightedNodes.includes(hierarchicalNodeStructure)) {
         setHighlightedNodes([]);
+      } else {
+        const response = await axios.get(`${API_BASE_URL}/highlight_nodes`, {
+          params: {
+            hierarchical_structure: hierarchicalNodeStructure,
+            table_id: selectedTableId,
+          },
+        });
+        setHighlightedNodes(response.data.highlighted_nodes);
       }
-    },
-    [selectedTableId, highlightedNodes]
-  );
+    } catch (error) {
+      console.error("Error fetching highlighted nodes:", error);
+      setHighlightedNodes([]);
+    }
+  }, [selectedTableId, highlightedNodes]);
 
   useEffect(() => {
     fetchData();
@@ -906,7 +735,6 @@ const duplicatePersonIds = useMemo(() => {
 
     updateInitialTransform();
     window.addEventListener("resize", updateInitialTransform);
-
     return () => {
       window.removeEventListener("resize", updateInitialTransform);
     };
@@ -926,25 +754,18 @@ const duplicatePersonIds = useMemo(() => {
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-const handleKeyDown = useCallback(
-  (e) => {
+  const handleKeyDown = useCallback((e) => {
     if (isUpdateModalOpen || isFilterOpen) return;
 
     const { moveAmount, zoomAmount } = settings;
 
     const singleKeyShortcuts = {
-      'ArrowUp': () => setTransform((prev) => ({ ...prev, y: prev.y + moveAmount })),
-      'ArrowDown': () => setTransform((prev) => ({ ...prev, y: prev.y - moveAmount })),
-      'ArrowLeft': () => setTransform((prev) => ({ ...prev, x: prev.x + moveAmount })),
-      'ArrowRight': () => setTransform((prev) => ({ ...prev, x: prev.x - moveAmount })),
-      '=': () => setTransform((prev) => ({
-        ...prev,
-        scale: Math.min(3, prev.scale + zoomAmount),
-      })),
-      '-': () => setTransform((prev) => ({
-        ...prev,
-        scale: Math.max(0.1, prev.scale - zoomAmount),
-      })),
+      'ArrowUp': () => setTransform(prev => ({ ...prev, y: prev.y + moveAmount })),
+      'ArrowDown': () => setTransform(prev => ({ ...prev, y: prev.y - moveAmount })),
+      'ArrowLeft': () => setTransform(prev => ({ ...prev, x: prev.x + moveAmount })),
+      'ArrowRight': () => setTransform(prev => ({ ...prev, x: prev.x - moveAmount })),
+      '=': () => setTransform(prev => ({ ...prev, scale: Math.min(3, prev.scale + zoomAmount) })),
+      '-': () => setTransform(prev => ({ ...prev, scale: Math.max(0.1, prev.scale - zoomAmount) })),
     };
 
     const ctrlKeyShortcuts = {
@@ -958,7 +779,7 @@ const handleKeyDown = useCallback(
       'm': handleCompare,
       'r': handleClearFilter,
       'o': handleOrgMode,
-      'f': toggleSearchBar,
+      'f': toggleSearchBar
     };
 
     if (e.key in singleKeyShortcuts) {
@@ -968,8 +789,7 @@ const handleKeyDown = useCallback(
       e.preventDefault();
       ctrlKeyShortcuts[e.key.toLowerCase()]();
     }
-  },
-  [
+  }, [
     settings,
     isUpdateModalOpen,
     isFilterOpen,
@@ -984,26 +804,19 @@ const handleKeyDown = useCallback(
     toggleSearchBar,
     setIsTableSelectionOpen,
     setIsUploadOpen,
-    setTransform,
-  ]
-);
+    setTransform
+  ]);
 
-useEffect(() => {
-  document.addEventListener("keydown", handleKeyDown);
-  return () => {
-    document.removeEventListener("keydown", handleKeyDown);
-  };
-}, [handleKeyDown]);
-
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleKeyDown]);
 
   if (isLoading) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="flex justify-center items-center h-screen text-2xl text-gray-600"
-      >
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex justify-center items-center h-screen text-2xl text-gray-600">
         Loading...
       </motion.div>
     );
@@ -1011,12 +824,7 @@ useEffect(() => {
 
   if (error) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="flex flex-col justify-center items-center h-screen"
-      >
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col justify-center items-center h-screen">
         <p className="text-red-600 text-xl mb-4">{error}</p>
         <Button onClick={fetchData}>Retry</Button>
       </motion.div>
@@ -1025,211 +833,141 @@ useEffect(() => {
 
   if (!dbPath || !selectedTableId || !filteredOrgData) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="flex flex-col justify-center items-center h-screen"
-      >
-        <p className="text-xl mb-4">
-          No data available. Please upload a file or select a table.
-        </p>
-        <Button
-          onClick={() => setIsUploadOpen(true)}
-          icon={Upload}
-          className="mb-4"
-        >
-          Upload File
-        </Button>
-        <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>
-          Select Table
-        </Button>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col justify-center items-center h-screen">
+        <p className="text-xl mb-4">No data available. Please upload a file or select a table.</p>
+        <Button onClick={() => setIsUploadOpen(true)} icon={Upload} className="mb-4">Upload File</Button>
+        <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>Select Table</Button>
       </motion.div>
     );
   }
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100"
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }} 
+        className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 pt-14"
       >
+        {/* Navigation Bar */}
         {!isComparing && (
-          <>
-            <div className="absolute top-4 left-4 z-10 flex space-x-2 items-center">
-              <Button onClick={handleHome} icon={Home} tooltip="Home">
-                Home
-              </Button>
-              <Button
-                onClick={handleCenter}
-                icon={Target}
-                tooltip="Center (Ctrl+C)"
-              >
-                Center
-              </Button>
-              <Button
-                onClick={toggleFilterModal}
-                icon={Filter}
-                tooltip="Filter (Ctrl+F)"
-              >
-                Filter
-              </Button>
-              {(activeFilters.length > 0 || searchResults) && (
-                <Button
-                  onClick={handleClearFilter}
-                  icon={X}
-                  tooltip="Clear Filter"
-                  variant="danger"
+          <NavigationBar
+            onHome={handleHome}
+            onCenter={handleCenter}
+            onFilter={toggleFilterModal}
+            onOrgMode={handleOrgMode}
+            onChangeTable={() => setIsTableSelectionOpen(true)}
+            onExpandAll={handleExpandAll}
+            onCollapseAll={handleCollapseAll}
+            onUpload={() => setIsUploadOpen(true)}
+            onCompare={handleCompare}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenHelp={toggleHelpModal}
+            onSearch={toggleSearchBar}
+            onClearFilter={handleClearFilter}
+            isOrgMode={isOrgMode}
+            hasActiveFilters={activeFilters.length > 0 || searchResults}
+            activeMenuId={activeMenuId}
+            setActiveMenuId={setActiveMenuId}
+          />
+        )}
+  
+        {/* Search Bar and Export Button */}
+        {!isComparing && (
+          <div className="absolute top-18 right-4 z-10 flex items-center">
+            <AnimatePresence>
+              {isSearchBarVisible && (
+                <motion.div 
+                  initial={{ opacity: 0, width: 0 }} 
+                  animate={{ opacity: 1, width: "auto" }} 
+                  exit={{ opacity: 0, width: 0 }} 
+                  transition={{ duration: 0.3 }} 
+                  className="mr-2"
                 >
-                  Clear Filter
-                </Button>
+                  <SearchBar
+                    onSearch={handleTreeSearch}
+                    totalResults={treeSearchResults.length}
+                    currentResult={currentTreeSearchIndex + 1}
+                    onNavigate={handleTreeSearchNavigation}
+                    onClose={toggleSearchBar}
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    autoFocus={true}
+                  />
+                </motion.div>
               )}
-              <Button
-                onClick={handleOrgMode}
-                icon={Users}
-                tooltip="Org Mode (Ctrl+G)"
-                variant={isOrgMode ? "active" : "primary"}
+            </AnimatePresence>
+            <div className="relative">
+              <Button 
+                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)} 
+                icon={Download} 
+                tooltip="Export Options"
               >
-                Org Mode
-              </Button>
-              <Button
-                onClick={() => setIsTableSelectionOpen(true)}
-                icon={Layers}
-                tooltip="Change Table (Ctrl+Q)"
-              >
-                Change Table
-              </Button>
-              <Button
-                onClick={toggleToolbarMenu}
-                icon={Menu}
-                tooltip="More Options"
-              >
-                More
+                Export
               </Button>
               <AnimatePresence>
-                {isToolbarMenuOpen && (
-                  <ToolbarMenu
-                    isOpen={isToolbarMenuOpen}
-                    onClose={() => setIsToolbarMenuOpen(false)}
-                    onExpandAll={handleExpandAll}
-                    onCollapseAll={handleCollapseAll}
-                    onUpload={() => setIsUploadOpen(true)}
-                    onCompare={handleCompare}
-                    onOpenSettings={() => setIsSettingsOpen(true)}
-                    onOpenHelp={toggleHelpModal}
-                  />
+                {isExportMenuOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    exit={{ opacity: 0, y: -10 }} 
+                    className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+                  >
+                    <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                      <button 
+                        onClick={handleExportExcel} 
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left" 
+                        role="menuitem"
+                      >
+                        <FileText className="inline-block mr-2" size={16} />Export as Excel
+                      </button>
+                      <button 
+                        onClick={handleExportImage} 
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left" 
+                        role="menuitem"
+                      >
+                        <Camera className="inline-block mr-2" size={16} />Capture Tree Image
+                      </button>
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
-            <div className="absolute top-4 right-4 z-10 flex items-center">
-            <AnimatePresence>
-  {isSearchBarVisible && (
-    <motion.div
-      initial={{ opacity: 0, width: 0 }}
-      animate={{ opacity: 1, width: "auto" }}
-      exit={{ opacity: 0, width: 0 }}
-      transition={{ duration: 0.3 }}
-      className="mr-2"
-    >
-      <SearchBar
-        onSearch={handleTreeSearch}
-        totalResults={treeSearchResults.length}
-        currentResult={currentTreeSearchIndex + 1}
-        onNavigate={handleTreeSearchNavigation}
-        onClose={toggleSearchBar}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        autoFocus={true}
-      />
-    </motion.div>
-  )}
-</AnimatePresence>
-              <div className="relative">
-                <Button
-                  onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                  icon={Download}
-                  tooltip="Export Options"
-                >
-                  Export
-                </Button>
-                <AnimatePresence>
-                  {isExportMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
-                    >
-                      <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                        <button
-                          onClick={handleExportExcel}
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left"
-                          role="menuitem"
-                        >
-                          <FileText className="inline-block mr-2" size={16} />
-                          Export as Excel
-                        </button>
-                        <button
-                          onClick={handleExportImage}
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left"
-                          role="menuitem"
-                        >
-                          <Camera className="inline-block mr-2" size={16} />
-                          Capture Tree Image
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </>
+          </div>
         )}
+  
+        {/* Main Content */}
         {!isComparing ? (
-          <div
-            ref={dragRef}
-            className="w-full h-full cursor-move"
-            onMouseDown={handleMouseDown}
-            onWheel={handleWheel}
-            style={{ overflow: "hidden" }}
-          >
-            <div
-              ref={chartRef}
-              style={{
-                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-                transition: isDragging ? "none" : "transform 0.3s ease-out",
-                transformOrigin: "0 0",
-              }}
-            >
+          <div ref={dragRef} className="w-full h-full cursor-move" onMouseDown={handleMouseDown} onWheel={handleWheel} style={{ overflow: "hidden" }}>
+            <div ref={chartRef} style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transition: isDragging ? "none" : "transform 0.3s ease-out", transformOrigin: "0 0" }}>
               <div className="p-8 pt-20">
-              <TreeNode
-  node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
-  onNodeClick={handleNodeClick}
-  expandAll={expandAll}
-  collapseAll={collapseAll}
-  folderId={selectedFolderId}
-  tableId={selectedTableId}
-  highlightedNodes={highlightedNodes}
-  onHighlight={handleHighlight}
-  isOrgMode={isOrgMode}
-  searchTerm={searchTerm}
-  searchResults={treeSearchResults}
-  currentSearchIndex={currentTreeSearchIndex}
-  onNodePosition={(id, x, y) => {
-    const element = document.getElementById(`node-${id}`);
-    if (element) {
-      element.dataset.x = x;
-      element.dataset.y = y;
-    }
-  }}
-  onNodeRendered={handleNodeRendered}
-  onNodeUnrendered={handleNodeUnrendered}
-  filteredSearchResults={filteredSearchResults}
-  directSearchResults={directSearchResults}
-  duplicatePersonIds={duplicatePersonIds}
-/>
+                <TreeNode
+                  node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
+                  onNodeClick={handleNodeClick}
+                  expandAll={expandAll}
+                  collapseAll={collapseAll}
+                  folderId={selectedFolderId}
+                  tableId={selectedTableId}
+                  highlightedNodes={highlightedNodes}
+                  onHighlight={handleHighlight}
+                  isOrgMode={isOrgMode}
+                  searchTerm={searchTerm}
+                  searchResults={treeSearchResults}
+                  currentSearchIndex={currentTreeSearchIndex}
+                  onNodePosition={(id, x, y) => {
+                    const element = document.getElementById(`node-${id}`);
+                    if (element) {
+                      element.dataset.x = x;
+                      element.dataset.y = y;
+                    }
+                  }}
+                  onNodeRendered={handleNodeRendered}
+                  onNodeUnrendered={handleNodeUnrendered}
+                  filteredSearchResults={filteredSearchResults}
+                  directSearchResults={directSearchResults}
+                  duplicatePersonIds={duplicatePersonIds}
+                  settings={settings}
+                />
               </div>
             </div>
           </div>
@@ -1243,61 +981,71 @@ useEffect(() => {
             onExportImage={handleExportImage}
           />
         )}
+  
+        {/* Modals and Additional Components */}
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          settings={settings}
+          onSettingsChange={setSettings}
+        />
+  
+        <AnimatePresence>
+          {selectedNode && !isComparing && (
+            <EnhancedNodeCard
+              node={selectedNode}
+              onClose={() => {
+                setSelectedNode(null);
+                setIsUpdateModalOpen(false);
+              }}
+              folderId={selectedFolderId}
+              tableId={selectedTableId}
+              folderStructure={folderStructure}
+              onUpdateComplete={fetchData}
+              onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+              onCloseUpdateModal={() => setIsUpdateModalOpen(false)}
+              getParentNode={getParentNode}
+            />
+          )}
+        </AnimatePresence>
+  
+        <FilterModal
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          onApplyFilters={handleFilterChange}
+          onSearch={handleSearch}
+          onClearSearch={handleClearSearch}
+          activeFilters={activeFilters}
+          orgData={orgData}
+          folderId={selectedFolderId}
+          tableId={selectedTableId}
+          resetTrigger={filterModalResetTrigger}
+        />
+  
+        <TableSelectionModal
+          isOpen={isTableSelectionOpen}
+          onClose={handleCloseTableSelection}
+          onSelectTable={handleTableSelection}
+          folderStructure={folderStructure}
+          currentFolderId={selectedFolderId}
+          isComparingMode={isComparing}
+          currentTableId={selectedTableId}
+        />
+  
+        <FileUploadModal
+          isOpen={isUploadOpen}
+          onClose={() => setIsUploadOpen(false)}
+          onUpload={handleFileUpload}
+          dbPath={dbPath}
+        />
+  
+        <HelpModal 
+          isOpen={isHelpOpen} 
+          onClose={() => setIsHelpOpen(false)} 
+        />
       </motion.div>
-      <AnimatePresence>
-        {selectedNode && !isComparing && (
-          <EnhancedNodeCard
-            node={selectedNode}
-            onClose={() => {
-              setSelectedNode(null);
-              setIsUpdateModalOpen(false);
-            }}
-            folderId={selectedFolderId}
-            tableId={selectedTableId}
-            folderStructure={folderStructure}
-            onUpdateComplete={fetchData}
-            onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
-            onCloseUpdateModal={() => setIsUpdateModalOpen(false)}
-            getParentNode={getParentNode}
-          />
-        )}
-      </AnimatePresence>
-      <FilterModal
-        isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        onApplyFilters={handleFilterChange}
-        onSearch={handleSearch}
-        onClearSearch={handleClearSearch}
-        activeFilters={activeFilters}
-        orgData={orgData}
-        folderId={selectedFolderId}
-        tableId={selectedTableId}
-        resetTrigger={filterModalResetTrigger}
-      />
-      <TableSelectionModal
-        isOpen={isTableSelectionOpen}
-        onClose={handleCloseTableSelection}
-        onSelectTable={handleTableSelection}
-        folderStructure={folderStructure}
-        currentFolderId={selectedFolderId}
-        isComparingMode={isComparing}
-        currentTableId={selectedTableId}
-      />
-      <FileUploadModal
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
-        onUpload={handleFileUpload}
-        dbPath={dbPath}
-      />
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSettingsChange={setSettings}
-      />
-      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </>
   );
-};
+}
 
 export default OrgChart;
