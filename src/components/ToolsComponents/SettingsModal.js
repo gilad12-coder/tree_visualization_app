@@ -43,7 +43,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     return currentIndex > previousIndex ? 1 : -1;
   };
 
-  // Animation variants
+  // Animation variants for screen transitions
   const contentVariants = {
     hidden: (direction) => ({
       x: direction * 20,
@@ -112,17 +112,16 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div 
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-        className="bg-white rounded-lg shadow-md w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-4 border-b border-gray-100">
           <h2 className="text-lg font-medium text-gray-900">Settings</h2>

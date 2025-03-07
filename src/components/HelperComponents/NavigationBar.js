@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, Target, Filter, Users, Layers, ChevronDown, ChevronUp, 
   Upload, Settings, Command, X,
-  Table, Camera, FileText
+  Table, Camera, FileText, Eye, Download
 } from 'react-feather';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -103,21 +103,16 @@ const NavigationBar = ({
     {
       id: 'view',
       label: 'View',
+      icon: Eye,
       items: [
         { id: 'expandAll', label: 'Expand All', icon: ChevronDown, onClick: onExpandAll },
         { id: 'collapseAll', label: 'Collapse All', icon: ChevronUp, onClick: onCollapseAll }
       ]
     },
     {
-      id: 'data',
-      label: 'Data',
-      items: [
-        { id: 'upload', label: 'Upload New Table', icon: Upload, onClick: onUpload }
-      ]
-    },
-    {
       id: 'tools',
       label: 'Tools',
+      icon: Settings,
       items: [
         { id: 'settings', label: 'Settings', icon: Settings, onClick: onOpenSettings },
         { id: 'shortcuts', label: 'Shortcuts', icon: Command, onClick: onOpenHelp }
@@ -126,6 +121,7 @@ const NavigationBar = ({
     {
       id: 'export',
       label: 'Export',
+      icon: Download,
       items: [
         { id: 'exportExcel', label: 'Excel', icon: Table, onClick: onExportExcel },
         { id: 'exportImage', label: 'Tree Image', icon: Camera, onClick: onExportImage },
@@ -141,51 +137,72 @@ const NavigationBar = ({
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
       <nav className="h-12 px-4 flex items-center">
-        <div className="flex items-center space-x-4">
-          <button onClick={onHome} className="text-gray-500 hover:text-gray-900">
-            <Home size={18} />
-          </button>
-          <button onClick={onCenter} className="text-gray-500 hover:text-gray-900">
-            <Target size={18} />
-          </button>
-          <button 
-            onClick={onFilter} 
-            className={`${hasActiveFilters ? 'text-blue-600' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            <Filter size={18} />
-          </button>
-          {hasActiveFilters && (
-            <button onClick={onClearFilter} className="text-red-500 hover:text-red-700">
-              <X size={18} />
+        <ul className="flex items-center space-x-4">
+          <li>
+            <button onClick={onHome} className="text-gray-500 hover:text-gray-900 p-1.5 rounded-md hover:bg-gray-50">
+              <Home size={18} />
             </button>
+          </li>
+          <li>
+            <button onClick={onCenter} className="text-gray-500 hover:text-gray-900 p-1.5 rounded-md hover:bg-gray-50">
+              <Target size={18} />
+            </button>
+          </li>
+          <li>
+            <button 
+              onClick={onFilter} 
+              className={`p-1.5 rounded-md hover:bg-gray-50 ${hasActiveFilters ? 'text-blue-600' : 'text-gray-500 hover:text-gray-900'}`}
+            >
+              <Filter size={18} />
+            </button>
+          </li>
+          {hasActiveFilters && (
+            <li>
+              <button onClick={onClearFilter} className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-gray-50">
+                <X size={18} />
+              </button>
+            </li>
           )}
-        </div>
+        </ul>
 
         <div className="h-5 w-px bg-gray-200 mx-4" />
 
-        <div className="flex items-center space-x-4">
-          <button 
-            onClick={onOrgMode} 
-            className={`${isOrgMode ? 'text-blue-600' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            <Users size={18} />
-          </button>
-          <button onClick={onChangeTable} className="text-gray-500 hover:text-gray-900">
-            <Layers size={18} />
-          </button>
-        </div>
+        <ul className="flex items-center space-x-4">
+          <li>
+            <button 
+              onClick={onOrgMode} 
+              className={`p-1.5 rounded-md hover:bg-gray-50 ${isOrgMode ? 'text-blue-600' : 'text-gray-500 hover:text-gray-900'}`}
+            >
+              <Users size={18} />
+            </button>
+          </li>
+          <li>
+            <button onClick={onChangeTable} className="text-gray-500 hover:text-gray-900 p-1.5 rounded-md hover:bg-gray-50">
+              <Layers size={18} />
+            </button>
+          </li>
+          <li>
+            <button onClick={onUpload} className="text-gray-500 hover:text-gray-900 p-1.5 rounded-md hover:bg-gray-50" title="Upload New Table">
+              <Upload size={18} />
+            </button>
+          </li>
+        </ul>
 
         <div className="h-5 w-px bg-gray-200 mx-4" />
 
-        <div className="flex items-center space-x-4">
+        <ul className="flex items-center space-x-4">
           {menus.map((menu) => (
-            <div key={menu.id} className="relative">
+            <li key={menu.id} className="relative">
               <button
                 onClick={() => toggleMenu(menu.id)}
-                className={`text-sm font-medium ${activeMenuId === menu.id ? 'text-blue-600' : 'text-gray-700 hover:text-gray-900'}`}
+                className={`p-1.5 rounded-md ${
+                  activeMenuId === menu.id 
+                    ? 'bg-gray-100 text-blue-600' 
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+                title={menu.label}
               >
-                {menu.label}
-                <ChevronDown size={14} className="ml-1 inline-block" />
+                <menu.icon size={18} />
               </button>
               <AnimatePresence>
                 {activeMenuId === menu.id && (
@@ -196,36 +213,37 @@ const NavigationBar = ({
                     exit={{ opacity: 0, y: -5 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <div className="py-1">
+                    <ul className="py-1">
                       {menu.items.map((item) => (
-                        <button
-                          key={item.id}
-                          className={`w-full text-left px-4 py-2 text-sm flex items-center ${
-                            item.disabled 
-                              ? 'text-gray-300 cursor-not-allowed' 
-                              : 'text-gray-700 hover:bg-gray-100'
-                          }`}
-                          onClick={() => {
-                            if (!item.disabled) {
-                              item.onClick();
-                              setActiveMenuId(null);
-                            }
-                          }}
-                          disabled={item.disabled}
-                        >
-                          <span className={`mr-2 ${item.disabled ? 'text-gray-300' : 'text-gray-500'}`}>
-                            {item.icon && <item.icon size={16} />}
-                          </span>
-                          {item.label}
-                        </button>
+                        <li key={item.id}>
+                          <button
+                            className={`w-full text-left px-4 py-2 text-sm flex items-center ${
+                              item.disabled 
+                                ? 'text-gray-300 cursor-not-allowed' 
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                            onClick={() => {
+                              if (!item.disabled) {
+                                item.onClick();
+                                setActiveMenuId(null);
+                              }
+                            }}
+                            disabled={item.disabled}
+                          >
+                            <span className={`mr-2 ${item.disabled ? 'text-gray-300' : 'text-gray-500'}`}>
+                              {item.icon && <item.icon size={16} />}
+                            </span>
+                            {item.label}
+                          </button>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </nav>
     </header>
   );

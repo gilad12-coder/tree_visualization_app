@@ -203,42 +203,20 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
     duration: 0.3
   };
 
-  // Animation variants
-  const modalVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-    exit: { opacity: 0 }
-  };
-
-  const contentVariants = {
-    hidden: { scale: 0.95, opacity: 0 },
-    visible: {
-      scale: 1,
-      opacity: 1,
-      transition: { type: "spring", damping: 30, stiffness: 400 }
-    },
-    exit: {
-      scale: 0.95,
-      opacity: 0,
-      transition: { duration: 0.2 }
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
       <motion.div
-        variants={modalVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        className="fixed inset-0 flex justify-center items-center z-50 p-4 bg-black bg-opacity-50"
-        onClick={onClose}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
       >
         <motion.div
-          variants={contentVariants}
-          className="bg-white rounded-lg shadow-lg w-full max-w-4xl h-[90vh] overflow-hidden"
+          className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

@@ -9,7 +9,6 @@ import NodeInformation from './NodeCardComponents/NodeInformation.js';
 import '../styles/fonts.css';
 import '../styles/scrollbar.css';
 
-// Theme to match other modals
 const THEME = {
   primary: '#1F2937',
   primaryLight: '#374151',
@@ -44,27 +43,7 @@ const EnhancedNodeCard = ({
     onCloseUpdateModal && onCloseUpdateModal();
   };
 
-  // Animation variants
-  const modalVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-    exit: { opacity: 0 }
-  };
-
-  const contentVariants = {
-    hidden: { scale: 0.95, opacity: 0 },
-    visible: {
-      scale: 1,
-      opacity: 1,
-      transition: { type: "spring", damping: 30, stiffness: 400 }
-    },
-    exit: {
-      scale: 0.95,
-      opacity: 0,
-      transition: { duration: 0.2 }
-    }
-  };
-
+  // Animation variants for screen transitions
   const screenVariants = {
     hidden: (direction) => ({
       x: direction * 20,
@@ -74,34 +53,41 @@ const EnhancedNodeCard = ({
       x: 0,
       opacity: 1,
       transition: {
-        x: { type: "spring", stiffness: 300, damping: 30 },
-        opacity: { duration: 0.2 }
+        x: { type: "spring", stiffness: 250, damping: 25 },
+        opacity: { duration: 0.3 }
       }
     },
     exit: (direction) => ({
       x: direction * -20,
       opacity: 0,
       transition: {
-        x: { type: "spring", stiffness: 300, damping: 30 },
+        x: { type: "spring", stiffness: 250, damping: 25 },
         opacity: { duration: 0.2 }
       }
     })
   };
 
+  // Screen transition variants - keeping these for internal transitions
+  // But simplifying the main modal animation to match the HelpModal
+
   return (
     <AnimatePresence>
       <motion.div
-        variants={modalVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        className="fixed inset-0 flex justify-center items-center z-50 p-4 bg-black bg-opacity-50"
-        onClick={onClose}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
       >
         <motion.div
-          variants={contentVariants}
-          className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2, delay: 0.05 }}
+          className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden"
           onClick={(e) => e.stopPropagation()}
+          style={{ height: "auto", minHeight: "300px" }}
         >
           {/* Header */}
           <div className="flex justify-between items-center p-4 border-b border-gray-100">
@@ -113,7 +99,7 @@ const EnhancedNodeCard = ({
 
           {/* Content */}
           <div className="max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               {activeScreen === 'main' && (
                 <motion.div
                   key="main"
