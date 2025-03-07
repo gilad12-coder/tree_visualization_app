@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Briefcase, Hash, Award, UserCheck, HelpCircle } from 'lucide-react';
-import PopupInfoModal from './PopupInfoModal.js';
+import PopupInfoModal from '../HelperComponents/PopupInfoModal.js';
 
-const ResultCard = ({ result, isSelected, onSelect }) => {
+const ResultCard = ({ result, isSelected, onSelect, theme }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const iconRef = useRef(null);
 
@@ -35,16 +35,19 @@ const ResultCard = ({ result, isSelected, onSelect }) => {
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer transition-all duration-200 relative ${
-        isSelected ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
+      className={`rounded-lg shadow-sm overflow-hidden cursor-pointer transition-all duration-200 relative border ${
+        isSelected
+          ? `ring-2 ring-[${theme.buttonHover}] border-[${theme.buttonHover}]`
+          : `hover:shadow-md border-[${theme.borderColor}]`
       }`}
+      style={{ backgroundColor: theme.bgGray }}
       onClick={() => onSelect(result.hierarchical_structure)}
     >
       <div className="absolute top-2 right-2">
         <HelpCircle
           ref={iconRef}
           size={18}
-          className="text-gray-400 hover:text-blue-500 transition-colors cursor-pointer"
+          className={`text-gray-400 hover:text-[${theme.buttonHover}] transition-colors cursor-pointer`}
           onClick={handleInfoClick}
         />
       </div>
@@ -53,7 +56,7 @@ const ResultCard = ({ result, isSelected, onSelect }) => {
         <div className="space-y-2">
           {fields.map(({ key, label, Icon }) => (
             <div key={key} className="flex items-center text-sm">
-              <Icon size={14} className="mr-2 text-gray-400 flex-shrink-0" />
+              <Icon size={14} className={`mr-2 text-[${theme.primary}] flex-shrink-0`} />
               <span className="text-gray-600 mr-1">{label}:</span>
               <span className="font-medium text-gray-800" title={String(result[key])}>
                 {truncate(result[key], 20)}

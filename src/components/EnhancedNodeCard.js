@@ -1,29 +1,23 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, User, Edit, GitBranch, ArrowLeft, FileText } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
-import DirectReportsSection from './DirectReportsSection';
-import CVTimelineSection from './CVTimelineSection';
-import UpdatePersonalInfoSection from './UpdatePersonalInfoSection.js';
-import UpdateHierarchicalInfoSection from './UpdateHierarchicalInfoSection.js';
-import NodeInformation from './NodeInformation.js';
+import CVTimelineSection from './NodeCardComponents/CVTimelineSection';
+import UpdatePersonalInfoSection from './NodeCardComponents/UpdatePersonalInfoSection.js';
+import UpdateHierarchicalInfoSection from './NodeCardComponents/UpdateHierarchicalInfoSection.js';
+import NodeInformation from './NodeCardComponents/NodeInformation.js';
 import '../styles/fonts.css';
+import '../styles/scrollbar.css';
 
-const MotionPath = motion.path;
-
-const AnimatedLogo = () => (
-  <svg width="40" height="40" viewBox="0 0 50 50">
-    <MotionPath
-      d="M25,10 L40,40 L10,40 Z"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      initial={{ pathLength: 0 }}
-      animate={{ pathLength: 1 }}
-      transition={{ duration: 2, ease: "easeInOut" }}
-    />
-  </svg>
-);
+// Theme to match other modals
+const THEME = {
+  primary: '#1F2937',
+  primaryLight: '#374151',
+  buttonColor: '#1F2937',
+  buttonHover: '#111827',
+  bgGray: '#F9FAFB',
+  borderColor: '#E5E7EB'
+};
 
 const EnhancedNodeCard = ({ 
   node, 
@@ -37,238 +31,281 @@ const EnhancedNodeCard = ({
   getParentNode
 }) => {
   const [activeScreen, setActiveScreen] = useState('main');
-  const bgOpacity = useMotionValue(0);
-  const bgBlur = useTransform(bgOpacity, [0, 1], [0, 10]);
-
-  const nameLanguage = getLanguage(node.name);
   const roleLanguage = getLanguage(node.role);
   const departmentLanguage = getLanguage(node.department);
 
   const handleOpenUpdateScreen = () => {
     setActiveScreen('updateMenu');
-    onOpenUpdateModal();
+    onOpenUpdateModal && onOpenUpdateModal();
   };
 
   const handleCloseUpdateScreen = () => {
     setActiveScreen('main');
-    onCloseUpdateModal();
+    onCloseUpdateModal && onCloseUpdateModal();
   };
 
-  const renderNavigationButton = (onClick, icon, text) => (
-    <motion.button
-      onClick={onClick}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      className="w-full px-4 py-2 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-center"
-    >
-      {icon}
-      <span className="font-bold">{text}</span>
-    </motion.button>
-  );
+  // Animation variants
+  const modalVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 }
+  };
+
+  const contentVariants = {
+    hidden: { scale: 0.95, opacity: 0 },
+    visible: {
+      scale: 1,
+      opacity: 1,
+      transition: { type: "spring", damping: 30, stiffness: 400 }
+    },
+    exit: {
+      scale: 0.95,
+      opacity: 0,
+      transition: { duration: 0.2 }
+    }
+  };
+
+  const screenVariants = {
+    hidden: (direction) => ({
+      x: direction * 20,
+      opacity: 0,
+    }),
+    visible: {
+      x: 0,
+      opacity: 1,
+      transition: {
+        x: { type: "spring", stiffness: 300, damping: 30 },
+        opacity: { duration: 0.2 }
+      }
+    },
+    exit: (direction) => ({
+      x: direction * -20,
+      opacity: 0,
+      transition: {
+        x: { type: "spring", stiffness: 300, damping: 30 },
+        opacity: { duration: 0.2 }
+      }
+    })
+  };
 
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        variants={modalVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
         className="fixed inset-0 flex justify-center items-center z-50 p-4 bg-black bg-opacity-50"
         onClick={onClose}
-        style={{
-          backdropFilter: `blur(${bgBlur.get()}px)`,
-        }}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          transition={{ type: "spring", damping: 20, stiffness: 300 }}
-          className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+          variants={contentVariants}
+          className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden"
           onClick={(e) => e.stopPropagation()}
-          onAnimationComplete={() => bgOpacity.set(0.5)}
         >
-          <div className="p-6 bg-blue-100 relative">
-            <div className="absolute left-6 top-6">
-              <AnimatedLogo />
-            </div>
-            <h2
-              className={`text-3xl font-black text-gray-800 tracking-tight ${getFontClass(nameLanguage)} text-center mt-8`}
-              dir={getTextDirection(nameLanguage)}
-            >
-              {node.name || 'Name not provided'}
-            </h2>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={onClose}
-              className="absolute right-6 top-6 text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <X size={24} />
-            </motion.button>
+          {/* Header */}
+          <div className="flex justify-between items-center p-4 border-b border-gray-100">
+            <div className="flex-grow" /> {/* Spacer to push the button to the right */}
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
+              <X size={20} />
+            </button>
           </div>
-          <AnimatePresence mode="wait">
-            {activeScreen === 'main' && (
-              <motion.div
-                key="main"
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 50 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="p-6 space-y-4">
-                  <motion.div
-                    className="bg-blue-100 rounded-xl py-3 px-4 flex items-center justify-center"
-                    whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-                  >
-                    <span
-                      className={`text-gray-800 ${getFontClass(roleLanguage)} text-center font-semibold`}
+
+          {/* Content */}
+          <div className="max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
+            <AnimatePresence mode="wait">
+              {activeScreen === 'main' && (
+                <motion.div
+                  key="main"
+                  custom={1}
+                  variants={screenVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="p-6 space-y-4"
+                >
+                  {/* Role */}
+                  <div className="bg-gray-50 rounded-md p-3">
+                    <div className="text-sm text-gray-500 mb-1">Role</div>
+                    <div 
+                      className={`text-gray-800 font-medium ${getFontClass(roleLanguage)}`}
                       dir={getTextDirection(roleLanguage)}
                     >
-                      {node.role || 'Role not specified'}
-                    </span>
-                  </motion.div>
-                  <motion.div
-                    className="bg-blue-100 rounded-xl py-3 px-4 flex items-center justify-center"
-                    whileHover={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
-                  >
-                    <span
-                      className={`text-gray-800 ${getFontClass(departmentLanguage)} text-center`}
+                      {node.role || 'Not specified'}
+                    </div>
+                  </div>
+
+                  {/* Department */}
+                  <div className="bg-gray-50 rounded-md p-3">
+                    <div className="text-sm text-gray-500 mb-1">Department</div>
+                    <div 
+                      className={`text-gray-800 ${getFontClass(departmentLanguage)}`}
                       dir={getTextDirection(departmentLanguage)}
                     >
-                      {node.department || 'Department not specified'}
-                    </span>
-                  </motion.div>
-                  <DirectReportsSection node={node} />
-                  <motion.button
-                    onClick={() => setActiveScreen('information')}
-                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="font-bold">View Information</span>
-                    <FileText size={20} />
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setActiveScreen('cv')}
-                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="font-bold">View CV</span>
-                    <ArrowRight size={20} />
-                  </motion.button>
-                  <motion.button
-                    onClick={handleOpenUpdateScreen}
-                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="font-bold">Update Information</span>
-                    <Edit size={20} />
-                  </motion.button>
-                </div>
-              </motion.div>
-            )}
-            {activeScreen === 'updateMenu' && (
-              <motion.div
-                key="updateMenu"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="p-6 space-y-4">
-                  {renderNavigationButton(handleCloseUpdateScreen, <ArrowLeft size={20} className="mr-2" />, "Back to Main Info")}
-                  <motion.button
-                    onClick={() => setActiveScreen('updatePersonal')}
-                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="font-bold">Update Personal Information</span>
-                    <User size={20} />
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setActiveScreen('updateHierarchical')}
-                    className="w-full px-4 py-3 bg-blue-200 text-gray-800 rounded-xl hover:bg-blue-300 transition-colors flex items-center justify-between"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="font-bold">Update Hierarchical Information</span>
-                    <GitBranch size={20} />
-                  </motion.button>
-                </div>
-              </motion.div>
-            )}
+                      {node.department || 'Not specified'}
+                    </div>
+                  </div>
 
-            {activeScreen === 'information' && (
-              <motion.div
-                key="information"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.3 }}
-              >
-                <NodeInformation
-                  node={node}
-                  onBack={() => setActiveScreen('main')}
-                />
-              </motion.div>
-            )}
-            {activeScreen === 'updatePersonal' && (
-              <motion.div
-                key="updatePersonal"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.3 }}
-              >
-                <UpdatePersonalInfoSection
-                  node={node}
-                  onBack={() => setActiveScreen('updateMenu')}
-                  folderId={folderId}
-                  tableId={tableId}
-                  folderStructure={folderStructure}
-                  onUpdateComplete={onUpdateComplete}
-                />
-              </motion.div>
-            )}
-            {activeScreen === 'updateHierarchical' && (
-              <motion.div
-                key="updateHierarchical"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.3 }}
-              >
-                <UpdateHierarchicalInfoSection
-                  node={node}
-                  onBack={() => setActiveScreen('updateMenu')}
-                  folderId={folderId}
-                  tableId={tableId}
-                  folderStructure={folderStructure}
-                  onUpdateComplete={onUpdateComplete}
-                  getParentNode={getParentNode}
-                />
-              </motion.div>
-            )}
-            {activeScreen === 'cv' && (
-              <motion.div
-                key="cv"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.3 }}
-              >
-                <CVTimelineSection
-                  node={node}
-                  folderId={folderId}
-                  tableId={tableId}
-                  onBack={() => setActiveScreen('main')}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  {/* Action Buttons */}
+                  <div className="space-y-3 pt-2">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveScreen('information')}
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                    >
+                      <span>View Information</span>
+                      <FileText size={18} />
+                    </motion.button>
+                    
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveScreen('cv')}
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                    >
+                      <span>View CV</span>
+                      <ArrowRight size={18} />
+                    </motion.button>
+                    
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleOpenUpdateScreen}
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-white font-medium transition-colors"
+                      style={{ backgroundColor: THEME.buttonColor }}
+                    >
+                      <span>Update Information</span>
+                      <Edit size={18} />
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+              
+              {activeScreen === 'updateMenu' && (
+                <motion.div
+                  key="updateMenu"
+                  custom={-1}
+                  variants={screenVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="p-6 space-y-4"
+                >
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleCloseUpdateScreen}
+                    className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                  >
+                    <ArrowLeft size={18} className="mr-2" />
+                    <span>Back to Main Info</span>
+                  </motion.button>
+                  
+                  <div className="pt-2 space-y-3">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveScreen('updatePersonal')}
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                    >
+                      <span>Update Personal Information</span>
+                      <User size={18} />
+                    </motion.button>
+                    
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveScreen('updateHierarchical')}
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                    >
+                      <span>Update Hierarchical Information</span>
+                      <GitBranch size={18} />
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeScreen === 'information' && (
+                <motion.div
+                  key="information"
+                  custom={-1}
+                  variants={screenVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <NodeInformation
+                    node={node}
+                    onBack={() => setActiveScreen('main')}
+                    theme={THEME}
+                  />
+                </motion.div>
+              )}
+              
+              {activeScreen === 'updatePersonal' && (
+                <motion.div
+                  key="updatePersonal"
+                  custom={-1}
+                  variants={screenVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <UpdatePersonalInfoSection
+                    node={node}
+                    onBack={() => setActiveScreen('updateMenu')}
+                    folderId={folderId}
+                    tableId={tableId}
+                    folderStructure={folderStructure}
+                    onUpdateComplete={onUpdateComplete}
+                    theme={THEME}
+                  />
+                </motion.div>
+              )}
+              
+              {activeScreen === 'updateHierarchical' && (
+                <motion.div
+                  key="updateHierarchical"
+                  custom={-1}
+                  variants={screenVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <UpdateHierarchicalInfoSection
+                    node={node}
+                    onBack={() => setActiveScreen('updateMenu')}
+                    folderId={folderId}
+                    tableId={tableId}
+                    folderStructure={folderStructure}
+                    onUpdateComplete={onUpdateComplete}
+                    getParentNode={getParentNode}
+                    theme={THEME}
+                  />
+                </motion.div>
+              )}
+              
+              {activeScreen === 'cv' && (
+                <motion.div
+                  key="cv"
+                  custom={-1}
+                  variants={screenVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <CVTimelineSection
+                    node={node}
+                    folderId={folderId}
+                    tableId={tableId}
+                    onBack={() => setActiveScreen('main')}
+                    theme={THEME}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>

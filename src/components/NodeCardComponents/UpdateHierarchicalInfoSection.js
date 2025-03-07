@@ -4,12 +4,12 @@ import { ArrowLeft, Save, ArrowRight, ArrowRightCircle, ChevronDown } from 'luci
 import Select from 'react-select';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
-import '../styles/datepicker.css';
-import '../styles/scrollbar.css';
-import '../styles/fonts.css';
-import DatePickerWrapper from './DatePickerWrapper';
-import PopupInfoModal from './PopupInfoModal';
+import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
+import '../../styles/datepicker.css';
+import '../../styles/scrollbar.css';
+import '../../styles/fonts.css';
+import DatePickerWrapper from '../../styles/datepicker.css';
+import PopupInfoModal from '../HelperComponents/PopupInfoModal';
 
 const API_BASE_URL = "http://localhost:5001";
 const MAX_HEIGHT_FOR_REVIEW_CHANGES = 200;

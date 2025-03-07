@@ -1,25 +1,44 @@
-from flask import Flask, request, jsonify, send_from_directory, send_file
-from flask_cors import CORS
-from models import (Folder, Table, DataEntry, get_session, 
-                    dispose_db, create_new_db, init_db, set_db_path, 
-                    check_db_schema, is_valid_sqlite_db)
-from utils import (process_excel_data, 
-                   insert_data_entries, get_org_chart, 
-                   get_department_structure, get_age_distribution, export_excel_data, generate_hierarchical_structure)
-from sqlalchemy.exc import SQLAlchemyError
+# Standard library imports
 import logging
-from datetime import datetime
 import os
-import time
-from contextlib import contextmanager
-from sqlalchemy import func
-import webbrowser
-import threading
 import sys
-import re
-from sqlalchemy import and_, or_, not_, inspect
-from datetime import datetime, date
+import time
+import webbrowser
 import subprocess
+import re
+from contextlib import contextmanager
+from datetime import datetime
+from io import BytesIO
+
+# Third-party imports
+from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask_cors import CORS
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func, inspect, or_, and_
+
+# Local application imports
+from models import (
+    Folder,
+    Table,
+    DataEntry,
+    get_session,
+    dispose_db,
+    create_new_db,
+    init_db,
+    set_db_path,
+    check_db_schema,
+    is_valid_sqlite_db,
+)
+from utils import (
+    process_excel_data,
+    insert_data_entries,
+    get_org_chart,
+    get_department_structure,
+    get_age_distribution,
+    export_excel_data,
+    generate_hierarchical_structure,
+)
+from report_service import OrganizationReportService
 
 def resource_path(relative_path):
     try:
@@ -1446,11 +1465,37 @@ def compute_hierarchical_changes(session, table_id, hierarchical_structure, hier
 
     return changes
 
+@app.route("/generate_org_report_pdf/<int:table_id>", methods=["GET"])
+def generate_org_report_pdf(table_id):
+    """Generate a PDF report for the specified table.
+    
+    Args:
+        table_id (int): The ID of the table to analyze.
+        
+    Returns:
+        PDF file as an attachment.
+    """
+    try:
+        report_service = OrganizationReportService(table_id)
+        pdf_bytes = report_service.generate_pdf_report()
+        
+        # Return PDF as a downloadable file
+        buffer = BytesIO(pdf_bytes)
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"org_report_table_{table_id}.pdf"
+        )
+    except Exception as e:
+        logger.error(f"Error generating PDF report: {str(e)}")
+        return jsonify({"error": f"Failed to generate PDF report: {str(e)}"}), 500
+
 if __name__ == "__main__":
     print("Starting application...")
     print(f"Current working directory: {os.getcwd()}")
     print(f"Static folder path: {app.static_folder}")
     print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
-    
-    threading.Thread(target=open_browser).start()
     app.run(host='0.0.0.0', port=5001, use_reloader=False)

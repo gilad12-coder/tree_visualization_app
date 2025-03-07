@@ -16,7 +16,7 @@ import TableSelectionModal from "./TableSelectionModal";
 import {
   ExistingDatabaseSection,
   NewDatabaseSection,
-} from "../components/DatabaseSelection";
+} from "../components/DatabaseSelectionComponents";
 
 const API_BASE_URL = "http://localhost:5001";
 

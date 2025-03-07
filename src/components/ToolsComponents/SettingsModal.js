@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Layout, Move } from 'react-feather';
+import { Eye, Layout, Move, X } from 'react-feather';
+
+// Default color for nodes
+const DEFAULT_NODE_COLOR = '#F5F7FA';
+
+// Minimal theme
+const THEME = {
+  primary: '#1F2937',
+  primaryLight: '#1F2937',
+  buttonColor: '#1F2937',
+  buttonHover: '#111827'
+};
 
 const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
   const [activeTab, setActiveTab] = useState('display');
   const [previousTab, setPreviousTab] = useState(null);
-  // Only include fields that exist in the DataEntry model from the backend
   const [availableFields] = useState([
     { id: 'name', label: 'Name' },
     { id: 'role', label: 'Role' },
@@ -57,25 +67,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     })
   };
 
-  // Tab indicator animation
-  const tabIndicatorVariants = {
-    initial: { opacity: 0, scale: 0.8 },
-    animate: { 
-      opacity: 1, 
-      scale: 1,
-      transition: { 
-        type: "spring", 
-        stiffness: 500, 
-        damping: 30 
-      }
-    },
-    exit: { 
-      opacity: 0, 
-      scale: 0.8,
-      transition: { duration: 0.2 }
-    }
-  };
-
   useEffect(() => {
     const updatedSettings = { ...settings };
     let hasChanges = false;
@@ -95,23 +86,17 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     }
   }, [settings, onSettingsChange]);
 
-  const handleColorChange = (level, color) => {
-    const updatedColors = { 
-      ...(settings.nodeColors || {}), 
-      [level]: color 
-    };
-    
+  const handleNodeColorChange = (color) => {
     onSettingsChange({
       ...settings,
-      nodeColors: updatedColors
+      nodeColor: color
     });
   };
 
-  const resetColors = () => {
-    // Reset to the original defaults by clearing overrides
+  const resetNodeColor = () => {
     onSettingsChange({
       ...settings,
-      nodeColors: {}
+      nodeColor: DEFAULT_NODE_COLOR
     });
   };
 
@@ -139,6 +124,12 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
         className="bg-white rounded-lg shadow-md w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
       >
+        <div className="flex justify-between items-center p-4 border-b border-gray-100">
+          <h2 className="text-lg font-medium text-gray-900">Settings</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
         <div className="flex h-full overflow-hidden">
           {/* Sidebar */}
           <div className="w-64 border-r border-gray-100 py-6">
@@ -147,28 +138,21 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`w-full flex items-center px-4 py-3 text-sm rounded-md transition-all duration-300 relative ${
+                  className={`w-full flex items-center px-4 py-3 text-sm rounded-md transition-colors relative ${
                     activeTab === tab.id 
-                      ? 'text-[#4263EB] bg-blue-50 font-medium' 
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? 'text-gray-900 font-medium border-l-2' 
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
+                  style={{
+                    borderLeftColor: activeTab === tab.id ? THEME.primary : 'transparent'
+                  }}
                 >
                   <tab.icon 
-                    className={`mr-3 transition-all duration-300 ${activeTab === tab.id ? 'text-[#4263EB]' : 'text-gray-400'}`} 
+                    className="mr-3 transition-colors"
+                    style={{ color: activeTab === tab.id ? THEME.primary : '#9CA3AF' }}
                     size={18} 
                   />
-                  <span className="transition-all duration-300">{tab.label}</span>
-                  <AnimatePresence>
-                    {activeTab === tab.id && (
-                      <motion.div 
-                        className="ml-auto w-1 h-5 bg-[#4263EB] rounded-full"
-                        variants={tabIndicatorVariants}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                      />
-                    )}
-                  </AnimatePresence>
+                  <span>{tab.label}</span>
                 </button>
               ))}
             </nav>
@@ -201,7 +185,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         id="primaryField"
                         value={settings.primaryField || 'name'}
                         onChange={(e) => onSettingsChange({ ...settings, primaryField: e.target.value })}
-                        className="w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:ring-[#4263EB] focus:border-[#4263EB]"
+                        className="w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-opacity-50 focus:ring-gray-500"
                       >
                         {availableFields.map(field => (
                           <option key={field.id} value={field.id}>
@@ -219,7 +203,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         id="secondaryField"
                         value={settings.secondaryField || 'role'}
                         onChange={(e) => onSettingsChange({ ...settings, secondaryField: e.target.value })}
-                        className="w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:ring-[#4263EB] focus:border-[#4263EB]"
+                        className="w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-opacity-50 focus:ring-gray-500"
                       >
                         {availableFields.map(field => (
                           <option key={field.id} value={field.id}>
@@ -244,87 +228,74 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                   <div className="flex justify-between items-center mb-2">
                     <h3 className="text-lg font-medium text-gray-900">Node Color Settings</h3>
                     <motion.button 
-                      onClick={resetColors}
-                      className="text-sm text-[#4263EB] hover:text-blue-700 px-3 py-1 rounded hover:bg-blue-50 transition-colors"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      onClick={resetNodeColor}
+                      className="text-sm px-3 py-1 rounded text-gray-600 hover:bg-gray-100 transition-colors"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
                     >
-                      Reset to Defaults
+                      Reset to Default
                     </motion.button>
                   </div>
 
                   <p className="text-sm text-gray-500 mb-6">
-                    Customize the colors for each level of the organization chart.
+                    Choose a color for all nodes in the organization chart.
                   </p>
                   
-                  <div className="space-y-4">
-                    {[1, 2, 3, 4, 5].map(level => {
-                      const levelKey = `level${level}`;
-                      const currentColor = settings.nodeColors?.[levelKey] || '';
-                      
-                      return (
-                        <motion.div 
-                          key={level} 
-                          className="flex items-center p-3 border border-gray-100 rounded-lg"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ 
-                            opacity: 1, 
-                            y: 0,
-                            transition: { 
-                              delay: level * 0.05,
-                              duration: 0.2
-                            }
-                          }}
-                        >
-                          <div className="w-36">
-                            <div className="text-sm font-medium text-gray-800">Level {level}</div>
-                            <div className="text-xs text-gray-500">
-                              {level === 1 ? 'Top level' : `Subordinate ${level - 1}`}
-                            </div>
-                          </div>
+                  <div className="p-5 border border-gray-100 rounded-lg">
+                    <div className="flex items-center space-x-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Node Background Color
+                        </label>
+                        <div className="flex items-center space-x-4">
+                          <motion.div 
+                            className="w-16 h-16 rounded-md border border-gray-300 shadow-inner flex-shrink-0" 
+                            style={{ 
+                              backgroundColor: settings.nodeColor || DEFAULT_NODE_COLOR,
+                            }}
+                            animate={{ backgroundColor: settings.nodeColor || DEFAULT_NODE_COLOR }}
+                            transition={{ duration: 0.3 }}
+                          />
                           
-                          <div className="flex-1 flex items-center space-x-3">
-                            <motion.div 
-                              className="w-12 h-12 rounded-md border border-gray-300 shadow-inner flex-shrink-0" 
-                              style={{ 
-                                backgroundColor: currentColor,
-                              }}
-                              animate={{ backgroundColor: currentColor }}
-                              transition={{ duration: 0.3 }}
-                            />
-                            
+                          <div className="flex flex-col space-y-3">
                             <input
                               type="color"
-                              value={currentColor || "#FFFFFF"}
-                              onChange={(e) => handleColorChange(levelKey, e.target.value)}
+                              value={settings.nodeColor || DEFAULT_NODE_COLOR}
+                              onChange={(e) => handleNodeColorChange(e.target.value)}
                               className="h-9 w-14 cursor-pointer rounded border border-gray-300 flex-shrink-0"
                             />
                             
                             <input
                               type="text"
-                              value={currentColor || ""}
-                              onChange={(e) => handleColorChange(levelKey, e.target.value)}
+                              value={settings.nodeColor || DEFAULT_NODE_COLOR}
+                              onChange={(e) => handleNodeColorChange(e.target.value)}
+                              placeholder="#FFFFFF"
                               className="p-2 border border-gray-300 rounded-md text-sm w-28 font-mono flex-shrink-0"
                             />
-                            
-                            {/* Preview */}
-                            <div className="ml-4 flex-1">
-                              <motion.div 
-                                className="w-full h-12 rounded-md flex items-center justify-center shadow-sm"
-                                style={{ 
-                                  backgroundColor: currentColor,
-                                  border: '1px solid rgba(0,0,0,0.1)'
-                                }}
-                                animate={{ backgroundColor: currentColor }}
-                                transition={{ duration: 0.3 }}
-                              >
-                                <span className="text-sm font-medium">Preview</span>
-                              </motion.div>
-                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Preview */}
+                      <div className="flex-1 ml-10">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Preview
+                        </label>
+                        <motion.div 
+                          className="w-full h-20 rounded-xl flex items-center justify-center shadow-sm border border-gray-200"
+                          style={{ 
+                            backgroundColor: settings.nodeColor || DEFAULT_NODE_COLOR,
+                          }}
+                          animate={{ backgroundColor: settings.nodeColor || DEFAULT_NODE_COLOR }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <div className="w-full flex flex-col items-center">
+                            <span className="text-lg font-bold">Sample Name</span>
+                            <span className="text-sm font-medium">Sample Role</span>
                           </div>
                         </motion.div>
-                      );
-                    })}
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -369,6 +340,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         value={settings.moveAmount}
                         onChange={(e) => onSettingsChange({ ...settings, moveAmount: parseInt(e.target.value) })}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        style={{ accentColor: THEME.buttonColor }}
                       />
                       <div className="flex justify-between text-xs text-gray-500">
                         <span>Fine (10px)</span>
@@ -403,6 +375,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         value={settings.zoomAmount}
                         onChange={(e) => onSettingsChange({ ...settings, zoomAmount: parseFloat(e.target.value) })}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        style={{ accentColor: THEME.buttonColor }}
                       />
                       <div className="flex justify-between text-xs text-gray-500">
                         <span>Subtle (0.05x)</span>
@@ -437,6 +410,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         value={settings.searchZoomLevel}
                         onChange={(e) => onSettingsChange({ ...settings, searchZoomLevel: parseFloat(e.target.value) })}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        style={{ accentColor: THEME.buttonColor }}
                       />
                       <div className="flex justify-between text-xs text-gray-500">
                         <span>Zoomed Out (0.1x)</span>
@@ -455,9 +429,15 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
         <div className="p-5 flex justify-center border-t border-gray-100">
           <motion.button
             onClick={onClose}
-            className="px-8 py-2.5 bg-[#5F738C] text-white rounded-md hover:bg-[#4A5D75] transition-colors shadow-sm text-sm font-medium min-w-[140px]"
-            whileHover={{ scale: 1.03, backgroundColor: "#4A5D75" }}
-            whileTap={{ scale: 0.97 }}
+            className="px-8 py-2.5 rounded-md text-white text-sm font-medium min-w-[140px] transition-colors"
+            style={{ 
+              backgroundColor: THEME.buttonColor,
+            }}
+            whileHover={{ 
+              backgroundColor: THEME.buttonHover,
+              transition: { duration: 0.2 }
+            }}
+            whileTap={{ scale: 0.98 }}
           >
             Apply Changes
           </motion.button>

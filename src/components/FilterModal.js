@@ -1,50 +1,87 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { motion } from "framer-motion";
 import {
-  X,
   Trash2,
   Check,
   Eye,
-  ChevronDown,
-  Briefcase,
-  User,
-  Hash,
-  Award,
-  UserCheck,
-  Search,
+  X,
 } from "react-feather";
-import Button from "./Button";
 import axios from "axios";
 import { toast } from "react-toastify";
-import ResultCard from "./ResultCard.js";
+import ResultCard from "./FliterAndSearchComponents/ResultCard";
 import '../styles/scrollbar.css';
 
-const MotionPath = motion.path;
+// Theme to match other modals
+const THEME = {
+  primary: '#1F2937',
+  primaryLight: '#374151',
+  buttonColor: '#1F2937',
+  buttonHover: '#111827',
+  bgGray: '#F9FAFB',
+  borderColor: '#E5E7EB'
+};
 
-const AnimatedLogo = () => (
-  <svg width="40" height="40" viewBox="0 0 50 50">
-    <MotionPath
-      d="M25,10 L40,40 L10,40 Z"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      initial={{ pathLength: 0 }}
-      animate={{ pathLength: 1 }}
-      transition={{ duration: 2, ease: "easeInOut" }}
-    />
-  </svg>
-);
+// Button component to match the new theme
+const Button = ({ children, onClick, icon: Icon, variant = "primary", disabled = false, className = "" }) => {
+  const getButtonStyle = () => {
+    switch (variant) {
+      case "primary":
+        return {
+          bg: THEME.buttonColor,
+          hoverBg: THEME.buttonHover,
+          text: "text-white"
+        };
+      case "secondary":
+        return {
+          bg: "bg-gray-100",
+          hoverBg: "hover:bg-gray-200",
+          text: "text-gray-700"
+        };
+      case "danger":
+        return {
+          bg: "bg-gray-100",
+          hoverBg: "hover:bg-gray-200",
+          text: "text-gray-700"
+        };
+      case "active":
+        return {
+          bg: THEME.primaryLight,
+          hoverBg: THEME.buttonHover,
+          text: "text-white"
+        };
+      default:
+        return {
+          bg: "bg-gray-100",
+          hoverBg: "hover:bg-gray-200",
+          text: "text-gray-600"
+        };
+    }
+  };
 
-const columnTypes = [
-  { key: "department", label: "Department", Icon: Briefcase },
-  { key: "name", label: "Name", Icon: User },
-  { key: "organization_id", label: "Organization", Icon: Briefcase },
-  { key: "person_id", label: "Person ID", Icon: Hash },
-  { key: "rank", label: "Rank", Icon: Award },
-  { key: "role", label: "Role", Icon: UserCheck },
-];
+  const style = getButtonStyle();
+  
+  return (
+    <motion.button
+      whileHover={!disabled ? { scale: 1.02 } : {}}
+      whileTap={!disabled ? { scale: 0.98 } : {}}
+      className={`px-4 py-2.5 rounded-md text-sm font-medium flex items-center justify-center space-x-2 ${style.text} ${
+        variant === "primary" || variant === "active" ? "" : style.bg + " " + style.hoverBg
+      } ${disabled ? "opacity-50 cursor-not-allowed" : ""} ${className}`}
+      style={{
+        backgroundColor: (variant === "primary" || variant === "active") ? 
+          (variant === "active" ? THEME.primaryLight : THEME.buttonColor) : 
+          undefined
+      }}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {Icon && <Icon size={18} className="mr-2" />}
+      <span>{children}</span>
+    </motion.button>
+  );
+};
 
-const FilterModal = ({
+const EnhancedFilterModal = ({
   isOpen,
   onClose,
   onSearch,
@@ -56,27 +93,54 @@ const FilterModal = ({
   const [results, setResults] = useState([]);
   const [selectedResults, setSelectedResults] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isResultsFetched, setIsResultsFetched] = useState(false);
-  const [showColumnSelection, setShowColumnSelection] = useState(false);
-  const [selectedColumns, setSelectedColumns] = useState([]);
+
+  // Animation variants
+  const modalVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 }
+  };
+
+  const contentVariants = {
+    hidden: { scale: 0.95, opacity: 0 },
+    visible: {
+      scale: 1,
+      opacity: 1,
+      transition: { type: "spring", damping: 30, stiffness: 400 }
+    },
+    exit: {
+      scale: 0.95,
+      opacity: 0,
+      transition: { duration: 0.2 }
+    }
+  };
 
   const fetchResults = useCallback(
-    async (query = "", columns = []) => {
+    async (query = "") => {
       setIsLoading(true);
       try {
+        console.log(`Fetching results for folder: ${folderId}, table: ${tableId}`);
+        console.log(`Search query: "${query}"`);
+        
         const response = await axios.get(
           `http://localhost:5001/search/${folderId}/${tableId}`,
           {
             params: {
               query: query,
-              columns: columns.join(","),
             },
           }
         );
-        setResults(response.data.results);
-        setIsResultsFetched(true);
+        
+        console.log(`Search response:`, response.data);
+        if (response.data && Array.isArray(response.data.results)) {
+          setResults(response.data.results);
+        } else {
+          console.error("Invalid response format:", response.data);
+          setResults([]);
+        }
       } catch (error) {
         console.error("Error fetching results:", error);
+        toast.error("Failed to fetch results. Please try again.");
         setResults([]);
       } finally {
         setIsLoading(false);
@@ -85,11 +149,17 @@ const FilterModal = ({
     [folderId, tableId]
   );
 
+  // Keep a ref to avoid dependency loop while still respecting the ESLint warning
+  const initialFetchRef = useRef(false);
+  
   useEffect(() => {
-    if (isOpen) {
-      fetchResults("");
+    if (isOpen && !initialFetchRef.current) {
+      fetchResults(searchInput);
+      initialFetchRef.current = true;
+    } else if (!isOpen) {
+      initialFetchRef.current = false;
     }
-  }, [isOpen, fetchResults]);
+  }, [isOpen, fetchResults, searchInput]);
 
   useEffect(() => {
     const resetModal = () => {
@@ -97,19 +167,12 @@ const FilterModal = ({
       setResults([]);
       setSelectedResults([]);
       setIsLoading(false);
-      setIsResultsFetched(false);
-      setShowColumnSelection(false);
-      setSelectedColumns([]);
     };
 
     if (resetTrigger) {
       resetModal();
     }
   }, [resetTrigger]);
-
-  const handleSearch = () => {
-    fetchResults(searchInput, selectedColumns);
-  };
 
   const handleClearAll = () => {
     setSelectedResults([]);
@@ -141,23 +204,29 @@ const FilterModal = ({
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
-      handleSearch();
+      fetchResults(searchInput);
     }
   };
 
-  const toggleColumnSelection = (column) => {
-    setSelectedColumns((prev) =>
-      prev.includes(column)
-        ? prev.filter((c) => c !== column)
-        : [...prev, column]
-    );
-  };
-
   const renderResults = () => {
+    if (isLoading) {
+      return (
+        <div className="p-6 text-center">
+          <div className="animate-pulse flex flex-col items-center">
+            <div className="w-12 h-12 bg-gray-200 rounded-full mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+          </div>
+          <p className="text-sm text-gray-500 mt-4">Loading results...</p>
+        </div>
+      );
+    }
+
     if (results.length === 0) {
       return (
-        <div className="text-center py-4">
+        <div className="text-center py-8">
           <p className="text-gray-500">No results found</p>
+          <p className="text-sm text-gray-400 mt-2">Try adjusting your search criteria</p>
         </div>
       );
     }
@@ -170,216 +239,123 @@ const FilterModal = ({
             result={result}
             isSelected={selectedResults.includes(result.hierarchical_structure)}
             onSelect={toggleResultSelection}
+            theme={THEME}
           />
         ))}
       </div>
     );
   };
 
-  const dropdownVariants = {
-    hidden: {
-      opacity: 0,
-      y: -10,
-      scale: 0.95,
-      transition: { duration: 0.2, ease: "easeInOut" },
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: { duration: 0.2, ease: "easeInOut" },
-    },
-    exit: {
-      opacity: 0,
-      y: -10,
-      scale: 0.95,
-      transition: { duration: 0.2, ease: "easeInOut" },
-    },
-  };
-
-  if (!isOpen || !isResultsFetched) {
+  if (!isOpen) {
     return null;
   }
 
+  console.log("Rendering EnhancedFilterModal with:", {
+    isOpen,
+    searchInput,
+    resultsCount: results.length,
+    selectedResultsCount: selectedResults.length
+  });
+
   return (
-    <AnimatePresence>
+    <motion.div
+      variants={modalVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="fixed inset-0 flex justify-center items-center z-50 p-4 bg-black bg-opacity-50"
+      onClick={onClose}
+    >
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 flex justify-center items-center z-50 p-4 bg-black bg-opacity-50"
-        onClick={onClose}
+        variants={contentVariants}
+        className="bg-white rounded-lg shadow-lg w-full max-w-5xl overflow-hidden flex flex-col"
+        style={{ maxHeight: "85vh" }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          transition={{ type: "spring", damping: 20, stiffness: 300 }}
-          className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden backdrop-filter backdrop-blur-lg"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="p-6 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <AnimatedLogo />
-                <h2 className="text-3xl font-black text-black tracking-tight">
-                  Search Org Chart
-                </h2>
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 border-b border-gray-100">
+          <div></div> {/* Empty div to push the button to the right */}
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Search Controls */}
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-grow">
+              <input
+                type="text"
+                placeholder="Search..."
+                className="w-full p-2.5 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-500"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+              />
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3">
               </div>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={onClose}
-                className="text-black hover:text-gray-700 transition-colors"
+            </div>
+          </div>
+        </div>
+
+        {/* Results Summary */}
+        {!isLoading && results.length > 0 && (
+          <div className="px-6 py-3 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Search Results</span>
+              <span className="bg-gray-200 text-gray-800 rounded-full px-3 py-1 text-sm font-medium">
+                {results.length} {results.length === 1 ? 'result' : 'results'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Results Area */}
+        <div className="flex-grow overflow-y-auto custom-scrollbar">
+          <div className="p-6">
+            <div className="bg-white rounded-md border border-gray-100 overflow-hidden">
+              <div className="p-4">
+                {renderResults()}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons - Footer */}
+        <div className="p-4 border-t border-gray-100">
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-2">
+              <Button
+                onClick={handleClearAll}
+                icon={Trash2}
+                variant="secondary"
+                disabled={selectedResults.length === 0}
               >
-                <X size={24} />
-              </motion.button>
+                Clear Selection
+              </Button>
+              <Button
+                onClick={handleSelectAll}
+                icon={Check}
+                variant="secondary"
+                disabled={results.length === 0}
+              >
+                Select All
+              </Button>
             </div>
+            
+            <Button
+              onClick={handleViewResults}
+              icon={Eye}
+              variant="primary"
+              disabled={selectedResults.length === 0}
+            >
+              View Selected ({selectedResults.length})
+            </Button>
           </div>
-          <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="relative flex-grow">
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="w-full bg-blue-100 bg-opacity-50 rounded-xl py-3 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-700"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                />
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Search size={18} className="text-blue-500" />
-                </div>
-              </div>
-              <div className="relative">
-                <Button
-                  onClick={() => setShowColumnSelection(!showColumnSelection)}
-                  icon={ChevronDown}
-                  variant={selectedColumns.length > 0 ? "active" : "primary"}
-                >
-                  {selectedColumns.length > 0
-                    ? `Columns (${selectedColumns.length})`
-                    : "Columns"}
-                </Button>
-                <AnimatePresence>
-                  {showColumnSelection && (
-                    <motion.div
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                      variants={dropdownVariants}
-                      className="absolute z-10 right-0 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 overflow-hidden"
-                    >
-                      <motion.div
-                        className="py-1 max-h-60 overflow-y-auto custom-scrollbar"
-                        role="menu"
-                        aria-orientation="vertical"
-                        aria-labelledby="options-menu"
-                      >
-                        {columnTypes.map(({ key, label, Icon }) => (
-                          <motion.label
-                            key={key}
-                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <div className="relative flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={selectedColumns.includes(key)}
-                                onChange={() => toggleColumnSelection(key)}
-                                className="opacity-0 absolute h-5 w-5 cursor-pointer"
-                              />
-                              <div
-                                className={`border-2 rounded-md w-5 h-5 flex flex-shrink-0 justify-center items-center mr-2 ${
-                                  selectedColumns.includes(key)
-                                    ? "border-blue-500 bg-blue-500"
-                                    : "border-gray-300 bg-white"
-                                }`}
-                              >
-                                <Check
-                                  size={14}
-                                  className={`text-white ${
-                                    selectedColumns.includes(key)
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  }`}
-                                />
-                              </div>
-                            </div>
-                            <Icon size={16} className="mr-2" />
-                            <span className="truncate">{label}</span>
-                          </motion.label>
-                        ))}
-                      </motion.div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            <div className="mt-2 bg-blue-100 bg-opacity-50 rounded-xl p-3 max-h-96 overflow-y-auto custom-scrollbar mb-6">
-              {isLoading ? (
-                <div className="text-center py-4">
-                  <p className="text-gray-500">Loading results...</p>
-                </div>
-              ) : results.length > 0 ? (
-                <>
-                  <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="mb-3 p-2 bg-blue-500 bg-opacity-20 rounded-lg flex items-center justify-between"
-                  >
-                    <div className="flex items-center">
-                      <span className="font-semibold text-blue-800">
-                        Total Results:
-                      </span>
-                    </div>
-                    <span className="text-2xl font-bold text-blue-600">
-                      {results.length}
-                    </span>
-                  </motion.div>
-                  {renderResults()}
-                </>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-gray-500">No results found</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-between mt-4 space-x-4">
-              <div className="flex space-x-2">
-                <Button
-                  onClick={handleClearAll}
-                  icon={Trash2}
-                  variant="danger"
-                >
-                  Clear All
-                </Button>
-                <Button
-                  onClick={handleSelectAll}
-                  icon={Check}
-                  variant="secondary"
-                >
-                  Select All
-                </Button>
-              </div>
-              <div className="flex space-x-2">
-                <Button
-                  onClick={handleViewResults}
-                  icon={Eye}
-                  variant="primary"
-                >
-                  View Results
-                </Button>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+        </div>
       </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 };
 
-export default FilterModal;
+export default EnhancedFilterModal;

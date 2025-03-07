@@ -1,16 +1,17 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import '../../styles/datepicker.css';
 
 const DatePickerWrapper = ({
   date,
   handleDateChange,
   isRange = false,
   placeholderText,
-  wrapperColor = 'bg-blue-100',
-  wrapperOpacity = 'bg-opacity-50'
+  wrapperColor = 'bg-white',
+  wrapperOpacity = '',
+  containerClassName = ''
 }) => {
   const currentYear = useMemo(() => {
     if (isRange && Array.isArray(date)) {
@@ -20,7 +21,7 @@ const DatePickerWrapper = ({
     }
     return new Date().getFullYear();
   }, [date, isRange]);
-
+  
   const years = useMemo(() => 
     Array.from({ length: 201 }, (_, i) => currentYear - 100 + i),
     [currentYear]
@@ -31,15 +32,19 @@ const DatePickerWrapper = ({
     "July", "August", "September", "October", "November", "December"
   ];
 
+  // Apply custom styles for selected dates
+  const dayClassName = (date) => {
+    return "react-datepicker__day custom-day";
+  };
+  
   return (
     <motion.div
-      className={`${wrapperColor} ${wrapperOpacity} rounded-xl p-3 flex items-center justify-center`}
+      className={`${wrapperColor} ${wrapperOpacity} rounded-md border border-gray-300 shadow-sm p-2 flex items-center ${containerClassName}`}
       whileHover={{
-        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+        borderColor: "#9CA3AF"
       }}
     >
-      <div className="flex items-center space-x-3">
-        <Calendar size={20} className="text-blue-500 flex-shrink-0" />
+      <div className="flex items-center space-x-3 w-full">
         <DatePicker
           selected={isRange ? (Array.isArray(date) ? date[0] : null) : date}
           onChange={handleDateChange}
@@ -48,9 +53,11 @@ const DatePickerWrapper = ({
           selectsRange={isRange}
           dateFormat="yyyy-MM-dd"
           placeholderText={placeholderText || "Select date"}
-          className="bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400 font-medium text-center w-full"
-          calendarClassName="custom-calendar"
+          className="bg-transparent outline-none text-sm text-gray-700 placeholder-gray-500 w-full text-center"
+          calendarClassName="custom-calendar shadow-lg border border-gray-200 rounded-md"
           wrapperClassName="date-picker-wrapper w-full"
+          popperClassName="date-picker-popper"
+          dayClassName={dayClassName}
           renderCustomHeader={({
             date: headerDate,
             changeYear,
@@ -60,15 +67,24 @@ const DatePickerWrapper = ({
             prevMonthButtonDisabled,
             nextMonthButtonDisabled,
           }) => (
-            <div className="flex items-center justify-between px-2 py-2">
-              <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled} className="text-gray-600 hover:text-blue-500">
-                {"<"}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+              <button 
+                onClick={decreaseMonth} 
+                disabled={prevMonthButtonDisabled} 
+                className={`flex items-center justify-center w-8 h-8 rounded-md ${
+                  prevMonthButtonDisabled ? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <svg width="8" height="14" viewBox="0 0 8 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 1L1 7L7 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </button>
+              
               <div className="flex space-x-2">
                 <select
                   value={headerDate.getFullYear()}
                   onChange={({ target: { value } }) => changeYear(Number(value))}
-                  className="custom-select"
+                  className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white text-gray-800 font-medium"
                 >
                   {years.map((year) => (
                     <option key={year} value={year}>
@@ -76,12 +92,13 @@ const DatePickerWrapper = ({
                     </option>
                   ))}
                 </select>
+                
                 <select
                   value={months[headerDate.getMonth()]}
                   onChange={({ target: { value } }) =>
                     changeMonth(months.indexOf(value))
                   }
-                  className="custom-select"
+                  className="px-2 py-1 text-sm border border-gray-200 rounded-md bg-white text-gray-800 font-medium"
                 >
                   {months.map((option) => (
                     <option key={option} value={option}>
@@ -90,8 +107,17 @@ const DatePickerWrapper = ({
                   ))}
                 </select>
               </div>
-              <button onClick={increaseMonth} disabled={nextMonthButtonDisabled} className="text-gray-600 hover:text-blue-500">
-                {">"}
+              
+              <button 
+                onClick={increaseMonth} 
+                disabled={nextMonthButtonDisabled} 
+                className={`flex items-center justify-center w-8 h-8 rounded-md ${
+                  nextMonthButtonDisabled ? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <svg width="8" height="14" viewBox="0 0 8 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1L7 7L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </button>
             </div>
           )}

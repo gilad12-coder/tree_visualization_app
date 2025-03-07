@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Save, ArrowRightCircle } from 'lucide-react';
-import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
+import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import PopupInfoModal from './PopupInfoModal';
-import '../styles/datepicker.css';
-import '../styles/fonts.css';
-import '../styles/scrollbar.css';
-import DatePickerWrapper from './DatePickerWrapper';
+import PopupInfoModal from '../HelperComponents/PopupInfoModal';
+import '../../styles/datepicker.css';
+import '../../styles/fonts.css';
+import '../../styles/scrollbar.css';
+import DatePickerWrapper from '../HelperComponents/DatePickerWrapper';
 
 const API_BASE_URL = "http://localhost:5001";
 const MAX_HEIGHT_FOR_REVIEW_CHANGES = 200;

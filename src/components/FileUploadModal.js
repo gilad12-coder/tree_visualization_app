@@ -14,25 +14,23 @@ import {
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
-import DatePickerWrapper from "./DatePickerWrapper";
+import DatePickerWrapper from "./HelperComponents/DatePickerWrapper";
 import "../styles/datepicker.css";
 import '../styles/scrollbar.css';
 
 const API_BASE_URL = "http://localhost:5001";
 
-const AnimatedLogo = () => (
-  <svg width="40" height="40" viewBox="0 0 50 50">
-    <motion.path
-      d="M25,10 L40,40 L10,40 Z"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      initial={{ pathLength: 0 }}
-      animate={{ pathLength: 1 }}
-      transition={{ duration: 2, ease: "easeInOut" }}
-    />
-  </svg>
-);
+// Theme to match SettingsModal
+const THEME = {
+  primary: '#1F2937',
+  primaryLight: '#374151',
+  buttonColor: '#1F2937',
+  buttonHover: '#111827',
+  bgGray: '#F9FAFB',
+  borderColor: '#E5E7EB'
+};
+
+// Logo removed as requested
 
 const convertToUTCDate = (date) =>
   new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -58,7 +56,6 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
         params: { db_path: dbPath },
       });
       setFolders(response.data);
-      console.log("Fetched folders:", response.data); // Debug log
     } catch (error) {
       console.error("Failed to fetch folders:", error);
       toast.error("Failed to fetch folders. Please try again.");
@@ -191,13 +188,32 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
     folder.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  console.log("Filtered folders:", filteredFolders); // Debug log
-
   const isUploadDisabled =
     !selectedFile ||
     !uploadDate ||
     (folderSelectionType === "new" && !folderName) ||
     (folderSelectionType === "existing" && !selectedFolderId);
+
+  // Animation variants
+  const modalVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 }
+  };
+
+  const contentVariants = {
+    hidden: { scale: 0.95, opacity: 0 },
+    visible: {
+      scale: 1,
+      opacity: 1,
+      transition: { type: "spring", damping: 30, stiffness: 400 }
+    },
+    exit: {
+      scale: 0.95,
+      opacity: 0,
+      transition: { duration: 0.2 }
+    }
+  };
 
   return (
     <>
@@ -215,49 +231,40 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             className="fixed inset-0 flex justify-center items-center z-50 p-4 bg-black bg-opacity-50"
             onClick={onClose}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className="bg-white bg-opacity-90 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden backdrop-filter backdrop-blur-lg"
+              variants={contentVariants}
+              className="bg-white rounded-lg shadow-lg w-full max-w-lg overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 bg-blue-500 bg-opacity-20 backdrop-filter backdrop-blur-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <AnimatedLogo />
-                    <h2 className="text-2xl font-black text-black tracking-tight">
-                      Upload File
-                    </h2>
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={onClose}
-                    className="text-black hover:text-gray-700 transition-colors"
-                  >
-                    <X size={24} />
-                  </motion.button>
-                </div>
+              {/* Header */}
+              <div className="flex justify-between items-center p-4 border-b border-gray-100">
+                <h2 className="text-lg font-medium text-gray-900">Upload File</h2>
+                <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
+                  <X size={20} />
+                </button>
               </div>
-              <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
+
+              {/* Content */}
+              <div className="p-6 space-y-5 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
+                {/* File Upload Area */}
                 <motion.div
-                  className={`bg-blue-100 bg-opacity-50 rounded-xl p-6 flex flex-col items-center justify-center space-y-4 border-2 border-dashed ${
+                  className={`bg-gray-50 rounded-lg p-5 flex flex-col items-center justify-center space-y-3 border border-dashed ${
                     isDragging
-                      ? "border-blue-500"
+                      ? "border-gray-500"
                       : selectedFile
-                      ? "border-green-500"
+                      ? "border-gray-400"
                       : "border-gray-300"
                   } cursor-pointer`}
                   whileHover={{
-                    boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+                    boxShadow: "0 0 0 2px rgba(31, 41, 55, 0.1)",
+                    backgroundColor: "#F3F4F6"
                   }}
                   onDragEnter={handleDragEnter}
                   onDragLeave={handleDragLeave}
@@ -266,15 +273,28 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   onClick={handleAreaClick}
                 >
                   {selectedFile ? (
-                    <FileText size={40} className="text-green-500" />
+                    <motion.div 
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="flex flex-col items-center"
+                    >
+                      <FileText size={40} className="text-black mb-2" />
+                      <p className="text-sm font-medium text-gray-700">{selectedFile.name}</p>
+                      <p className="text-xs text-gray-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                    </motion.div>
                   ) : (
-                    <File size={40} className="text-blue-500" />
+                    <>
+                      <File size={36} className="text-gray-400" />
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-gray-700">
+                          Drag & drop your file here
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          or click to browse files
+                        </p>
+                      </div>
+                    </>
                   )}
-                  <p className="text-sm text-center text-gray-600">
-                    {selectedFile
-                      ? `Selected file: ${selectedFile.name}`
-                      : "Drag & drop your file here or click to choose a file"}
-                  </p>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -283,153 +303,178 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   />
                 </motion.div>
 
+                {/* Folder Selection Tabs */}
                 <div className="flex space-x-2">
                   <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setFolderSelectionType("existing")}
-                    className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold ${
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 ${
                       folderSelectionType === "existing"
-                        ? "bg-blue-500 text-white"
-                        : "bg-blue-100 text-black"
-                    } transition-colors duration-200`}
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    style={{
+                      backgroundColor: folderSelectionType === "existing" ? THEME.primary : undefined
+                    }}
                   >
                     Existing Folder
                   </motion.button>
                   <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setFolderSelectionType("new")}
-                    className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold ${
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 ${
                       folderSelectionType === "new"
-                        ? "bg-blue-500 text-white"
-                        : "bg-blue-100 text-black"
-                    } transition-colors duration-200`}
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    style={{
+                      backgroundColor: folderSelectionType === "new" ? THEME.primary : undefined
+                    }}
                   >
                     New Folder
                   </motion.button>
                 </div>
 
+                {/* Folder Selection */}
                 {folderSelectionType === "existing" && (
                   <div className="relative" ref={dropdownRef}>
                     <motion.button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="w-full px-4 py-3 bg-blue-100 bg-opacity-50 text-black rounded-xl transition-colors flex items-center justify-between text-sm font-semibold"
+                      className="w-full px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-md shadow-sm transition-colors flex items-center justify-between text-sm"
                       whileHover={{
-                        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+                        borderColor: "#9CA3AF"
                       }}
                     >
-                      <span>
+                      <span className="truncate">
                         {selectedFolderId
                           ? folders.find((f) => f.id === selectedFolderId)?.name
                           : "Select a folder"}
                       </span>
                       <ChevronDown
-                        size={20}
+                        size={18}
                         className={`transform transition-transform ${
                           isDropdownOpen ? "rotate-180" : ""
-                        }`}
+                        } text-gray-500`}
                       />
                     </motion.button>
-                    {isDropdownOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute z-10 w-full mt-2 bg-white rounded-xl shadow-lg overflow-hidden"
-                        style={{ maxHeight: "200px" }}
-                      >
-                        <div className="sticky top-0 bg-white p-2 border-b z-10">
-                          <div className="flex items-center bg-blue-100 bg-opacity-50 rounded-lg px-3 py-2">
-                            <Search size={16} className="text-gray-500 mr-2" />
-                            <input
-                              type="text"
-                              placeholder="Search folders..."
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                              className="bg-transparent w-full outline-none text-sm"
-                            />
-                          </div>
-                        </div>
-                        <div
-                          className="overflow-y-auto custom-scrollbar"
-                          style={{ maxHeight: "150px" }}
+                    <AnimatePresence>
+                      {isDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden"
                         >
-                          {filteredFolders.map((folder) => (
-                            <motion.button
-                              key={folder.id}
-                              onClick={() => handleFolderSelection(folder.id)}
-                              className="w-full px-4 py-2 text-left hover:bg-blue-100 transition-colors flex items-center space-x-2 text-sm font-semibold"
-                              whileHover={{
-                                backgroundColor: "rgba(59, 130, 246, 0.1)",
-                              }}
-                            >
-                              <Folder size={16} />
-                              <span>{folder.name}</span>
-                            </motion.button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}</div>
-                  )}
-  
-                  {folderSelectionType === "new" && (
+                          <div className="sticky top-0 bg-white p-2 border-b border-gray-100 z-10">
+                            <div className="flex items-center bg-gray-50 rounded-md px-3 py-2">
+                              <Search size={16} className="text-gray-400 mr-2" />
+                              <input
+                                type="text"
+                                placeholder="Search folders..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="bg-transparent w-full outline-none text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div
+                            className="overflow-y-auto custom-scrollbar"
+                            style={{ maxHeight: "180px" }}
+                          >
+                            {filteredFolders.length > 0 ? (
+                              filteredFolders.map((folder) => (
+                                <button
+                                  key={folder.id}
+                                  onClick={() => handleFolderSelection(folder.id)}
+                                  className={`w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center space-x-2 text-sm ${
+                                    selectedFolderId === folder.id ? 'bg-gray-50 font-medium' : ''
+                                  }`}
+                                >
+                                  <Folder size={16} className="text-gray-500" />
+                                  <span className="truncate">{folder.name}</span>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                No folders found
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+
+                {folderSelectionType === "new" && (
+                  <div>
                     <motion.div
-                      className="bg-blue-100 bg-opacity-50 rounded-xl p-3 flex items-center space-x-3"
+                      className="flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                       whileHover={{
-                        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+                        borderColor: "#9CA3AF"
                       }}
                     >
-                      <Plus size={20} className="text-black" />
+                      <Plus size={18} className="text-gray-500 mr-2" />
                       <input
                         type="text"
                         value={folderName}
                         onChange={handleNewFolderNameChange}
                         placeholder="Enter new folder name"
-                        className="bg-transparent w-full outline-none text-sm text-black placeholder-gray-500 font-semibold"
+                        className="bg-transparent w-full outline-none text-sm"
                       />
                     </motion.div>
-                  )}
-  
+                  </div>
+                )}
+
+                {/* Date Selection */}
+                <div>
                   <DatePickerWrapper
                     date={uploadDate}
                     handleDateChange={handleUploadDateChange}
                     placeholderText="Select upload date"
-                    wrapperColor="bg-blue-100"
-                    wrapperOpacity="bg-opacity-50"
+                    wrapperColor="bg-white"
+                    wrapperOpacity=""
+                    containerClassName="border border-gray-300 rounded-md shadow-sm hover:border-gray-400 transition-colors"
                   />
-  
-                  <div className="flex space-x-2">
-                    <motion.button
-                      whileHover={!isUploadDisabled ? { scale: 1.02 } : {}}
-                      whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}
-                      onClick={handleUpload}
-                      className={`flex-grow px-4 py-3 bg-blue-500 text-white rounded-xl transition-colors flex items-center justify-center space-x-2 ${
-                        isUploadDisabled
-                          ? "opacity-50 cursor-not-allowed"
-                          : "hover:bg-blue-600"
-                      }`}
-                      disabled={isUploadDisabled}
-                    >
-                      <Upload size={20} />
-                      <span className="font-bold text-sm">Upload</span>
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleDownloadGuide}
-                      className="px-4 py-3 bg-blue-100 text-black rounded-xl transition-colors flex items-center justify-center"
-                    >
-                      <HelpCircle size={20} />
-                    </motion.button>
-                  </div>
                 </div>
-              </motion.div>
+
+                {/* Help and Upload Buttons */}
+                <div className="flex space-x-3 pt-2">
+                  <motion.button
+                    whileHover={!isUploadDisabled ? { scale: 1.02 } : {}}
+                    whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}
+                    onClick={handleUpload}
+                    className={`flex-grow px-4 py-2.5 rounded-md text-white font-medium text-sm flex items-center justify-center space-x-2 ${
+                      isUploadDisabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-gray-800"
+                    }`}
+                    style={{ backgroundColor: THEME.buttonColor }}
+                    disabled={isUploadDisabled}
+                  >
+                    <Upload size={18} />
+                    <span>Upload File</span>
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleDownloadGuide}
+                    className="px-3 py-2.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                    title="Download Upload Guide"
+                  >
+                    <HelpCircle size={18} />
+                  </motion.button>
+                </div>
+              </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </>
-    );
-  };
-  
-  export default FileUploadModal;
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
+
+export default FileUploadModal;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { List, Upload, Download, Camera, FileText } from "react-feather";
+import { List, Upload } from "react-feather";
 import axios from "axios";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -8,25 +8,16 @@ import { useOrgChartContext } from "./OrgChartContext";
 import FilterModal from "./FilterModal";
 import TreeNode from "./TreeNode";
 import EnhancedNodeCard from "./EnhancedNodeCard";
-import Button from "./Button";
+import Button from "./HelperComponents/Button";
 import FileUploadModal from "./FileUploadModal";
 import TableSelectionModal from "./TableSelectionModal";
-import ComparisonDashboard from "./ComparisonDashboard";
-import SettingsModal from "./SettingsModal";
-import HelpModal from "./HelpModal";
+import SettingsModal from "./ToolsComponents/SettingsModal.js";
+import HelpModal from "./ToolsComponents/HelpModal.js";
 import html2canvas from 'html2canvas'; 
-import SearchBar from './SearchBar.js';
-import NavigationBar from "./NavigationBar.js";
+import SearchBar from './HelperComponents/SearchBar.js';
+import NavigationBar from "./HelperComponents/NavigationBar.js";
 
 const API_BASE_URL = "http://localhost:5001";
-
-const DEFAULT_COLORS = {
-  level1: '#EBF4FF',
-  level2: '#EDF9EE',
-  level3: '#F5EEFF',
-  level4: '#FFFBEB',
-  level5: '#FEF1F7'
-};
 
 const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }) => {
   const [directSearchResults, setDirectSearchResults] = useState([]);
@@ -51,12 +42,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const [collapseAll, setCollapseAll] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState(initialTableId);
   const [selectedFolderId, setSelectedFolderId] = useState(initialFolderId);
-  const [isComparing, setIsComparing] = useState(false);
-  const [comparisonData, setComparisonData] = useState(null);
-  const [isComparisonLoading, setIsComparisonLoading] = useState(false);
-  const [comparisonTableSelected, setComparisonTableSelected] = useState(false);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
-  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isOrgMode, setIsOrgMode] = useState(false);
   const [orgModeData, setOrgModeData] = useState(null);
@@ -71,8 +57,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     zoomAmount: 0.1,
     searchZoomLevel: 0.85,
     primaryField: 'name',
-    secondaryField: 'role',
-    nodeColors: { ...DEFAULT_COLORS }
+    secondaryField: 'role'
   });
   
   const dragRef = useRef(null);
@@ -429,47 +414,12 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     setIsUploadOpen(false);
   };
 
-  const fetchComparisonData = useCallback(async (table1Id, table2Id) => {
-    setIsComparisonLoading(true);
-    setError(null);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/compare_tables/${selectedFolderId}`, {
-        params: { table1_id: table1Id, table2_id: table2Id, db_path: dbPath },
-      });
-      const processedData = {
-        ...response.data,
-        aggregated_report: {
-          ...response.data.aggregated_report,
-          department_changes: response.data.aggregated_report.department_changes || { total: 0, details: {} },
-          role_changes: response.data.aggregated_report.role_changes || { total: 0, details: {} },
-          rank_changes: response.data.aggregated_report.rank_changes || { total: 0, details: {} },
-          reporting_line_changes: response.data.aggregated_report.reporting_line_changes || { total: 0, details: {} },
-          total_employees: response.data.aggregated_report.total_employees || { before: 0, after: 0 },
-          department_size_changes: response.data.aggregated_report.department_size_changes || {},
-        },
-      };
-      setComparisonData(processedData);
-      setIsComparing(true);
-    } catch (error) {
-      console.error("Error fetching comparison data:", error);
-      setError("Failed to fetch comparison data. Please try again.");
-      setIsComparing(false);
-    } finally {
-      setIsComparisonLoading(false);
-    }
-  }, [selectedFolderId, dbPath]);
-
   const handleTableSelection = useCallback(async (tableId, folderId) => {
-    if (isComparing) {
-      setComparisonTableSelected(true);
-      await fetchComparisonData(selectedTableId, tableId);
-    } else {
-      setSelectedTableId(tableId);
-      setSelectedFolderId(folderId);
-      await fetchData();
-    }
+    setSelectedTableId(tableId);
+    setSelectedFolderId(folderId);
+    await fetchData();
     setIsTableSelectionOpen(false);
-  }, [fetchData, isComparing, selectedTableId, fetchComparisonData]);
+  }, [fetchData]);
 
   const handleNodeClick = useCallback((node) => {
     setSelectedNode({ ...node, folderId: selectedFolderId, tableId: selectedTableId });
@@ -605,28 +555,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     onReturnToLanding();
   }, [handleCenter, onReturnToLanding]);
 
-  const handleCompare = useCallback(() => {
-    if (selectedFolderId) {
-      setIsComparing(true);
-      setComparisonTableSelected(false);
-      setIsTableSelectionOpen(true);
-    } else {
-      console.log("Please select a folder before comparing tables");
-    }
-  }, [selectedFolderId]);
-
   const handleCloseTableSelection = useCallback(() => {
     setIsTableSelectionOpen(false);
-    if (isComparing && !comparisonTableSelected) {
-      setIsComparing(false);
-      setComparisonData(null);
-    }
-  }, [isComparing, comparisonTableSelected]);
-
-  const handleCloseComparison = useCallback(() => {
-    setIsComparing(false);
-    setComparisonData(null);
-    setComparisonTableSelected(false);
   }, []);
 
   const handleTreeSearch = useCallback((term) => {
@@ -776,7 +706,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       'e': handleExpandAll,
       'q': handleCollapseAll,
       'u': () => setIsUploadOpen(true),
-      'm': handleCompare,
       'r': handleClearFilter,
       'o': handleOrgMode,
       'f': toggleSearchBar
@@ -798,7 +727,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     handleCenter,
     handleExpandAll,
     handleCollapseAll,
-    handleCompare,
     handleClearFilter,
     handleOrgMode,
     toggleSearchBar,
@@ -847,140 +775,91 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }} 
-        className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 pt-14"
+        className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 pt-20"
       >
         {/* Navigation Bar */}
-        {!isComparing && (
-          <NavigationBar
-            onHome={handleHome}
-            onCenter={handleCenter}
-            onFilter={toggleFilterModal}
-            onOrgMode={handleOrgMode}
-            onChangeTable={() => setIsTableSelectionOpen(true)}
-            onExpandAll={handleExpandAll}
-            onCollapseAll={handleCollapseAll}
-            onUpload={() => setIsUploadOpen(true)}
-            onCompare={handleCompare}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenHelp={toggleHelpModal}
-            onSearch={toggleSearchBar}
-            onClearFilter={handleClearFilter}
-            isOrgMode={isOrgMode}
-            hasActiveFilters={activeFilters.length > 0 || searchResults}
-            activeMenuId={activeMenuId}
-            setActiveMenuId={setActiveMenuId}
-          />
-        )}
+        <NavigationBar
+          onHome={handleHome}
+          onCenter={handleCenter}
+          onFilter={toggleFilterModal}
+          onOrgMode={handleOrgMode}
+          onChangeTable={() => setIsTableSelectionOpen(true)}
+          onExpandAll={handleExpandAll}
+          onCollapseAll={handleCollapseAll}
+          onUpload={() => setIsUploadOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenHelp={toggleHelpModal}
+          onSearch={toggleSearchBar}
+          onClearFilter={handleClearFilter}
+          onExportExcel={handleExportExcel}
+          onExportImage={handleExportImage}
+          isOrgMode={isOrgMode}
+          hasActiveFilters={activeFilters.length > 0 || searchResults}
+          activeMenuId={activeMenuId}
+          setActiveMenuId={setActiveMenuId}
+          selectedTableId={selectedTableId}
+        />
   
-        {/* Search Bar and Export Button */}
-        {!isComparing && (
-          <div className="absolute top-18 right-4 z-10 flex items-center">
-            <AnimatePresence>
-              {isSearchBarVisible && (
-                <motion.div 
-                  initial={{ opacity: 0, width: 0 }} 
-                  animate={{ opacity: 1, width: "auto" }} 
-                  exit={{ opacity: 0, width: 0 }} 
-                  transition={{ duration: 0.3 }} 
-                  className="mr-2"
-                >
-                  <SearchBar
-                    onSearch={handleTreeSearch}
-                    totalResults={treeSearchResults.length}
-                    currentResult={currentTreeSearchIndex + 1}
-                    onNavigate={handleTreeSearchNavigation}
-                    onClose={toggleSearchBar}
-                    searchTerm={searchTerm}
-                    setSearchTerm={setSearchTerm}
-                    autoFocus={true}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <div className="relative">
-              <Button 
-                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)} 
-                icon={Download} 
-                tooltip="Export Options"
+        {/* Search Bar */}
+        <div className="absolute top-18 right-4 z-10 flex items-center">
+          <AnimatePresence>
+            {isSearchBarVisible && (
+              <motion.div 
+                initial={{ opacity: 0, width: 0 }} 
+                animate={{ opacity: 1, width: "auto" }} 
+                exit={{ opacity: 0, width: 0 }} 
+                transition={{ duration: 0.3 }} 
+                className="mr-2"
               >
-                Export
-              </Button>
-              <AnimatePresence>
-                {isExportMenuOpen && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }} 
-                    animate={{ opacity: 1, y: 0 }} 
-                    exit={{ opacity: 0, y: -10 }} 
-                    className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
-                  >
-                    <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                      <button 
-                        onClick={handleExportExcel} 
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left" 
-                        role="menuitem"
-                      >
-                        <FileText className="inline-block mr-2" size={16} />Export as Excel
-                      </button>
-                      <button 
-                        onClick={handleExportImage} 
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full text-left" 
-                        role="menuitem"
-                      >
-                        <Camera className="inline-block mr-2" size={16} />Capture Tree Image
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        )}
+                <SearchBar
+                  onSearch={handleTreeSearch}
+                  totalResults={treeSearchResults.length}
+                  currentResult={currentTreeSearchIndex + 1}
+                  onNavigate={handleTreeSearchNavigation}
+                  onClose={toggleSearchBar}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  autoFocus={true}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
   
         {/* Main Content */}
-        {!isComparing ? (
-          <div ref={dragRef} className="w-full h-full cursor-move" onMouseDown={handleMouseDown} onWheel={handleWheel} style={{ overflow: "hidden" }}>
-            <div ref={chartRef} style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transition: isDragging ? "none" : "transform 0.3s ease-out", transformOrigin: "0 0" }}>
-              <div className="p-8 pt-20">
-                <TreeNode
-                  node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
-                  onNodeClick={handleNodeClick}
-                  expandAll={expandAll}
-                  collapseAll={collapseAll}
-                  folderId={selectedFolderId}
-                  tableId={selectedTableId}
-                  highlightedNodes={highlightedNodes}
-                  onHighlight={handleHighlight}
-                  isOrgMode={isOrgMode}
-                  searchTerm={searchTerm}
-                  searchResults={treeSearchResults}
-                  currentSearchIndex={currentTreeSearchIndex}
-                  onNodePosition={(id, x, y) => {
-                    const element = document.getElementById(`node-${id}`);
-                    if (element) {
-                      element.dataset.x = x;
-                      element.dataset.y = y;
-                    }
-                  }}
-                  onNodeRendered={handleNodeRendered}
-                  onNodeUnrendered={handleNodeUnrendered}
-                  filteredSearchResults={filteredSearchResults}
-                  directSearchResults={directSearchResults}
-                  duplicatePersonIds={duplicatePersonIds}
-                  settings={settings}
-                />
-              </div>
+        <div ref={dragRef} className="w-full h-full cursor-move" onMouseDown={handleMouseDown} onWheel={handleWheel} style={{ overflow: "hidden" }}>
+          <div ref={chartRef} style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transition: isDragging ? "none" : "transform 0.3s ease-out", transformOrigin: "0 0" }}>
+            <div className="p-8 pt-20">
+              <TreeNode
+                node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
+                onNodeClick={handleNodeClick}
+                expandAll={expandAll}
+                collapseAll={collapseAll}
+                folderId={selectedFolderId}
+                tableId={selectedTableId}
+                highlightedNodes={highlightedNodes}
+                onHighlight={handleHighlight}
+                isOrgMode={isOrgMode}
+                searchTerm={searchTerm}
+                searchResults={treeSearchResults}
+                currentSearchIndex={currentTreeSearchIndex}
+                onNodePosition={(id, x, y) => {
+                  const element = document.getElementById(`node-${id}`);
+                  if (element) {
+                    element.dataset.x = x;
+                    element.dataset.y = y;
+                  }
+                }}
+                onNodeRendered={handleNodeRendered}
+                onNodeUnrendered={handleNodeUnrendered}
+                filteredSearchResults={filteredSearchResults}
+                directSearchResults={directSearchResults}
+                duplicatePersonIds={duplicatePersonIds}
+                settings={settings}
+              />
             </div>
           </div>
-        ) : (
-          <ComparisonDashboard
-            comparisonData={comparisonData}
-            onClose={handleCloseComparison}
-            isLoading={isComparisonLoading}
-            error={error}
-            onExportExcel={handleExportExcel}
-            onExportImage={handleExportImage}
-          />
-        )}
+        </div>
   
         {/* Modals and Additional Components */}
         <SettingsModal
@@ -991,7 +870,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         />
   
         <AnimatePresence>
-          {selectedNode && !isComparing && (
+          {selectedNode && (
             <EnhancedNodeCard
               node={selectedNode}
               onClose={() => {
@@ -1028,7 +907,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onSelectTable={handleTableSelection}
           folderStructure={folderStructure}
           currentFolderId={selectedFolderId}
-          isComparingMode={isComparing}
           currentTableId={selectedTableId}
         />
   

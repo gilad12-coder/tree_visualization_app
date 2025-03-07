@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users } from 'react-feather';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 
+// Default color if none is specified in settings
+const DEFAULT_NODE_COLOR = '#F5F7FA'; 
+
 const TreeNode = ({ 
   node, 
   onNodeClick, 
@@ -32,8 +35,10 @@ const TreeNode = ({
   const isRendered = useRef(false);
   const hasChildren = node?.children && Array.isArray(node.children) && node.children.length > 0;
   const isSingleChild = hasChildren && node.children.length === 1;
-  const levelKey = `level${(depth % 5) + 1}`;
-  const nodeColor = settings.nodeColors?.[levelKey];
+  
+  // Use the node color from settings, or fall back to default
+  const nodeColor = settings.nodeColor || DEFAULT_NODE_COLOR;
+  
   const primaryField = settings.primaryField || 'name';
   const secondaryField = settings.secondaryField || 'role';
   const displayPrimaryField = isOrgMode ? 
