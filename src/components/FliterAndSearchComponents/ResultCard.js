@@ -33,21 +33,37 @@ const ResultCard = ({ result, isSelected, onSelect, theme }) => {
     matchedColumns: result.matched_columns || [],
   };
 
+  // Define custom styles directly instead of using Tailwind classes for colors
+  const cardStyle = {
+    backgroundColor: theme.bgGray,
+    borderWidth: isSelected ? '1px' : '1px',
+    borderColor: isSelected ? '#374151' : theme.borderColor, // More subtle dark gray
+    boxShadow: isSelected ? '0 0 0 1px #4B5563' : 'none', // Thinner, lighter shadow
+    transition: 'all 0.2s ease'
+  };
+
+  const iconStyle = {
+    color: 'rgba(156, 163, 175, 1)' // text-gray-400 equivalent
+  };
+
+  const iconHoverStyle = {
+    color: '#4B5563' // Medium gray on hover, more subtle
+  };
+
   return (
     <div
-      className={`rounded-lg shadow-sm overflow-hidden cursor-pointer transition-all duration-200 relative border ${
-        isSelected
-          ? `ring-2 ring-[${theme.buttonHover}] border-[${theme.buttonHover}]`
-          : `hover:shadow-md border-[${theme.borderColor}]`
-      }`}
-      style={{ backgroundColor: theme.bgGray }}
+      className="rounded-lg shadow-sm overflow-hidden cursor-pointer relative"
+      style={cardStyle}
       onClick={() => onSelect(result.hierarchical_structure)}
     >
       <div className="absolute top-2 right-2">
         <HelpCircle
           ref={iconRef}
           size={18}
-          className={`text-gray-400 hover:text-[${theme.buttonHover}] transition-colors cursor-pointer`}
+          className="transition-colors cursor-pointer"
+          style={iconStyle}
+          onMouseOver={(e) => e.currentTarget.style.color = iconHoverStyle.color}
+          onMouseOut={(e) => e.currentTarget.style.color = iconStyle.color}
           onClick={handleInfoClick}
         />
       </div>
@@ -56,7 +72,11 @@ const ResultCard = ({ result, isSelected, onSelect, theme }) => {
         <div className="space-y-2">
           {fields.map(({ key, label, Icon }) => (
             <div key={key} className="flex items-center text-sm">
-              <Icon size={14} className={`mr-2 text-[${theme.primary}] flex-shrink-0`} />
+              <Icon 
+                size={14} 
+                className="mr-2 flex-shrink-0" 
+                style={{ color: '#4B5563' }} // Softened to medium gray
+              />
               <span className="text-gray-600 mr-1">{label}:</span>
               <span className="font-medium text-gray-800" title={String(result[key])}>
                 {truncate(result[key], 20)}

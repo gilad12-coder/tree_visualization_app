@@ -45,6 +45,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const [initialTransform, setInitialTransform] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isOrgMode, setIsOrgMode] = useState(false);
+  const [hideVacancies, setHideVacancies] = useState(false); // New state for hiding vacant positions
   const [orgModeData, setOrgModeData] = useState(null);
   const [collapseAll, setCollapseAll] = useState(false);
   const [swapKey, setSwapKey] = useState(0);
@@ -184,31 +185,62 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     return filterNode(node).node;
   }, []);
 
+  // Function to remove vacant positions (nodes with NaN person_id)
+  const removeVacantPositions = useCallback((node) => {
+    if (!node) return null;
+    
+    // Check if current node is vacant (has NaN person_id)
+    const isVacant = node.person_id === "nan";
+    
+    // If current node is vacant, don't include it
+    if (isVacant) return null;
+    
+    const newNode = { ...node };
+    
+    // Process children recursively if they exist
+    if (node.children && node.children.length > 0) {
+      newNode.children = node.children
+        .map(removeVacantPositions)
+        .filter(Boolean); // Remove null entries
+    }
+    
+    return newNode;
+  }, []);
+
   const findNodesInTree = useCallback((originalTree, searchResults) => {
     if (!originalTree || !searchResults || searchResults.length === 0) {
       return originalTree;
     }
-
+  
     const markNodesInPath = (node, targetId) => {
       if (!node) return false;
-
-      if (node.person_id.toString() === targetId.toString()) {
+  
+      // Store if the current node matches
+      let currentNodeMatches = false;
+      
+      // Check if this node matches the targetId
+      if (node.person_id && node.person_id.toString() === targetId.toString()) {
         node.visible = true;
-        return true;
+        currentNodeMatches = true;
+        // Don't return true here - continue checking children
       }
-
+  
+      // Check all children and maintain visibility
+      let childrenMatch = false;
       if (node.children) {
         for (let child of node.children) {
+          // Continue to process all children, even if one already matched
           if (markNodesInPath(child, targetId)) {
             node.visible = true;
-            return true;
+            childrenMatch = true;
           }
         }
       }
-
-      return false;
+  
+      // Return true if either this node or any of its children matched
+      return currentNodeMatches || childrenMatch;
     };
-
+  
     const cloneTree = (node) => {
       if (!node) return null;
       const newNode = { ...node, visible: false };
@@ -217,10 +249,12 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       }
       return newNode;
     };
-
+  
     const newTree = cloneTree(originalTree);
+    
+    // Process all search results
     searchResults.forEach(result => markNodesInPath(newTree, result.person_id));
-
+  
     const filterVisibleNodes = (node) => {
       if (!node) return null;
       if (!node.visible) return null;
@@ -231,7 +265,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       }
       return filteredNode;
     };
-
+  
     return filterVisibleNodes(newTree);
   }, []);
   
@@ -270,6 +304,11 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   }, [filteredOrgData]);
   
   // =========== Handler Functions ===========
+  // Toggle hide vacancies handler
+  const handleToggleVacancies = useCallback(() => {
+    setHideVacancies(prev => !prev);
+  }, []);
+
   // Node swapping handler with redraw trigger
   const handleSwapNodesWithRerender = useCallback((parentId, node1Id, node2Id) => {
     handleSwapNodes(parentId, node1Id, node2Id);
@@ -433,10 +472,23 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       setCurrentTreeSearchIndex(-1);
       return;
     }
-    const results = renderedNodes.filter(node => 
-      node.name.toLowerCase().includes(term.toLowerCase()) || 
-      node.role.toLowerCase().includes(term.toLowerCase())
-    );
+    
+    // Improve search for nodes with multiple roles
+    const results = renderedNodes.filter(node => {
+      // Check if the name or role contains the search term
+      const nameMatch = node.name && node.name.toLowerCase().includes(term.toLowerCase());
+      
+      // Handle role as potentially an array or string
+      let roleMatch = false;
+      if (typeof node.role === 'string') {
+        roleMatch = node.role.toLowerCase().includes(term.toLowerCase());
+      } else if (Array.isArray(node.role)) {
+        roleMatch = node.role.some(r => r.toLowerCase().includes(term.toLowerCase()));
+      }
+      
+      return nameMatch || roleMatch;
+    });
+    
     setTreeSearchResults(results.map(node => node.hierarchical_structure));
     setCurrentTreeSearchIndex(results.length > 0 ? 0 : -1);
   }, [renderedNodes]);
@@ -698,7 +750,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       'u': () => setIsUploadOpen(true),
       'r': handleClearFilter,
       'o': handleOrgMode,
-      'f': toggleSearchBar
+      'f': toggleSearchBar,
+      'v': handleToggleVacancies // New shortcut for toggling vacancies
     };
 
     if (e.key in singleKeyShortcuts) {
@@ -721,6 +774,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     handleCollapseAll,
     handleClearFilter,
     handleOrgMode,
+    handleToggleVacancies,
     toggleSearchBar,
     setIsTableSelectionOpen,
     setIsUploadOpen,
@@ -738,15 +792,31 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     if (orgData) {
       try {
         let processedData = orgData;
+        
+        // Apply hide vacancies filter first if enabled
+        if (hideVacancies) {
+          processedData = removeVacantPositions(processedData);
+          if (!processedData) {
+            toast.warning("No data available after hiding vacant positions.");
+            processedData = orgData; // Fallback if all nodes are filtered out
+            setHideVacancies(false);
+          }
+        }
+        
+        // Then apply search results filter
         if (searchResults && searchResults.length > 0) {
           const searchedData = findNodesInTree(processedData, searchResults);
           setFilteredOrgData(searchedData || processedData);
           setExpandAll(!!searchedData);
-        } else if (activeFilters.length > 0) {
+        } 
+        // Then apply other filters
+        else if (activeFilters.length > 0) {
           const filtered = filterOrgData(processedData, activeFilters);
           setFilteredOrgData(filtered || processedData);
           setExpandAll(!!filtered);
-        } else {
+        } 
+        // No filters
+        else {
           setFilteredOrgData(processedData);
           setExpandAll(false);
         }
@@ -757,7 +827,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         setExpandAll(false);
       }
     }
-  }, [orgData, activeFilters, searchResults, filterOrgData, setExpandAll, findNodesInTree]);
+  }, [orgData, activeFilters, searchResults, hideVacancies, filterOrgData, setExpandAll, findNodesInTree, removeVacantPositions]);
 
   // Set up initial transform
   useEffect(() => {
@@ -877,6 +947,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onCenter={handleCenter}
           onFilter={toggleFilterModal}
           onOrgMode={handleOrgMode}
+          onToggleVacancies={handleToggleVacancies}
           onChangeTable={() => setIsTableSelectionOpen(true)}
           onExpandAll={handleExpandAll}
           onCollapseAll={handleCollapseAll}
@@ -888,6 +959,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onExportExcel={handleExportExcel}
           onExportImage={handleExportImage}
           isOrgMode={isOrgMode}
+          hideVacancies={hideVacancies}
           hasActiveFilters={activeFilters.length > 0 || searchResults}
           activeMenuId={activeMenuId}
           setActiveMenuId={setActiveMenuId}

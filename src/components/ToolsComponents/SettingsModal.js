@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Layout, Move, X } from 'react-feather';
+import { Eye, Layout, Move, X, RotateCcw } from 'react-feather';
 
 // Default color for nodes
 const DEFAULT_NODE_COLOR = '#F5F7FA';
+const DEFAULT_PRIMARY_FIELD = 'name';
+const DEFAULT_SECONDARY_FIELD = 'role';
 
 // Minimal theme
 const THEME = {
@@ -72,12 +74,12 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     let hasChanges = false;
 
     if (!settings.primaryField) {
-      updatedSettings.primaryField = 'name';
+      updatedSettings.primaryField = DEFAULT_PRIMARY_FIELD;
       hasChanges = true;
     }
     
     if (!settings.secondaryField) {
-      updatedSettings.secondaryField = 'role';
+      updatedSettings.secondaryField = DEFAULT_SECONDARY_FIELD;
       hasChanges = true;
     }
 
@@ -97,6 +99,14 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     onSettingsChange({
       ...settings,
       nodeColor: DEFAULT_NODE_COLOR
+    });
+  };
+
+  const resetDisplaySettings = () => {
+    onSettingsChange({
+      ...settings,
+      primaryField: DEFAULT_PRIMARY_FIELD,
+      secondaryField: DEFAULT_SECONDARY_FIELD
     });
   };
 
@@ -124,7 +134,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-4 border-b border-gray-100">
-          <h2 className="text-lg font-medium text-gray-900">Settings</h2>
+          <div className="flex-1"></div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
             <X size={20} />
           </button>
@@ -170,46 +180,93 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                   exit="exit"
                   className="h-full"
                 >
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Node Display Fields</h3>
-                  <p className="text-sm text-gray-500 mb-6">
-                    Choose which fields appear in the organization chart nodes.
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <div>
-                      <label htmlFor="primaryField" className="block text-sm font-medium text-gray-700 mb-2">
-                        Primary Field (Larger Text)
-                      </label>
-                      <select
-                        id="primaryField"
-                        value={settings.primaryField || 'name'}
-                        onChange={(e) => onSettingsChange({ ...settings, primaryField: e.target.value })}
-                        className="w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-opacity-50 focus:ring-gray-500"
-                      >
-                        {availableFields.map(field => (
-                          <option key={field.id} value={field.id}>
-                            {field.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="secondaryField" className="block text-sm font-medium text-gray-700 mb-2">
-                        Secondary Field (Smaller Text)
-                      </label>
-                      <select
-                        id="secondaryField"
-                        value={settings.secondaryField || 'role'}
-                        onChange={(e) => onSettingsChange({ ...settings, secondaryField: e.target.value })}
-                        className="w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-opacity-50 focus:ring-gray-500"
-                      >
-                        {availableFields.map(field => (
-                          <option key={field.id} value={field.id}>
-                            {field.label}
-                          </option>
-                        ))}
-                      </select>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-medium text-gray-900">Node Display Fields</h3>
+                    <motion.button 
+                      onClick={resetDisplaySettings}
+                      className="flex items-center text-sm px-3 py-1.5 rounded text-gray-600 hover:bg-gray-100 transition-colors border border-gray-200"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <RotateCcw size={14} className="mr-1" />
+                      Back to Defaults
+                    </motion.button>
+                  </div>
+                  <div className="p-5 border border-gray-100 rounded-lg bg-gray-50">
+                    <div className="flex flex-row gap-8">
+                      {/* Left side - Field settings */}
+                      <div className="flex-1 space-y-6">
+                        <div className="bg-white p-4 rounded-md border border-gray-200 shadow-sm">
+                          <div className="flex justify-between items-center mb-3">
+                            <label htmlFor="primaryField" className="block text-sm font-medium text-gray-700">
+                              Primary Field
+                            </label>
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                              Larger Text
+                            </span>
+                          </div>
+                          <select
+                            id="primaryField"
+                            value={settings.primaryField || DEFAULT_PRIMARY_FIELD}
+                            onChange={(e) => onSettingsChange({ ...settings, primaryField: e.target.value })}
+                            className="w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-opacity-50 focus:ring-gray-500"
+                          >
+                            {availableFields.map(field => (
+                              <option key={field.id} value={field.id}>
+                                {field.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div className="bg-white p-4 rounded-md border border-gray-200 shadow-sm">
+                          <div className="flex justify-between items-center mb-3">
+                            <label htmlFor="secondaryField" className="block text-sm font-medium text-gray-700">
+                              Secondary Field
+                            </label>
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                              Smaller Text
+                            </span>
+                          </div>
+                          <select
+                            id="secondaryField"
+                            value={settings.secondaryField || DEFAULT_SECONDARY_FIELD}
+                            onChange={(e) => onSettingsChange({ ...settings, secondaryField: e.target.value })}
+                            className="w-full p-2.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-opacity-50 focus:ring-gray-500"
+                          >
+                            {availableFields.map(field => (
+                              <option key={field.id} value={field.id}>
+                                {field.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      
+                      {/* Right side - Preview */}
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">Preview</h4>
+                        <motion.div 
+                          className="w-full h-32 py-4 px-6 rounded-xl flex items-center shadow-sm border border-gray-200 bg-white"
+                          animate={{ 
+                            backgroundColor: settings.nodeColor || DEFAULT_NODE_COLOR 
+                          }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <div className="w-full">
+                            <div className="flex items-start">
+                              <span className="text-lg font-bold text-left">
+                                {availableFields.find(f => f.id === (settings.primaryField || DEFAULT_PRIMARY_FIELD))?.label || 'Name'}
+                              </span>
+                            </div>
+                            <div className="flex justify-end mt-2">
+                              <span className="text-sm font-medium">
+                                {availableFields.find(f => f.id === (settings.secondaryField || DEFAULT_SECONDARY_FIELD))?.label || 'Role'}
+                              </span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -228,18 +285,14 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                     <h3 className="text-lg font-medium text-gray-900">Node Color Settings</h3>
                     <motion.button 
                       onClick={resetNodeColor}
-                      className="text-sm px-3 py-1 rounded text-gray-600 hover:bg-gray-100 transition-colors"
+                      className="flex items-center text-sm px-3 py-1.5 rounded text-gray-600 hover:bg-gray-100 transition-colors border border-gray-200"
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                     >
+                      <RotateCcw size={14} className="mr-1" />
                       Reset to Default
                     </motion.button>
                   </div>
-
-                  <p className="text-sm text-gray-500 mb-6">
-                    Choose a color for all nodes in the organization chart.
-                  </p>
-                  
                   <div className="p-5 border border-gray-100 rounded-lg">
                     <div className="flex items-center space-x-6">
                       <div>
@@ -281,16 +334,20 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                           Preview
                         </label>
                         <motion.div 
-                          className="w-full h-20 rounded-xl flex items-center justify-center shadow-sm border border-gray-200"
+                          className="w-full h-20 rounded-xl flex items-center shadow-sm border border-gray-200"
                           style={{ 
                             backgroundColor: settings.nodeColor || DEFAULT_NODE_COLOR,
                           }}
                           animate={{ backgroundColor: settings.nodeColor || DEFAULT_NODE_COLOR }}
                           transition={{ duration: 0.3 }}
                         >
-                          <div className="w-full flex flex-col items-center">
-                            <span className="text-lg font-bold">Sample Name</span>
-                            <span className="text-sm font-medium">Sample Role</span>
+                          <div className="w-full px-6">
+                            <div className="flex items-start">
+                              <span className="text-lg font-bold text-left">Sample Name</span>
+                            </div>
+                            <div className="flex justify-end mt-2">
+                              <span className="text-sm font-medium">Sample Role</span>
+                            </div>
                           </div>
                         </motion.div>
                       </div>

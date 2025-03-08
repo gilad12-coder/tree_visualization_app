@@ -3,10 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users, Move, X, ExternalLink } from 'react-feather';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 
-// Default color if none is specified in settings
 const DEFAULT_NODE_COLOR = '#F5F7FA'; 
 
-// Track expanded states globally to preserve across swaps
 const expandedNodesMap = new Map();
 
 const TreeNode = ({ 
@@ -38,7 +36,6 @@ const TreeNode = ({
   onSwapNodes = null,
   onCancelSwap = null
 }) => {
-  // Use global expanded state map to persist expansion across swaps
   const nodeKey = node?.hierarchical_structure || `${depth}-${parentNodeId}-${node?.name}`;
   const [isExpanded, setIsExpanded] = useState(() => {
     return expandedNodesMap.has(nodeKey) ? expandedNodesMap.get(nodeKey) : false;
@@ -48,11 +45,9 @@ const TreeNode = ({
   const isRendered = useRef(false);
   const [showSwapSuccess, setShowSwapSuccess] = useState(false);
   
-  // Long-press for node swapping
   const longPressTimer = useRef(null);
   const isLongPress = useRef(false);
   
-  // Button for opening node modal
   const NodeButton = useCallback(({ onClick }) => (
     <motion.div
       whileHover={{ scale: 1.1 }}
@@ -72,11 +67,9 @@ const TreeNode = ({
     </motion.div>
   ), []);
   
-  // Check if this node is currently selected for swapping
   const isSelectedForSwap = selectedSwapNode && node && 
     node.hierarchical_structure === selectedSwapNode.hierarchical_structure;
   
-  // Check if node can be swapped with selected node (must have same parent)
   const canSwapWith = selectedSwapNode && node && 
     parentNodeId && selectedSwapNode.parentNodeId === parentNodeId &&
     selectedSwapNode.hierarchical_structure !== node.hierarchical_structure;
@@ -84,7 +77,6 @@ const TreeNode = ({
   const hasChildren = node?.children && Array.isArray(node.children) && node.children.length > 0;
   const isSingleChild = hasChildren && node.children.length === 1;
   
-  // Use the node color from settings, or fall back to default
   const nodeColor = settings.nodeColor || DEFAULT_NODE_COLOR;
   
   const primaryField = settings.primaryField || 'name';
@@ -115,14 +107,12 @@ const TreeNode = ({
   const isDead = node?.is_dead?.toLowerCase() === 'dead';
   const isStatusUnknown = node?.is_dead?.toLowerCase() === 'unknown';
 
-  // Save expanded state to global map when it changes
   useEffect(() => {
     if (nodeKey) {
       expandedNodesMap.set(nodeKey, isExpanded);
     }
   }, [isExpanded, nodeKey]);
 
-  // Handle expandAll/collapseAll
   useEffect(() => {
     if (expandAll) {
       setIsExpanded(true);
@@ -158,17 +148,12 @@ const TreeNode = ({
     };
   }, [node, onNodeRendered, onNodeUnrendered]);
 
-  // Effect to ensure connections rebuild
   useEffect(() => {
     if (nodeRef.current && hasChildren && isExpanded) {
-      // Small timeout to ensure DOM has updated
       const timer = setTimeout(() => {
         const childContainer = nodeRef.current.parentElement.querySelector('[class*="pt-8"]');
         if (childContainer) {
-          // Force layout recalculation
           childContainer.style.opacity = '0.99';
-          // eslint-disable-next-line no-unused-vars
-          const forceReflow = childContainer.offsetHeight;
           childContainer.style.opacity = '1';
         }
       }, 50);
@@ -176,7 +161,6 @@ const TreeNode = ({
     }
   }, [nodeOrder, hasChildren, isExpanded]);
 
-  // Show swap success feedback briefly after a swap
   useEffect(() => {
     let successTimer;
     if (showSwapSuccess) {
@@ -187,9 +171,7 @@ const TreeNode = ({
     return () => clearTimeout(successTimer);
   }, [showSwapSuccess]);
 
-  // Cleanup timeouts on unmount
   useEffect(() => {
-    // Capture the current ref value
     const currentLongPressTimer = longPressTimer.current;
     
     return () => {
@@ -199,16 +181,7 @@ const TreeNode = ({
     };
   }, []);
 
-  // Handle left click - expands/collapses the hierarchy
   const handleLeftClick = useCallback((e) => {
-    if (!node || !hasChildren) return;
-    
-    // Only toggle expansion for left clicks
-    if (e.button === 0) {
-      setIsExpanded(prev => !prev);
-    }
-    
-    // If a swap is in progress, handle it
     if (selectedSwapNode && canSwapWith) {
       onSwapNodes(
         parentNodeId, 
@@ -216,8 +189,13 @@ const TreeNode = ({
         node.hierarchical_structure
       );
       setShowSwapSuccess(true);
+      return;
     } else if (!isSelectedForSwap && selectedSwapNode) {
       onCancelSwap?.();
+    }
+    
+    if (node && hasChildren && e.button === 0) {
+      setIsExpanded(prev => !prev);
     }
   }, [
     node, 
@@ -230,28 +208,23 @@ const TreeNode = ({
     onCancelSwap
   ]);
   
-  // Handle right click - highlights the node
   const handleRightClick = useCallback((e) => {
-    e.preventDefault(); // Prevent the browser context menu
+    e.preventDefault();
     e.stopPropagation();
     
     if (node?.hierarchical_structure) {
-      // Highlight the node on right-click
       onHighlight(node.hierarchical_structure);
     }
   }, [node, onHighlight]);
   
-  // Handle long press for node swapping
   const handleMouseDown = useCallback((e) => {
     if (e.button !== 0 || !node) return;
     isLongPress.current = false;
     
-    // Start long press timer for node selection for swapping
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
       
-      if (onSelectForSwap && parentNodeId) {
-        // Select this node for swapping
+      if (onSelectForSwap) {
         onSelectForSwap({
           hierarchical_structure: node.hierarchical_structure,
           parentNodeId: parentNodeId
@@ -260,18 +233,15 @@ const TreeNode = ({
     }, 600);
   }, [node, onSelectForSwap, parentNodeId]);
   
-  // Handle mouse up to clear the long press timer
   const handleMouseUp = useCallback(() => {
     clearTimeout(longPressTimer.current);
   }, []);
 
-  // Handle modal opening via the dedicated button
   const handleModalOpen = useCallback((e) => {
-    e.stopPropagation(); // Prevent triggering the node click
-    e.preventDefault(); // Prevent any default behavior
+    e.stopPropagation();
+    e.preventDefault();
     
     if (node) {
-      // Open the modal by calling the provided onNodeClick function
       onNodeClick({
         ...node,
         folderId: folderId || node.folderId,
@@ -306,7 +276,6 @@ const TreeNode = ({
     );
   };
 
-  // Sort children if order is available
   const sortedChildren = hasChildren && node.children ? [...node.children] : [];
   if (hasChildren && nodeOrder && nodeOrder[node.hierarchical_structure]) {
     const orderMap = nodeOrder[node.hierarchical_structure].reduce((acc, id, index) => {
@@ -371,14 +340,12 @@ const TreeNode = ({
         onContextMenu={handleRightClick}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Swap indicator */}
         {(isSelectedForSwap || canSwapWith) && (
           <div className="absolute top-1/2 left-2 -translate-y-1/2 opacity-100 transition-opacity z-20">
             <Move size={16} className={`${isSelectedForSwap ? 'text-blue-500' : 'text-green-500'}`} />
           </div>
         )}
         
-        {/* Cancel swap button (X) */}
         {isSelectedForSwap && (
           <div 
             className="absolute top-2 right-2 bg-red-100 rounded-full p-1 cursor-pointer z-50 hover:bg-red-200"
@@ -388,7 +355,6 @@ const TreeNode = ({
           </div>
         )}
 
-        {/* Status indicators */}
         {!isSelectedForSwap && (
           <div className="absolute top-2 right-2 flex space-x-1">
             {isStatusUnknown && (
@@ -438,7 +404,6 @@ const TreeNode = ({
             {highlightText(primaryValue, searchTerm)}
           </h3>
           <div className="flex items-center gap-2">
-            {/* Use the NodeButton component with the handler */}
             <div 
               className="relative" 
               onClick={(e) => e.stopPropagation()}
@@ -470,7 +435,6 @@ const TreeNode = ({
           {highlightText(secondaryValue, searchTerm)}
         </div>
         
-        {/* Status text */}
         <div className="mt-2 text-xs text-center font-medium flex flex-col gap-1">
           {isDead && !isSelectedForSwap && !canSwapWith && (
             <span className="text-gray-700">Deceased</span>
@@ -502,7 +466,6 @@ const TreeNode = ({
             <div className={`absolute left-1/2 -translate-x-px w-1 bg-gray-400 ${isSingleChild ? 'h-16' : 'h-8'} top-0`} />
             <div className={`relative flex justify-center ${isSingleChild ? 'mt-10' : ''}`}>
               {sortedChildren.map((child, index, array) => {
-                // Calculate the proper line connections based on array position
                 const isFirst = index === 0;
                 const isLast = index === array.length - 1;
                 const isSolo = array.length === 1;

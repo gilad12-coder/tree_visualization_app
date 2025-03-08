@@ -873,30 +873,19 @@ def get_available_columns(folder_id, table_id):
 def search_nodes(folder_id, table_id):
     query = request.args.get('query', '')
     columns = request.args.get('columns', '').split(',')
-    
     logger.info(f"Search request received for folder_id: {folder_id}, table_id: {table_id}, query: '{query}', columns: {columns}")
-    
     try:
         with session_scope() as session:
-            table = (
-                session.query(Table)
-                .filter_by(id=table_id, folder_id=folder_id)
-                .first()
-            )
-            
+            table = session.query(Table).filter_by(id=table_id, folder_id=folder_id).first()
             if not table:
                 logger.error(f"Table with id {table_id} not found in folder {folder_id}")
                 return jsonify({"error": f"Table with id {table_id} not found in folder {folder_id}"}), 404
-            
             logger.info(f"Searching table {table_id} in folder {folder_id} across specified columns: {columns}")
-            
             if query:
                 results = search_table_specified_columns(session, table_id, query, columns)
             else:
                 results = get_all_results(session, table_id)
-            
             logger.info(f"Search completed. Total results: {len(results)}")
-            
             return jsonify({
                 "results": results,
                 "total_results": len(results),
@@ -905,17 +894,14 @@ def search_nodes(folder_id, table_id):
                 "folder_id": folder_id,
                 "table_id": table_id
             }), 200
-    
     except Exception as e:
         logger.exception(f"Error searching in folder {folder_id}, table {table_id}: {str(e)}")
         return jsonify({"error": "An unexpected error occurred while searching"}), 500
 
 def get_all_results(session, table_id):
     logger.info(f"Fetching all results for table with ID: {table_id}")
-
     results = session.query(DataEntry).filter(DataEntry.table_id == table_id).all()
     logger.info(f"Query executed. Number of results found: {len(results)}")
-
     search_results = []
     for entry in results:
         result = {
@@ -930,49 +916,34 @@ def get_all_results(session, table_id):
         }
         search_results.append(result)
         logger.debug(f"Result added for person_id: {entry.person_id}")
-
     logger.info("All results fetched and prepared.")
-    
     return search_results
 
 def search_table_specified_columns(session, table_id, query, columns):
     logger.info(f"Starting search in table with ID: {table_id} for query: '{query}' across columns: {columns}")
-
     parsed_query = parse_complex_query(query)
     logger.info(f"Parsed query: {parsed_query}")
-
     base_query = session.query(DataEntry).filter(DataEntry.table_id == table_id)
     logger.info(f"Base query created for table_id: {table_id}")
-
     all_columns = [column.key for column in DataEntry.__table__.columns if column.key not in ['id', 'table_id']]
     valid_columns = [col for col in columns if col in all_columns]
-    
     if not valid_columns:
-        valid_columns = all_columns  # If no valid columns specified, search all columns
-
-    # Build the main condition
+        valid_columns = all_columns
     main_condition = build_sqlalchemy_condition(parsed_query, valid_columns)
-    
-    # Log the SQL query
     query_sql = str(base_query.filter(main_condition).statement.compile(compile_kwargs={"literal_binds": True}))
     logger.info(f"SQL query: {query_sql}")
-
     results = base_query.filter(main_condition).all()
     logger.info(f"Query executed. Number of results found: {len(results)}")
-
     search_results = []
     for entry in results:
         matched_terms = []
         matched_columns = []
-
         for column in valid_columns:
             column_value = str(getattr(entry, column))
             column_matches = get_matched_terms(column_value, parsed_query)
-            
             if column_matches:
                 matched_terms.extend(column_matches)
                 matched_columns.append(column)
-
         result = {
             'person_id': entry.person_id,
             'name': entry.name,
@@ -980,26 +951,22 @@ def search_table_specified_columns(session, table_id, query, columns):
             'department': entry.department,
             'rank': entry.rank,
             'organization_id': entry.organization_id,
-            'matched_terms': list(set(matched_terms)),  # Remove duplicates
+            'matched_terms': list(set(matched_terms)),
             'hierarchical_structure': entry.hierarchical_structure,
             'matched_columns': matched_columns
         }
         search_results.append(result)
         logger.debug(f"Result added: {result}")
-
     logger.info(f"Search completed and results prepared. Total results: {len(search_results)}")
-    
     return search_results
 
 def parse_complex_query(query):
     logger.info(f"Parsing complex query: '{query}'")
-
     def tokenize(s):
-        # Split on spaces, but keep quoted strings and parentheses together
         tokens = re.findall(r'([()]|\w+|"[^"]*")', s)
+        tokens = [t.upper() if t.lower() in {"and", "or", "not"} and not (t.startswith('"') and t.endswith('"')) else t for t in tokens]
         logger.debug(f"Tokenized query: {tokens}")
         return tokens
-
     def parse_expression(tokens):
         result = []
         while tokens:
@@ -1022,15 +989,11 @@ def parse_complex_query(query):
             else:
                 result.append(token)
         return result, []
-
     try:
         tokens = tokenize(query)
         parsed_query, _ = parse_expression(tokens)
-        
-        # Flatten the list if it's unnecessarily nested
         while len(parsed_query) == 1 and isinstance(parsed_query[0], list):
             parsed_query = parsed_query[0]
-        
         logger.info(f"Parsed complex query result: {parsed_query}")
         return parsed_query
     except Exception as e:
@@ -1039,7 +1002,6 @@ def parse_complex_query(query):
 
 def build_sqlalchemy_condition(parsed_query, columns):
     logger.info(f"Building SQLAlchemy condition for parsed query: {parsed_query}")
-    
     def build_condition(expr):
         logger.debug(f"Building condition for expression: {expr}")
         if isinstance(expr, list):
@@ -1061,7 +1023,6 @@ def build_sqlalchemy_condition(parsed_query, columns):
                 else:
                     column_conditions.append(func.lower(getattr(DataEntry, column)).like(f"%{expr.lower()}%"))
             return or_(*column_conditions)
-
     try:
         condition = build_condition(parsed_query)
         logger.info(f"Built SQLAlchemy condition: {condition}")
@@ -1071,49 +1032,54 @@ def build_sqlalchemy_condition(parsed_query, columns):
         raise ValueError(f"Error building search condition: {str(e)}")
 
 def get_matched_terms(text, parsed_query):
-    logger.debug(f"Starting get_matched_terms with text: '{text}' and parsed query: {parsed_query}")
-    
-    def evaluate_and_explain(expr):
-        logger.debug(f"Evaluating expression: {expr}")
+    def evaluate(expr):
         if isinstance(expr, list):
-            if expr[0] == 'NOT':
-                sub_result, sub_explanation = evaluate_and_explain(expr[1])
-                result = not sub_result
-                explanation = f"NOT ({expr[1]})" if result else None
-                logger.debug(f"NOT result: {result}, explanation: {explanation}")
-                return (result, explanation)
+            if len(expr) > 0 and expr[0] == 'NOT':
+                sub_bool, sub_matches = evaluate(expr[1])
+                return (not sub_bool, set())
             elif 'AND' in expr:
-                results = [evaluate_and_explain(e) for e in expr if e != 'AND']
-                result = all(r for r, _ in results)
-                explanations = [e for _, e in results if e is not None]
-                explanation = " AND ".join(explanations) if result and explanations else None
-                logger.debug(f"AND result: {result}, explanation: {explanation}")
-                return (result, explanation)
+                all_matches = set()
+                for sub in expr:
+                    if sub == 'AND':
+                        continue
+                    sub_bool, sub_matches = evaluate(sub)
+                    if not sub_bool:
+                        return (False, set())
+                    all_matches.update(sub_matches)
+                return (True, all_matches)
             elif 'OR' in expr:
-                results = [evaluate_and_explain(e) for e in expr if e != 'OR']
-                matching_explanations = [e for r, e in results if r and e is not None]
-                result = any(r for r, _ in results)
-                explanation = " OR ".join(matching_explanations) if result else None
-                logger.debug(f"OR result: {result}, explanation: {explanation}")
-                return (result, explanation)
+                any_matches = set()
+                result = False
+                for sub in expr:
+                    if sub == 'OR':
+                        continue
+                    sub_bool, sub_matches = evaluate(sub)
+                    if sub_bool:
+                        result = True
+                        any_matches.update(sub_matches)
+                return (result, any_matches)
             else:
-                return evaluate_and_explain(['AND'] + expr)
+                all_matches = set()
+                for sub in expr:
+                    sub_bool, sub_matches = evaluate(sub)
+                    if not sub_bool:
+                        return (False, set())
+                    all_matches.update(sub_matches)
+                return (True, all_matches)
         else:
-            result = expr.lower() in text.lower()
-            explanation = expr if result else None
-            logger.debug(f"Leaf node result: {result}, explanation: {explanation}")
-            return (result, explanation)
-
-    result, explanation = evaluate_and_explain(parsed_query)
-    
-    logger.info(f"Final result: {result}, Final explanation: {explanation}")
-    
-    if result and explanation:
-        logger.info(f"Match found. Explanation: {explanation}")
-        return [explanation]
-    else:
-        logger.info("No match found")
-        return []
+            if expr.startswith('"') and expr.endswith('"'):
+                term = expr.strip('"')
+                if term.lower() == text.lower():
+                    return (True, {term})
+                else:
+                    return (False, set())
+            else:
+                if expr.lower() in text.lower():
+                    return (True, {expr})
+                else:
+                    return (False, set())
+    overall_bool, matches = evaluate(parsed_query)
+    return list(matches) if overall_bool else []
     
 @app.route("/export_excel/<int:table_id>", methods=["GET"])
 def export_excel(table_id):
@@ -1165,7 +1131,7 @@ def fetch_relevant_tables_by_field(folder_id):
                 ))
             elif field_type == 'person_id':
                 query = query.filter(Table.id.in_(
-                    session.query(DataEntry.table_id).filter(DataEntry.person_id == int(field_value))
+                    session.query(DataEntry.table_id).filter(DataEntry.person_id == field_value)
                 ))
             else:
                 return jsonify({"error": "Invalid field_type. Use 'hierarchical_structure' or 'person_id'"}), 400

@@ -219,11 +219,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
           className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex justify-between items-center p-4 border-b border-gray-100">
-            <h2 className="text-lg font-medium text-gray-900">
-              {isComparingMode ? 'Select Table for Comparison' : (step === 'folder' ? 'Select Folder' : 'Select Table')}
-            </h2>
+          <div className="flex justify-end items-center p-4 border-b border-gray-100">
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
               <X size={20} />
             </button>

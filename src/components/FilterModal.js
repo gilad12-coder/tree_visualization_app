@@ -187,6 +187,15 @@ const EnhancedFilterModal = ({
     }
   };
 
+  // Sort function to sort results by number of matched terms
+  const sortByMatchedTerms = (resultsToSort) => {
+    return [...resultsToSort].sort((a, b) => {
+      const aTerms = a.matched_terms?.length || 0;
+      const bTerms = b.matched_terms?.length || 0;
+      return bTerms - aTerms; // Sort in descending order
+    });
+  };
+
   const renderResults = () => {
     if (isLoading) {
       return (
@@ -210,9 +219,12 @@ const EnhancedFilterModal = ({
       );
     }
 
+    // Sort results by number of matched terms before rendering
+    const sortedResults = sortByMatchedTerms(results);
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {results.map((result) => (
+        {sortedResults.map((result) => (
           <ResultCard
             key={result.hierarchical_structure}
             result={result}
@@ -252,7 +264,7 @@ const EnhancedFilterModal = ({
       >
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-gray-100">
-          <div></div> {/* Empty div to push the button to the right */}
+          <div className="text-lg font-medium text-gray-800">Search Results</div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
             <X size={20} />
           </button>
@@ -280,7 +292,9 @@ const EnhancedFilterModal = ({
         {!isLoading && results.length > 0 && (
           <div className="px-6 py-3 border-b border-gray-100">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Search Results</span>
+              <span className="text-sm font-medium text-gray-700">
+                Results sorted by relevance (highest match count first)
+              </span>
               <span className="bg-gray-200 text-gray-800 rounded-full px-3 py-1 text-sm font-medium">
                 {results.length} {results.length === 1 ? 'result' : 'results'}
               </span>
