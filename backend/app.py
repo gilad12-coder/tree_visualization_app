@@ -1,4 +1,3 @@
-# Standard library imports
 import logging
 import os
 import sys
@@ -9,14 +8,14 @@ import re
 from contextlib import contextmanager
 from datetime import datetime
 from io import BytesIO
+from typing import Dict, List, Optional, Any
 
-# Third-party imports
+import pandas as pd
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, inspect, or_, and_
 
-# Local application imports
 from models import (
     Folder,
     Table,
@@ -40,14 +39,26 @@ from utils import (
 )
 from report_service import OrganizationReportService
 
-def resource_path(relative_path):
+def resource_path(relative_path: str) -> str:
+    """
+    Get the absolute path for a resource relative to the application.
+
+    Parameters:
+        relative_path (str): The relative path to the resource.
+
+    Returns:
+        str: The absolute path to the resource.
+    """
     try:
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-def open_browser():
+def open_browser() -> None:
+    """
+    Open the web browser to the application URL after a short delay.
+    """
     time.sleep(1)
     webbrowser.open_new('http://localhost:5001/')
 
@@ -62,15 +73,32 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='build', static_url_path='')
 CORS(app)
 
-# Global error handler
 @app.errorhandler(Exception)
-def handle_exception(e):
+def handle_exception(e: Exception) -> Any:
+    """
+    Handle unhandled exceptions globally.
+
+    Parameters:
+        e (Exception): The exception that was raised.
+
+    Returns:
+        JSON response with error message and status code 500.
+    """
     logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
     return jsonify({"error": "An unexpected error occurred"}), 500
 
-def validate_input(**expected_args):
-    def decorator(f):
-        def wrapper(*args, **kwargs):
+def validate_input(**expected_args: Dict[str, type]) -> Any:
+    """
+    Decorator to validate input parameters for Flask routes.
+
+    Parameters:
+        expected_args (Dict[str, type]): A dictionary of expected argument names and their types.
+
+    Returns:
+        Function decorator that validates input parameters.
+    """
+    def decorator(f: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             for arg, arg_type in expected_args.items():
                 value = request.args.get(arg) if request.method == 'GET' else request.form.get(arg)
                 if value is None:
@@ -88,7 +116,13 @@ def validate_input(**expected_args):
     return decorator
 
 @contextmanager
-def session_scope():
+def session_scope() -> Any:
+    """
+    Provide a transactional scope around a series of operations.
+
+    Yields:
+        Session: A database session.
+    """
     session = get_session()
     try:
         yield session
@@ -98,8 +132,14 @@ def session_scope():
         raise
     finally:
         session.close()
-        
-def check_if_db_has_data():
+
+def check_if_db_has_data() -> bool:
+    """
+    Check if the database has any data in the specified tables.
+
+    Returns:
+        bool: True if any data exists, False otherwise.
+    """
     with session_scope() as session:
         for table in [Folder, Table, DataEntry]:
             if session.query(table).first():
@@ -107,16 +147,27 @@ def check_if_db_has_data():
     return False
 
 @app.route("/open_file_explorer", methods=["GET"])
-def open_file_explorer():
+def open_file_explorer() -> Any:
+    """
+    Open the file explorer in the user's home directory.
+
+    Returns:
+        JSON response indicating success or failure.
+    """
     try:
         subprocess.Popen(['explorer', os.path.expanduser('~')])
-            
         return jsonify({"message": "File explorer opened successfully"}), 200
     except Exception as e:
         return jsonify({"error": f"Failed to open file explorer: {str(e)}"}), 500
 
 @app.route("/check_existing_db", methods=["POST"])
-def check_existing_db():
+def check_existing_db() -> Any:
+    """
+    Check if the specified database exists and is valid.
+
+    Returns:
+        JSON response with database status and path.
+    """
     data = request.json
     db_path = data.get('db_path')
     if not db_path:
@@ -144,7 +195,13 @@ def check_existing_db():
     }), 200
 
 @app.route("/create_new_db", methods=["POST"])
-def create_new_db_route():
+def create_new_db_route() -> Any:
+    """
+    Create a new database in the specified folder.
+
+    Returns:
+        JSON response with the status of the database creation.
+    """
     data = request.json
     folder_path = data.get('db_path')
     db_name = data.get('db_name', 'orgchart.db')
@@ -202,7 +259,17 @@ def create_new_db_route():
 
 @app.route("/upload", methods=["POST"])
 @validate_input(folder_name=str, upload_date=datetime)
-def upload_file(folder_name, upload_date):
+def upload_file(folder_name: str, upload_date: datetime) -> Any:
+    """
+    Upload a file and process its contents.
+
+    Parameters:
+        folder_name (str): The name of the folder to upload the file to.
+        upload_date (datetime): The date the file is being uploaded.
+
+    Returns:
+        JSON response with the status of the upload.
+    """
     logger.info(f"Starting upload process for folder: {folder_name}")
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -219,7 +286,6 @@ def upload_file(folder_name, upload_date):
     new_folder_id = None
     with session_scope() as session:
         try:
-            # Attempt to retrieve or create the folder
             logger.info(f"Checking for existing folder: {folder_name}")
             folder = session.query(Folder).filter_by(name=folder_name).first()
             if not folder:
@@ -231,7 +297,6 @@ def upload_file(folder_name, upload_date):
                 new_folder_id = folder.id
             logger.info(f"Using folder: {folder.name} (ID: {folder.id}), new folder created: {new_folder_created}")
 
-            # Process file and create table
             file_content = file.read()
             logger.info(f"File content read, size: {len(file_content)} bytes")
 
@@ -240,7 +305,6 @@ def upload_file(folder_name, upload_date):
             session.flush()  # Flush to get the table ID
             logger.info(f"Table created: {table.name} (ID: {table.id})")
 
-            # Process the data and insert entries
             df = process_excel_data(file_content, file_extension)
             insert_data_entries(session, table.id, df)
             
@@ -260,7 +324,6 @@ def upload_file(folder_name, upload_date):
             
             if new_folder_created and new_folder_id:
                 try:
-                    # Start a new session to delete the folder
                     with session_scope() as new_session:
                         folder_to_delete = new_session.query(Folder).get(new_folder_id)
                         if folder_to_delete:
@@ -275,7 +338,13 @@ def upload_file(folder_name, upload_date):
             return jsonify({"error": str(e)}), 500
 
 @app.route("/folder_structure", methods=["GET"])
-def fetch_folder_structure():
+def fetch_folder_structure() -> Any:
+    """
+    Fetch the structure of folders and their associated tables.
+
+    Returns:
+        JSON response with the folder structure.
+    """
     with session_scope() as session:
         folders = session.query(Folder).all()
         folder_structure = []
@@ -297,16 +366,30 @@ def fetch_folder_structure():
 
         return jsonify(folder_structure), 200
 
-#TODO: Utilize the table upload date.
 @app.route("/view_tables", methods=["GET"])
-def view_tables():
+def view_tables() -> Any:
+    """
+    View all tables in the database.
+
+    Returns:
+        JSON response with a list of tables.
+    """
     with session_scope() as session:
         tables = session.query(Table).all()
         return jsonify([{"id": t.id, "name": t.name} for t in tables]), 200
 
 @app.route("/org_data", methods=["GET"], endpoint='get_org_data')
 @validate_input(table_id=int)
-def get_org_data(table_id):
+def get_org_data(table_id: int) -> Any:
+    """
+    Retrieve organizational data for a specific table.
+
+    Parameters:
+        table_id (int): The ID of the table to retrieve data from.
+
+    Returns:
+        JSON response with the organizational chart and log.
+    """
     org_chart, log = get_org_chart(table_id)
     response = {"org_chart": org_chart}
     if log:
@@ -315,25 +398,44 @@ def get_org_data(table_id):
 
 @app.route("/department_structure", methods=["GET"], endpoint='fetch_department_structure')
 @validate_input(table_id=int, department=str)
-def fetch_department_structure(table_id, department):
+def fetch_department_structure(table_id: int, department: str) -> Any:
+    """
+    Fetch the department structure for a specific table.
+
+    Parameters:
+        table_id (int): The ID of the table to retrieve data from.
+        department (str): The department to fetch the structure for.
+
+    Returns:
+        JSON response with the department structure.
+    """
     structure = get_department_structure(table_id, department)
     return jsonify(structure), 200
 
 @app.route("/age_distribution/<int:table_id>", methods=["GET"])
-def fetch_age_distribution(table_id):
+def fetch_age_distribution(table_id: int) -> Any:
+    """
+    Fetch the age distribution for a specific table.
+
+    Parameters:
+        table_id (int): The ID of the table to retrieve data from.
+
+    Returns:
+        JSON response with the age distribution.
+    """
     distribution = get_age_distribution(table_id)
     return jsonify(distribution), 200
 
-def find_person_in_tree_for_timeline(node, target_person_id):
+def find_person_in_tree_for_timeline(node: dict, target_person_id: str) -> Optional[dict]:
     """
     Recursively search for a person in the organization tree.
-    
-    Args:
-    node (dict): The current node in the org tree
-    target_person_id (str): The ID of the person to find
-    
+
+    Parameters:
+        node (dict): The current node in the org tree.
+        target_person_id (str): The ID of the person to find.
+
     Returns:
-    dict: The node containing the person, or None if not found
+        Optional[dict]: The node containing the person, or None if not found.
     """
     if str(node.get('person_id')) == str(target_person_id):
         return node
@@ -345,16 +447,16 @@ def find_person_in_tree_for_timeline(node, target_person_id):
     
     return None
 
-def find_nodes_by_structure_for_timeline(node, target_structure):
+def find_nodes_by_structure_for_timeline(node: dict, target_structure: str) -> List[dict]:
     """
     Recursively search for nodes in the organization tree that match the given hierarchical structure.
-    
-    Args:
-    node (dict): The current node in the org tree
-    target_structure (str): The hierarchical structure to match (e.g., "/1/1/2")
-    
+
+    Parameters:
+        node (dict): The current node in the org tree.
+        target_structure (str): The hierarchical structure to match (e.g., "/1/1/2").
+
     Returns:
-    list: A list of nodes that match the given structure, or an empty list if none found
+        List[dict]: A list of nodes that match the given structure, or an empty list if none found.
     """
     matching_nodes = []
     
@@ -367,20 +469,20 @@ def find_nodes_by_structure_for_timeline(node, target_structure):
     return matching_nodes
 
 @app.route("/timeline/<int:folder_id>", methods=["GET"])
-def get_timeline(folder_id):
+def get_timeline(folder_id: int) -> Any:
     """
     Generate a timeline and CV based on organizational data, either for a person or a hierarchical structure.
-    
-    Args:
-    folder_id (int): The ID of the folder containing the data tables
-    
+
+    Parameters:
+        folder_id (int): The ID of the folder containing the data tables.
+
     Query Parameters:
-    person_id (str): The ID of the person to generate the timeline/CV for
-    hierarchical_structure (str): The hierarchical structure to retrieve data for (e.g., "Engineering/Frontend")
-    table_id (str): Optional. If provided, only process up to this table ID
-    
+        person_id (str): The ID of the person to generate the timeline/CV for.
+        hierarchical_structure (str): The hierarchical structure to retrieve data for (e.g., "Engineering/Frontend").
+        table_id (str): Optional. If provided, only process up to this table ID.
+
     Returns:
-    JSON: A dictionary containing the timeline and CV data
+        JSON: A dictionary containing the timeline and CV data.
     """
     person_id = request.args.get('person_id')
     hierarchical_structure = request.args.get('hierarchical_structure')
@@ -494,7 +596,13 @@ def get_timeline(folder_id):
         return jsonify({"error": "An unexpected error occurred while processing the timeline"}), 500
 
 @app.route("/folders", methods=["GET"])
-def get_folders_list():
+def get_folders_list() -> Any:
+    """
+    Retrieve a list of folders in the database.
+
+    Returns:
+        JSON response with the list of folders.
+    """
     db_path = request.args.get('db_path')
     if not db_path:
         return jsonify({"error": "No database path provided"}), 400
@@ -525,7 +633,18 @@ def get_folders_list():
 
 @app.route("/compare_tables/<int:folder_id>", methods=["GET"], endpoint='compare_tables')
 @validate_input(table1_id=int, table2_id=int)
-def compare_tables(folder_id, table1_id, table2_id):
+def compare_tables(folder_id: int, table1_id: int, table2_id: int) -> Any:
+    """
+    Compare two tables in the specified folder and return the differences.
+
+    Parameters:
+        folder_id (int): The ID of the folder containing the tables.
+        table1_id (int): The ID of the first table to compare.
+        table2_id (int): The ID of the second table to compare.
+
+    Returns:
+        JSON response with the comparison report.
+    """
     with session_scope() as session:
         table1 = session.query(Table).filter_by(id=table1_id, folder_id=folder_id).first()
         table2 = session.query(Table).filter_by(id=table2_id, folder_id=folder_id).first()
@@ -556,7 +675,17 @@ def compare_tables(folder_id, table1_id, table2_id):
         
         return jsonify(report), 200
 
-def compare_org_data(data1, data2):
+def compare_org_data(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str, Any]:
+    """
+    Compare two sets of organizational data and identify changes.
+
+    Parameters:
+        data1 (List[DataEntry]): The first set of data entries.
+        data2 (List[DataEntry]): The second set of data entries.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the changes between the two datasets.
+    """
     changes = {
         "added": [],
         "removed": [],
@@ -622,7 +751,18 @@ def compare_org_data(data1, data2):
     
     return changes
 
-def generate_aggregated_report(changes, data1, data2):
+def generate_aggregated_report(changes: Dict[str, Any], data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str, Any]:
+    """
+    Generate an aggregated report based on the changes between two datasets.
+
+    Parameters:
+        changes (Dict[str, Any]): The changes identified between the two datasets.
+        data1 (List[DataEntry]): The first set of data entries.
+        data2 (List[DataEntry]): The second set of data entries.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the aggregated report.
+    """
     return {
         "total_employees": {
             "before": len(data1),
@@ -646,14 +786,33 @@ def generate_aggregated_report(changes, data1, data2):
         "promotion_rate": calculate_promotion_rate(changes, data1)
     }
 
-def summarize_changes(changes):
+def summarize_changes(changes: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Summarize the changes in a structured format.
+
+    Parameters:
+        changes (Dict[str, Any]): The changes to summarize.
+
+    Returns:
+        Dict[str, Any]: A summary of the changes.
+    """
     return {
         "total": len(changes),
         "details": changes
     }
 
-def compare_age_distributions(data1, data2):
-    def get_age_distribution(data):
+def compare_age_distributions(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str, Any]:
+    """
+    Compare the age distributions of two datasets.
+
+    Parameters:
+        data1 (List[DataEntry]): The first set of data entries.
+        data2 (List[DataEntry]): The second set of data entries.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the age distribution comparison.
+    """
+    def get_age_distribution(data: List[DataEntry]) -> Dict[str, float]:
         current_year = datetime.now().year
         ages = []
         for entry in data:
@@ -661,11 +820,11 @@ def compare_age_distributions(data1, data2):
                 try:
                     birth_year = datetime.strptime(entry.birth_date, "%Y-%m-%d").year
                 except ValueError:
-                    continue  # Skip if the string is not in the correct format
-            elif isinstance(entry.birth_date, date):
+                    continue
+            elif isinstance(entry.birth_date, datetime):
                 birth_year = entry.birth_date.year
             else:
-                continue  # Skip if birth_date is neither string nor date
+                continue
             ages.append(current_year - birth_year)
         
         if not ages:
@@ -688,8 +847,18 @@ def compare_age_distributions(data1, data2):
         "median_change": dist2["median"] - dist1["median"]
     }
 
-def compare_rank_distributions(data1, data2):
-    def get_rank_distribution(data):
+def compare_rank_distributions(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str, Any]:
+    """
+    Compare the rank distributions of two datasets.
+
+    Parameters:
+        data1 (List[DataEntry]): The first set of data entries.
+        data2 (List[DataEntry]): The second set of data entries.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the rank distribution comparison.
+    """
+    def get_rank_distribution(data: List[DataEntry]) -> Dict[str, int]:
         ranks = [entry.rank for entry in data]
         return {rank: ranks.count(rank) for rank in set(ranks)}
     
@@ -707,8 +876,18 @@ def compare_rank_distributions(data1, data2):
     
     return changes
 
-def compare_department_sizes(data1, data2):
-    def get_department_sizes(data):
+def compare_department_sizes(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str, Any]:
+    """
+    Compare the sizes of departments in two datasets.
+
+    Parameters:
+        data1 (List[DataEntry]): The first set of data entries.
+        data2 (List[DataEntry]): The second set of data entries.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the department size comparison.
+    """
+    def get_department_sizes(data: List[DataEntry]) -> Dict[str, int]:
         departments = [entry.department for entry in data]
         return {dept: departments.count(dept) for dept in set(departments)}
     
@@ -732,8 +911,18 @@ def compare_department_sizes(data1, data2):
     
     return changes
 
-def compare_role_diversity(data1, data2):
-    def get_role_diversity(data):
+def compare_role_diversity(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str, Any]:
+    """
+    Compare the role diversity in two datasets.
+
+    Parameters:
+        data1 (List[DataEntry]): The first set of data entries.
+        data2 (List[DataEntry]): The second set of data entries.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the role diversity comparison.
+    """
+    def get_role_diversity(data: List[DataEntry]) -> Dict[str, Any]:
         roles = [entry.role for entry in data]
         unique_roles = len(set(roles))
         return {
@@ -751,8 +940,18 @@ def compare_role_diversity(data1, data2):
         "ratio_change": div2["role_to_employee_ratio"] - div1["role_to_employee_ratio"]
     }
 
-def compare_org_depths(data1, data2):
-    def get_max_depth(data):
+def compare_org_depths(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str, Any]:
+    """
+    Compare the organizational depth in two datasets.
+
+    Parameters:
+        data1 (List[DataEntry]): The first set of data entries.
+        data2 (List[DataEntry]): The second set of data entries.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the organizational depth comparison.
+    """
+    def get_max_depth(data: List[DataEntry]) -> int:
         return max(len(entry.hierarchical_structure.split('/')) for entry in data)
     
     depth1 = get_max_depth(data1)
@@ -764,8 +963,18 @@ def compare_org_depths(data1, data2):
         "change": depth2 - depth1
     }
 
-def compare_span_of_control(data1, data2):
-    def get_avg_span(data):
+def compare_span_of_control(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str, Any]:
+    """
+    Compare the span of control in two datasets.
+
+    Parameters:
+        data1 (List[DataEntry]): The first set of data entries.
+        data2 (List[DataEntry]): The second set of data entries.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the span of control comparison.
+    """
+    def get_avg_span(data: List[DataEntry]) -> float:
         manager_counts = {}
         for entry in data:
             manager = '/'.join(entry.hierarchical_structure.split('/')[:-1])
@@ -782,17 +991,46 @@ def compare_span_of_control(data1, data2):
         "change": span2 - span1
     }
 
-def calculate_turnover_rate(changes, data1):
+def calculate_turnover_rate(changes: Dict[str, Any], data1: List[DataEntry]) -> float:
+    """
+    Calculate the turnover rate based on changes and the initial dataset.
+
+    Parameters:
+        changes (Dict[str, Any]): The changes identified between the two datasets.
+        data1 (List[DataEntry]): The first set of data entries.
+
+    Returns:
+        float: The turnover rate as a percentage.
+    """
     departed = len(changes["removed"])
     total_before = len(data1)
     return (departed / total_before) * 100 if total_before > 0 else 0
 
-def calculate_promotion_rate(changes, data1):
+def calculate_promotion_rate(changes: Dict[str, Any], data1: List[DataEntry]) -> float:
+    """
+    Calculate the promotion rate based on changes and the initial dataset.
+
+    Parameters:
+        changes (Dict[str, Any]): The changes identified between the two datasets.
+        data1 (List[DataEntry]): The first set of data entries.
+
+    Returns:
+        float: The promotion rate as a percentage.
+    """
     promotions = sum(1 for change in changes["rank_changes"].values() if change["old"] < change["new"])
     total_before = len(data1)
     return (promotions / total_before) * 100 if total_before > 0 else 0
 
-def entry_to_dict(entry):
+def entry_to_dict(entry: DataEntry) -> Dict[str, Any]:
+    """
+    Convert a DataEntry object to a dictionary.
+
+    Parameters:
+        entry (DataEntry): The data entry to convert.
+
+    Returns:
+        Dict[str, Any]: A dictionary representation of the data entry.
+    """
     return {
         "person_id": entry.person_id,
         "name": entry.name,
@@ -806,10 +1044,19 @@ def entry_to_dict(entry):
         "organization_name": entry.organization_name
     }
 
-    
 @app.route("/highlight_nodes", methods=["GET"], endpoint='highlight_nodes')
 @validate_input(hierarchical_structure=str, table_id=int)
-def highlight_nodes(hierarchical_structure, table_id):
+def highlight_nodes(hierarchical_structure: str, table_id: int) -> Any:
+    """
+    Highlight nodes in the organizational chart based on the hierarchical structure.
+
+    Parameters:
+        hierarchical_structure (str): The hierarchical structure to highlight.
+        table_id (int): The ID of the table to retrieve data from.
+
+    Returns:
+        JSON response with the highlighted nodes.
+    """
     org_chart = get_org_chart(table_id)[0]
     highlighted_nodes = find_node_path(org_chart, hierarchical_structure)
     
@@ -818,8 +1065,18 @@ def highlight_nodes(hierarchical_structure, table_id):
 
     return jsonify({"highlighted_nodes": highlighted_nodes}), 200
 
-def find_node_path(node, target_structure):
-    def dfs(current_node, path):
+def find_node_path(node: dict, target_structure: str) -> Optional[List[str]]:
+    """
+    Find the path to a node in the organization tree based on its hierarchical structure.
+
+    Parameters:
+        node (dict): The current node in the org tree.
+        target_structure (str): The hierarchical structure to match.
+
+    Returns:
+        Optional[List[str]]: The path to the node if found, otherwise None.
+    """
+    def dfs(current_node: dict, path: List[str]) -> Optional[List[str]]:
         if current_node['hierarchical_structure'] == target_structure:
             return path + [current_node['hierarchical_structure']]
         
@@ -834,14 +1091,33 @@ def find_node_path(node, target_structure):
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-def serve(path):
+def serve(path: str) -> Any:
+    """
+    Serve static files or the main application page.
+
+    Parameters:
+        path (str): The path to the requested resource.
+
+    Returns:
+        Response: The requested file or the main application page.
+    """
     if path != "" and os.path.exists(app.static_folder + '/' + path):
         return send_from_directory(app.static_folder, path)
     else:
         return send_from_directory(app.static_folder, 'index.html')
 
 @app.route("/columns/<int:folder_id>/<int:table_id>", methods=["GET"])
-def get_available_columns(folder_id, table_id):
+def get_available_columns(folder_id: int, table_id: int) -> Any:
+    """
+    Fetch the available columns for a specific table in a folder.
+
+    Parameters:
+        folder_id (int): The ID of the folder containing the table.
+        table_id (int): The ID of the table to retrieve columns from.
+
+    Returns:
+        JSON response with the available columns.
+    """
     logger.info(f"Fetching available columns for folder_id: {folder_id}, table_id: {table_id}")
     
     try:
@@ -871,7 +1147,17 @@ def get_available_columns(folder_id, table_id):
         return jsonify({"error": "An unexpected error occurred while fetching columns"}), 500
 
 @app.route("/search/<int:folder_id>/<int:table_id>", methods=["GET"])
-def search_nodes(folder_id, table_id):
+def search_nodes(folder_id: int, table_id: int) -> Any:
+    """
+    Search for nodes in a specific table based on a query.
+
+    Parameters:
+        folder_id (int): The ID of the folder containing the table.
+        table_id (int): The ID of the table to search in.
+
+    Returns:
+        JSON response with the search results.
+    """
     query = request.args.get('query', '')
     columns = request.args.get('columns', '').split(',')
     logger.info(f"Search request received for folder_id: {folder_id}, table_id: {table_id}, query: '{query}', columns: {columns}")
@@ -899,7 +1185,17 @@ def search_nodes(folder_id, table_id):
         logger.exception(f"Error searching in folder {folder_id}, table {table_id}: {str(e)}")
         return jsonify({"error": "An unexpected error occurred while searching"}), 500
 
-def get_all_results(session, table_id):
+def get_all_results(session: Any, table_id: int) -> List[Dict[str, Any]]:
+    """
+    Fetch all results for a specific table.
+
+    Parameters:
+        session (Any): The database session.
+        table_id (int): The ID of the table to retrieve results from.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries representing the results.
+    """
     logger.info(f"Fetching all results for table with ID: {table_id}")
     results = session.query(DataEntry).filter(DataEntry.table_id == table_id).all()
     logger.info(f"Query executed. Number of results found: {len(results)}")
@@ -921,7 +1217,19 @@ def get_all_results(session, table_id):
     logger.info("All results fetched and prepared.")
     return search_results
 
-def search_table_specified_columns(session, table_id, query, columns):
+def search_table_specified_columns(session: Any, table_id: int, query: str, columns: List[str]) -> List[Dict[str, Any]]:
+    """
+    Search for entries in a specific table based on a query and specified columns.
+
+    Parameters:
+        session (Any): The database session.
+        table_id (int): The ID of the table to search in.
+        query (str): The search query.
+        columns (List[str]): The columns to search across.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries representing the search results.
+    """
     logger.info(f"Starting search in table with ID: {table_id} for query: '{query}' across columns: {columns}")
     parsed_query = parse_complex_query(query)
     logger.info(f"Parsed query: {parsed_query}")
@@ -962,14 +1270,23 @@ def search_table_specified_columns(session, table_id, query, columns):
     logger.info(f"Search completed and results prepared. Total results: {len(search_results)}")
     return search_results
 
-def parse_complex_query(query):
+def parse_complex_query(query: str) -> List[Any]:
+    """
+    Parse a complex search query into a structured format.
+
+    Parameters:
+        query (str): The search query to parse.
+
+    Returns:
+        List[Any]: A structured representation of the parsed query.
+    """
     logger.info(f"Parsing complex query: '{query}'")
-    def tokenize(s):
+    def tokenize(s: str) -> List[str]:
         tokens = re.findall(r'([()]|\w+|"[^"]*")', s)
         tokens = [t.upper() if t.lower() in {"and", "or", "not"} and not (t.startswith('"') and t.endswith('"')) else t for t in tokens]
         logger.debug(f"Tokenized query: {tokens}")
         return tokens
-    def parse_expression(tokens):
+    def parse_expression(tokens: List[str]) -> Tuple[List[Any], List[str]]:
         result = []
         while tokens:
             token = tokens.pop(0)
@@ -1002,9 +1319,19 @@ def parse_complex_query(query):
         logger.error(f"Error parsing query '{query}': {str(e)}")
         raise ValueError(f"Invalid query format: {str(e)}")
 
-def build_sqlalchemy_condition(parsed_query, columns):
+def build_sqlalchemy_condition(parsed_query: List[Any], columns: List[str]) -> Any:
+    """
+    Build a SQLAlchemy condition from a parsed query.
+
+    Parameters:
+        parsed_query (List[Any]): The parsed query to convert into a condition.
+        columns (List[str]): The columns to include in the condition.
+
+    Returns:
+        Any: The SQLAlchemy condition.
+    """
     logger.info(f"Building SQLAlchemy condition for parsed query: {parsed_query}")
-    def build_condition(expr):
+    def build_condition(expr: Any) -> Any:
         logger.debug(f"Building condition for expression: {expr}")
         if isinstance(expr, list):
             if len(expr) == 1:
@@ -1033,8 +1360,18 @@ def build_sqlalchemy_condition(parsed_query, columns):
         logger.error(f"Error building SQLAlchemy condition: {str(e)}")
         raise ValueError(f"Error building search condition: {str(e)}")
 
-def get_matched_terms(text, parsed_query):
-    def evaluate(expr):
+def get_matched_terms(text: str, parsed_query: List[Any]) -> List[str]:
+    """
+    Get the terms that match the parsed query in the given text.
+
+    Parameters:
+        text (str): The text to search for matches.
+        parsed_query (List[Any]): The parsed query to evaluate.
+
+    Returns:
+        List[str]: A list of matched terms.
+    """
+    def evaluate(expr: Any) -> Tuple[bool, set]:
         if isinstance(expr, list):
             if len(expr) > 0 and expr[0] == 'NOT':
                 sub_bool, sub_matches = evaluate(expr[1])
@@ -1084,7 +1421,16 @@ def get_matched_terms(text, parsed_query):
     return list(matches) if overall_bool else []
     
 @app.route("/export_excel/<int:table_id>", methods=["GET"])
-def export_excel(table_id):
+def export_excel(table_id: int) -> Any:
+    """
+    Export the data from a specific table to an Excel file.
+
+    Parameters:
+        table_id (int): The ID of the table to export.
+
+    Returns:
+        Response: The Excel file as an attachment.
+    """
     try:
         with session_scope() as session:
             table = session.query(Table).filter_by(id=table_id).first()
@@ -1105,7 +1451,16 @@ def export_excel(table_id):
         return jsonify({"error": "An unexpected error occurred while exporting the Excel file"}), 500
 
 @app.route("/get_relevant_tables/<int:folder_id>", methods=["GET"])
-def fetch_relevant_tables_by_field(folder_id):
+def fetch_relevant_tables_by_field(folder_id: int) -> Any:
+    """
+    Fetch relevant tables based on specified field criteria.
+
+    Parameters:
+        folder_id (int): The ID of the folder containing the tables.
+
+    Returns:
+        JSON response with the relevant tables.
+    """
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     field_type = request.args.get('field_type')
@@ -1152,7 +1507,17 @@ def fetch_relevant_tables_by_field(folder_id):
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route("/update_node_by_person/<int:folder_id>/<string:person_id>", methods=["POST"])
-def update_node_data_by_person(folder_id, person_id):
+def update_node_data_by_person(folder_id: int, person_id: str) -> Any:
+    """
+    Update a person's data in the specified folder.
+
+    Parameters:
+        folder_id (int): The ID of the folder containing the tables.
+        person_id (str): The ID of the person to update.
+
+    Returns:
+        JSON response with the status of the update operation.
+    """
     data = request.json
     start_date = data.get('start_date')
     end_date = data.get('end_date')
@@ -1198,21 +1563,20 @@ def update_node_data_by_person(folder_id, person_id):
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred while updating the nodes: {str(e)}"}), 500
 
-def update_person_data(session, table_id, person_id, updates):
+def update_person_data(session: Any, table_id: int, person_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update a person's data in a specific table.
 
-    Args:
-    session (Session): The database session.
-    table_id (int): The ID of the table containing the person's data.
-    person_id (int): The ID of the person to update.
-    updates (dict): A dictionary containing the fields to update and their new values.
+    Parameters:
+        session (Any): The database session.
+        table_id (int): The ID of the table containing the person's data.
+        person_id (str): The ID of the person to update.
+        updates (Dict[str, Any]): A dictionary containing the fields to update and their new values.
 
     Returns:
-    dict: The updated person data or an error dictionary if the person was not found.
+        Dict[str, Any]: The updated person data or an error dictionary if the person was not found.
     """
     try:
-        # Find the person's data entry
         data_entry = session.query(DataEntry).filter_by(
             table_id=table_id,
             person_id=person_id
@@ -1223,11 +1587,9 @@ def update_person_data(session, table_id, person_id, updates):
             logger.warning(error_msg)
             return {"error": error_msg}
 
-        # Update fields
         for key, value in updates.items():
             if hasattr(data_entry, key):
                 if key == 'birth_date' and value:
-                    # Convert string to datetime object
                     try:
                         value = datetime.strptime(value, '%Y-%m-%d').date()
                     except ValueError:
@@ -1236,13 +1598,9 @@ def update_person_data(session, table_id, person_id, updates):
             else:
                 return {"error": f"Invalid field: {key}"}
 
-        # Commit the changes
         session.commit()
-
-        # Refresh the data entry to get the updated values
         session.refresh(data_entry)
 
-        # Prepare the updated data to return
         updated_data = {
             "person_id": data_entry.person_id,
             "name": data_entry.name,
@@ -1267,7 +1625,16 @@ def update_person_data(session, table_id, person_id, updates):
         return {"error": error_msg}
 
 @app.route("/update_hierarchical_structure/<int:folder_id>", methods=["POST"])
-def update_hierarchical_structure(folder_id):
+def update_hierarchical_structure(folder_id: int) -> Any:
+    """
+    Update the hierarchical structure of nodes in the specified folder.
+
+    Parameters:
+        folder_id (int): The ID of the folder containing the tables.
+
+    Returns:
+        JSON response with the status of the update operation.
+    """
     data = request.json
     hierarchical_structure = data.get('hierarchical_structure')
     update_type = data.get('update_type')
@@ -1317,7 +1684,21 @@ def update_hierarchical_structure(folder_id):
         "results": results
     }), 200
 
-def change_hierarchical_location(session, table_id, hierarchical_structure, update_type, target_hierarchical_structure, new_role=None):
+def change_hierarchical_location(session: Any, table_id: int, hierarchical_structure: str, update_type: str, target_hierarchical_structure: str, new_role: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Change the hierarchical location of a node in the specified table.
+
+    Parameters:
+        session (Any): The database session.
+        table_id (int): The ID of the table containing the node.
+        hierarchical_structure (str): The current hierarchical structure of the node.
+        update_type (str): The type of update ('create_new' or 'override').
+        target_hierarchical_structure (str): The target hierarchical structure for the update.
+        new_role (Optional[str]): The new role for the node if creating a new entry.
+
+    Returns:
+        Dict[str, Any]: A message indicating the result of the operation.
+    """
     hierarchical_update_params = {
         'type': update_type,
         'new_parent_structure' if update_type == 'create_new' else 'override_structure': target_hierarchical_structure
@@ -1334,27 +1715,22 @@ def change_hierarchical_location(session, table_id, hierarchical_structure, upda
         return changes
 
     try:
-        # Find the original entry
         original_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=hierarchical_structure).first()
         if not original_entry:
             return {"error": f"No entry found with hierarchical_structure: {hierarchical_structure}"}
 
         if update_type == 'create_new':
-            # Create a new entry
             new_entry = DataEntry(**changes['new_node'])
             session.add(new_entry)
 
         elif update_type == 'override':
-            # Find the target entry
             target_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=target_hierarchical_structure).first()
             if not target_entry:
                 return {"error": f"No entry found with hierarchical_structure: {target_hierarchical_structure}"}
 
-            # Update the target entry with the original entry's data
             for key, value in changes['update_node'].items():
                 setattr(target_entry, key, value)
 
-        # Convert the original entry to a null node
         for key, value in changes['null_node'].items():
             setattr(original_entry, key, value)
 
@@ -1364,7 +1740,19 @@ def change_hierarchical_location(session, table_id, hierarchical_structure, upda
         session.rollback()
         return {"error": f"An error occurred while updating the hierarchical location: {str(e)}"}
 
-def compute_hierarchical_changes(session, table_id, hierarchical_structure, hierarchical_update_params):
+def compute_hierarchical_changes(session: Any, table_id: int, hierarchical_structure: str, hierarchical_update_params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Compute the changes needed to update the hierarchical structure of a node.
+
+    Parameters:
+        session (Any): The database session.
+        table_id (int): The ID of the table containing the node.
+        hierarchical_structure (str): The current hierarchical structure of the node.
+        hierarchical_update_params (Dict[str, Any]): The parameters for the update.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the changes to be made.
+    """
     current_entry = session.query(DataEntry).filter_by(table_id=table_id, hierarchical_structure=hierarchical_structure).first()
     if not current_entry:
         return {"error": f"Node with hierarchical structure {hierarchical_structure} not found in table {table_id}"}
@@ -1434,33 +1822,99 @@ def compute_hierarchical_changes(session, table_id, hierarchical_structure, hier
 
     return changes
 
-@app.route("/generate_org_report_pdf/<int:table_id>", methods=["GET"])
-def generate_org_report_pdf(table_id):
-    """Generate a PDF report for the specified table.
-    
-    Args:
-        table_id (int): The ID of the table to analyze.
-        
+@app.route("/org_structure_data/<int:table_id>", methods=["GET"])
+def get_org_structure_data(table_id: int) -> jsonify:
+    """
+    Retrieves organization structure data for a specific table.
+
+    Parameters:
+        table_id (int): The ID of the table to retrieve data from.
+
     Returns:
-        PDF file as an attachment.
+        jsonify: A JSON response containing organization data, total members, table ID, and hierarchy information.
     """
     try:
-        report_service = OrganizationReportService(table_id)
-        pdf_bytes = report_service.generate_pdf_report()
-        
-        # Return PDF as a downloadable file
-        buffer = BytesIO(pdf_bytes)
-        buffer.seek(0)
-        
-        return send_file(
-            buffer,
-            mimetype="application/pdf",
-            as_attachment=True,
-            download_name=f"org_report_table_{table_id}.pdf"
-        )
+        with session_scope() as session:
+            entries = session.query(DataEntry).filter_by(table_id=table_id).all()
+            data = [{
+                'person_id': entry.person_id,
+                'name': entry.name,
+                'role': entry.role,
+                'department': entry.department,
+                'hierarchical_structure': entry.hierarchical_structure,
+                'organization_name': entry.organization_name
+            } for entry in entries]
+            
+            df = pd.DataFrame(data)
+            df = df[(df['person_id'] != 'nan') & (~df['person_id'].isna())]
+            
+            member_counts = df.groupby('organization_name')['person_id'].nunique().reset_index()
+            member_counts.columns = ['organization_name', 'member_count']
+            
+            dept_by_org = df.groupby('organization_name')['department'].unique().reset_index()
+            dept_by_org['departments'] = dept_by_org['department'].apply(lambda x: [d for d in x if d and d != 'nan'])
+            
+            result = pd.merge(member_counts, dept_by_org[['organization_name', 'departments']], on='organization_name')
+            
+            result['level'] = None
+            result['parent'] = None
+            result['path'] = None
+            
+            path_to_org = {row['hierarchical_structure']: row['organization_name'] 
+                            for _, row in df.iterrows() 
+                            if not pd.isna(row['organization_name']) and row['organization_name'] != 'nan'}
+            
+            org_hierarchy_info = {}
+            for _, row in df.iterrows():
+                if pd.isna(row['organization_name']) or row['organization_name'] == 'nan':
+                    continue
+                
+                current_path = row['hierarchical_structure']
+                current_org = row['organization_name']
+                
+                if current_org in org_hierarchy_info:
+                    continue
+                
+                if '/' in current_path[1:]:
+                    parent_path = '/'.join(current_path.split('/')[:-1])
+                    parent_org = path_to_org.get(parent_path)
+                    level = len(current_path.strip('/').split('/'))
+                    
+                    org_hierarchy_info[current_org] = {
+                        'level': level,
+                        'parent': parent_org,
+                        'path': current_path
+                    }
+                else:
+                    org_hierarchy_info[current_org] = {
+                        'level': 1,
+                        'parent': None,
+                        'path': current_path
+                    }
+            
+            for i, row in result.iterrows():
+                org_name = row['organization_name']
+                if org_name in org_hierarchy_info:
+                    result.at[i, 'level'] = org_hierarchy_info[org_name]['level']
+                    result.at[i, 'parent'] = org_hierarchy_info[org_name]['parent']
+                    result.at[i, 'path'] = org_hierarchy_info[org_name]['path']
+                else:
+                    result.at[i, 'level'] = 1
+                    result.at[i, 'parent'] = None
+                    result.at[i, 'path'] = f"/{org_name}"
+            
+            org_data = result.to_dict(orient='records')
+            
+            return jsonify({
+                "organization_data": org_data,
+                "total_members": df['person_id'].nunique(),
+                "table_id": table_id,
+                "hierarchy_info": org_hierarchy_info
+            }), 200
+    
     except Exception as e:
-        logger.error(f"Error generating PDF report: {str(e)}")
-        return jsonify({"error": f"Failed to generate PDF report: {str(e)}"}), 500
+        logger.error(f"Error generating organization structure data: {str(e)}")
+        return jsonify({"error": f"Failed to generate organization structure data: {str(e)}"}), 500
 
 if __name__ == "__main__":
     print("Starting application...")

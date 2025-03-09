@@ -16,6 +16,7 @@ import HelpModal from "./ToolsComponents/HelpModal.js";
 import html2canvas from 'html2canvas'; 
 import SearchBar from './HelperComponents/SearchBar.js';
 import NavigationBar from "./HelperComponents/NavigationBar.js";
+import OrgNode from './OrgNode';
 
 const API_BASE_URL = "http://localhost:5001";
 
@@ -209,98 +210,126 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     return newNode;
   }, []);
 
-  // Process organization view - new function
-  const processOrganizationView = useCallback((orgData) => {
-    if (!orgData) return null;
+  const fetchOrgStructureData = useCallback(async (tableId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/org_structure_data/${tableId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching organization structure data:", error);
+      toast.error("Failed to fetch organization data. Please try again.");
+      return null;
+    }
+  }, []);
+  
+  const processOrganizationData = useCallback((serverResponse) => {
+    if (!serverResponse) return null;
     
-    // Deep clone the tree to avoid modifying the original
-    const cloneNode = (node) => {
-      if (!node) return null;
-      const newNode = { ...node };
-      if (node.children) {
-        newNode.children = node.children.map(cloneNode);
-      }
-      return newNode;
-    };
+    // Extract organization data
+    const { organization_data } = serverResponse;
     
-    const tree = cloneNode(orgData);
+    // Create a map of all organizations by name
+    const orgMap = new Map();
+    organization_data.forEach(org => {
+      orgMap.set(org.organization_name, {
+        name: org.organization_name,
+        role: `${org.member_count} member${org.member_count !== 1 ? 's' : ''}`,
+        department: org.departments.join(", "),
+        hierarchical_structure: org.path,
+        isOrgNode: true,
+        memberCount: org.member_count,
+        departments: org.departments,
+        level: org.level,
+        children: [],
+      });
+    });
     
-    // Process each level to add organization grouping metadata
-    const enhanceWithOrgGroups = (node, parentOrgName = null) => {
-      if (!node) return null;
-      
-      // Get this node's org name or inherit from parent
-      const nodeOrgName = node.organization_name || parentOrgName || 'Unknown';
-      
-      // Add org info to this node
-      node.orgInfo = {
-        name: nodeOrgName,
-        color: generateColorFromString(nodeOrgName),
-        isGroupStart: false,
-        isGroupEnd: false
-      };
-      
-      // Process children if they exist
-      if (node.children && node.children.length > 0) {
-        // First, sort children by organization name to group them
-        node.children.sort((a, b) => {
-          const orgA = a.organization_name || 'Unknown';
-          const orgB = b.organization_name || 'Unknown';
-          return orgA.localeCompare(orgB);
-        });
-        
-        // Then process each child and mark group boundaries
-        let currentOrg = null;
-        
-        node.children.forEach((child, index) => {
-          const childOrg = child.organization_name || nodeOrgName || 'Unknown';
-          
-          // Mark group start
-          if (childOrg !== currentOrg) {
-            child.orgInfo = {
-              ...(child.orgInfo || {}),
-              isGroupStart: true,
-              name: childOrg,
-              color: generateColorFromString(childOrg)
-            };
-            
-            // Mark previous child as group end (if not first child)
-            if (index > 0) {
-              node.children[index - 1].orgInfo = {
-                ...(node.children[index - 1].orgInfo || {}),
-                isGroupEnd: true
-              };
-            }
-            
-            currentOrg = childOrg;
-          }
-          
-          // Process this child's children
-          enhanceWithOrgGroups(child, childOrg);
-        });
-        
-        // Mark the last child as group end
-        if (node.children.length > 0) {
-          const lastChild = node.children[node.children.length - 1];
-          lastChild.orgInfo = {
-            ...(lastChild.orgInfo || {}),
-            isGroupEnd: true
-          };
+    // Establish parent-child relationships
+    organization_data.forEach(org => {
+      if (org.parent) {
+        const parentNode = orgMap.get(org.parent);
+        const currentNode = orgMap.get(org.organization_name);
+        if (parentNode && currentNode) {
+          parentNode.children.push(currentNode);
         }
       }
-      
-      return node;
-    };
+    });
     
-    // Generate a consistent color from organization name
-    const generateColorFromString = (text) => {
-      const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const hue = hash % 360;
-      return `hsl(${hue}, 70%, 60%)`;
-    };
+    // Find the root nodes
+    const rootOrgs = organization_data
+      .filter(org => org.parent === null)
+      .map(org => orgMap.get(org.organization_name))
+      .filter(Boolean);
     
-    return enhanceWithOrgGroups(tree);
+    // Sort children alphabetically for consistent display
+    orgMap.forEach(org => {
+      if (org.children.length > 0) {
+        org.children.sort((a, b) => a.name.localeCompare(b.name));
+      }
+    });
+    
+    // If multiple root organizations, create a single root
+    if (rootOrgs.length > 1) {
+      return {
+        name: "All Organizations",
+        organization_name: "All Organizations",
+        role: `${rootOrgs.length} organizations`,
+        hierarchical_structure: "/",
+        isOrgNode: true,
+        children: rootOrgs.sort((a, b) => a.name.localeCompare(b.name))
+      };
+    } else if (rootOrgs.length === 1) {
+      return rootOrgs[0];
+    }
+    
+    return null;
   }, []);
+  
+  // Organization Mode Handler - updated implementation without fallback
+  const handleOrganizationMode = useCallback(() => {
+    setIsOrganizationMode((prevMode) => {
+      const newMode = !prevMode;
+      
+      if (newMode) {
+        setIsLoading(true);
+        
+        // Fetch organization structure data from the server endpoint
+        fetchOrgStructureData(selectedTableId)
+          .then(data => {
+            if (data) {
+              const processedOrgData = processOrganizationData(data);
+              setOrganizationModeData(processedOrgData);
+              
+              // Auto-expand all nodes in organization view
+              setExpandAll(true);
+            } else {
+              toast.error("Failed to load organization data");
+              setIsOrganizationMode(false);
+            }
+          })
+          .catch(error => {
+            console.error("Error in organization mode:", error);
+            toast.error("Failed to load organization view");
+            setIsOrganizationMode(false);
+          })
+          .finally(() => {
+            setIsLoading(false);
+          });
+      }
+      
+      // Turn off hierarchy mode if it's active
+      if (isHierarchyMode) {
+        setIsHierarchyMode(false);
+      }
+      
+      return newMode;
+    });
+  }, [
+    fetchOrgStructureData, 
+    processOrganizationData, 
+    selectedTableId, 
+    isHierarchyMode, 
+    setExpandAll
+  ]);
 
   const findNodesInTree = useCallback((originalTree, searchResults) => {
     if (!originalTree || !searchResults || searchResults.length === 0) {
@@ -530,28 +559,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       return newMode;
     });
   }, [filteredOrgData, isOrganizationMode]);
-
-  // Organization Mode Handler - new handler
-  const handleOrganizationMode = useCallback(() => {
-    setIsOrganizationMode((prevMode) => {
-      const newMode = !prevMode;
-      if (newMode) {
-        // Process data for organization view
-        const orgViewTree = processOrganizationView(filteredOrgData);
-        setOrganizationModeData(orgViewTree);
-        
-        // Auto-expand all nodes in organization view
-        setExpandAll(true);
-      }
-      
-      // Turn off hierarchy mode if it's active
-      if (isHierarchyMode) {
-        setIsHierarchyMode(false);
-      }
-      
-      return newMode;
-    });
-  }, [filteredOrgData, processOrganizationView, isHierarchyMode, setExpandAll]);
 
   // Search and filter handlers
   const handleSearch = useCallback((results) => {
@@ -1120,7 +1127,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         </div>
   
         {/* Swap Instructions */}
-        {selectedSwapNode && (
+        {selectedSwapNode && !isOrganizationMode && (
           <div className="fixed top-20 inset-x-0 flex justify-center z-40">
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
@@ -1157,46 +1164,67 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
             }}
           >
             <div className="p-8 pt-20">
-              <TreeNode
-                key={`tree-${swapKey}`}
-                node={isHierarchyMode ? 
-                       (hierarchyModeData || filteredOrgData) : 
-                       (isOrganizationMode ? 
-                        (organizationModeData || filteredOrgData) : 
-                        filteredOrgData)}
-                onNodeClick={handleNodeClick}
-                expandAll={expandAll}
-                collapseAll={collapseAll}
-                folderId={selectedFolderId}
-                tableId={selectedTableId}
-                highlightedNodes={highlightedNodes}
-                onHighlight={handleHighlight}
-                isHierarchyMode={isHierarchyMode}
-                isOrganizationMode={isOrganizationMode}
-                searchTerm={searchTerm}
-                searchResults={treeSearchResults}
-                currentSearchIndex={currentTreeSearchIndex}
-                onNodePosition={(id, x, y) => {
-                  const element = document.getElementById(`node-${id}`);
-                  if (element) {
-                    element.dataset.x = x;
-                    element.dataset.y = y;
-                  }
-                }}
-                onNodeRendered={handleNodeRendered}
-                onNodeUnrendered={handleNodeUnrendered}
-                filteredSearchResults={filteredSearchResults}
-                directSearchResults={directSearchResults}
-                duplicatePersonIds={duplicatePersonIds}
-                settings={settings}
-                onReorder={handleReorderNodes}
-                nodeOrder={nodeOrder}
-                parentNodeId={null}
-                selectedSwapNode={selectedSwapNode}
-                onSelectForSwap={handleSelectForSwap}
-                onSwapNodes={handleSwapNodesWithRerender}
-                onCancelSwap={handleCancelSwap}
-              />
+              {isOrganizationMode ? (
+                <OrgNode
+                  key={`org-tree-${swapKey}`}
+                  node={organizationModeData || filteredOrgData}
+                  onNodeClick={handleNodeClick}
+                  expandAll={expandAll}
+                  collapseAll={collapseAll}
+                  folderId={selectedFolderId}
+                  tableId={selectedTableId}
+                  searchTerm={searchTerm}
+                  onNodePosition={(id, x, y) => {
+                    const element = document.getElementById(`orgnode-${id}`);
+                    if (element) {
+                      element.dataset.x = x;
+                      element.dataset.y = y;
+                    }
+                  }}
+                  onNodeRendered={handleNodeRendered}
+                  onNodeUnrendered={handleNodeUnrendered}
+                  settings={settings}
+                />
+              ) : (
+                <TreeNode
+                  key={`tree-${swapKey}`}
+                  node={isHierarchyMode ? 
+                        (hierarchyModeData || filteredOrgData) : 
+                        filteredOrgData}
+                  onNodeClick={handleNodeClick}
+                  expandAll={expandAll}
+                  collapseAll={collapseAll}
+                  folderId={selectedFolderId}
+                  tableId={selectedTableId}
+                  highlightedNodes={highlightedNodes}
+                  onHighlight={handleHighlight}
+                  isHierarchyMode={isHierarchyMode}
+                  isOrganizationMode={false} // Always false when using TreeNode
+                  searchTerm={searchTerm}
+                  searchResults={treeSearchResults}
+                  currentSearchIndex={currentTreeSearchIndex}
+                  onNodePosition={(id, x, y) => {
+                    const element = document.getElementById(`node-${id}`);
+                    if (element) {
+                      element.dataset.x = x;
+                      element.dataset.y = y;
+                    }
+                  }}
+                  onNodeRendered={handleNodeRendered}
+                  onNodeUnrendered={handleNodeUnrendered}
+                  filteredSearchResults={filteredSearchResults}
+                  directSearchResults={directSearchResults}
+                  duplicatePersonIds={duplicatePersonIds}
+                  settings={settings}
+                  onReorder={handleReorderNodes}
+                  nodeOrder={nodeOrder}
+                  parentNodeId={null}
+                  selectedSwapNode={selectedSwapNode}
+                  onSelectForSwap={handleSelectForSwap}
+                  onSwapNodes={handleSwapNodesWithRerender}
+                  onCancelSwap={handleCancelSwap}
+                />
+              )}
             </div>
           </div>
         </div>
