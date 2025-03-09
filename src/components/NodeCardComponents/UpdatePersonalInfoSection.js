@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -312,7 +311,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
         </h3>
         <div className="space-y-3">
           {/* Name field */}
-          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="name" className="block text-xs font-medium text-gray-500 mb-1">
               Full Name
             </label>
@@ -328,7 +327,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           </div>
 
           {/* Birth date field */}
-          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="birth_date" className="block text-xs font-medium text-gray-500 mb-1">
               Birth Date
             </label>
@@ -343,7 +342,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           </div>
 
           {/* Personal information */}
-          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="personal_information" className="block text-xs font-medium text-gray-500 mb-1">
               Additional Personal Information
             </label>
@@ -372,7 +371,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
         </h3>
         <div className="space-y-3">
           {/* Role field */}
-          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="role" className="block text-xs font-medium text-gray-500 mb-1">
               Position/Role
             </label>
@@ -388,7 +387,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           </div>
 
           {/* Department field */}
-          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="department" className="block text-xs font-medium text-gray-500 mb-1">
               Department
             </label>
@@ -404,7 +403,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           </div>
 
           {/* Rank field */}
-          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="rank" className="block text-xs font-medium text-gray-500 mb-1">
               Rank
             </label>
@@ -420,7 +419,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           </div>
 
           {/* Organization ID field */}
-          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="organization_id" className="block text-xs font-medium text-gray-500 mb-1">
               Organization ID
             </label>
@@ -436,7 +435,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           </div>
 
           {/* Role information */}
-          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="role_information" className="block text-xs font-medium text-gray-500 mb-1">
               Additional Role Information
             </label>
@@ -465,7 +464,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
         </h3>
         <div className="space-y-3">
           {/* Status field */}
-          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label className="block text-xs font-medium text-gray-500 mb-2">
               Current Status
             </label>
@@ -645,7 +644,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                 <button
                   key={tab.id}
                   onClick={() => setCurrentTab(tab.id)}
-                  className={`flex-1 py-2 px-1 flex items-center justify-center transition-colors relative text-xs ${
+                  className={`flex-1 py-2 px-1 flex items-center justify-center relative text-xs ${
                     currentTab === tab.id
                       ? `text-${THEME.primary} bg-white font-medium`
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -657,29 +656,19 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                   {tab.icon}
                   <span className={currentTab === tab.id ? 'font-medium' : ''}>{tab.label}</span>
                   {currentTab === tab.id && (
-                    <motion.div 
+                    <div 
                       className="absolute bottom-0 left-0 right-0 h-0.5"
                       style={{ backgroundColor: THEME.primary }}
-                      layoutId="activeEditTab"
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    ></motion.div>
+                    ></div>
                   )}
                 </button>
               ))}
             </div>
 
             {/* Tab content */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ type: "spring", stiffness: 300, damping: 24 }}
-              >
-                {renderFormContent()}
-              </motion.div>
-            </AnimatePresence>
+            <div key={currentTab}>
+              {renderFormContent()}
+            </div>
             
             {/* Date range selection */}
             {renderDateRangeSelection()}
@@ -694,7 +683,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                 <button
                   key={tab.id}
                   onClick={() => setReviewTab(tab.id)}
-                  className={`flex-1 py-2 px-1 flex items-center justify-center transition-colors relative text-xs ${
+                  className={`flex-1 py-2 px-1 flex items-center justify-center relative text-xs ${
                     reviewTab === tab.id
                       ? `text-${THEME.primary} bg-white font-medium`
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -713,29 +702,19 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                     )}
                   </span>
                   {reviewTab === tab.id && (
-                    <motion.div 
+                    <div 
                       className="absolute bottom-0 left-0 right-0 h-0.5"
                       style={{ backgroundColor: THEME.primary }}
-                      layoutId="activeReviewTab"
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    ></motion.div>
+                    ></div>
                   )}
                 </button>
               ))}
             </div>
 
             {/* Review tab content */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={reviewTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ type: "spring", stiffness: 300, damping: 24 }}
-              >
-                {renderReviewContent()}
-              </motion.div>
-            </AnimatePresence>
+            <div key={reviewTab}>
+              {renderReviewContent()}
+            </div>
           </>
         );
       default:
@@ -744,39 +723,25 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
   };
 
   return (
-    <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    transition={{ duration: 0.2 }}
-    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
-    onClick={(e) => e.target === e.currentTarget && onBack()}
-  >
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ 
-        type: "spring", 
-        stiffness: 300, 
-        damping: 30 
-      }}
-      className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden flex flex-col"
-      style={{ maxHeight: "90vh" }}
-      onClick={(e) => e.stopPropagation()}
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onBack()}
     >
-      {/* Header */}
-      <div className="p-4 border-b border-gray-100">
-        <motion.button
-          onClick={onBack}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-        >
-          <ArrowLeft size={18} className="mr-2" />
-          <span>Back to Main Info</span>
-        </motion.button>
-      </div>
+      <div
+        className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden flex flex-col"
+        style={{ maxHeight: "90vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-gray-100">
+          <button
+            onClick={onBack}
+            className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+          >
+            <ArrowLeft size={18} className="mr-2" />
+            <span>Back to Main Info</span>
+          </button>
+        </div>
 
         {/* Profile header */}
         <div className="px-4 py-3 border-b border-gray-100">
@@ -803,18 +768,9 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
         {/* Content Area */}
         <div className="flex-grow overflow-y-auto custom-scrollbar">
           <div className="p-4">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentStep}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-
-                {renderStepContent()}
-              </motion.div>
-            </AnimatePresence>
+            <div key={currentStep}>
+              {renderStepContent()}
+            </div>
           </div>
         </div>
 
@@ -830,7 +786,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                       setCurrentStep(2);
                     }
                   }}
-                  className="w-full flex items-center justify-center px-4 py-2.5 rounded-md text-sm font-medium text-white transition-colors"
+                  className="w-full flex items-center justify-center px-4 py-2.5 rounded-md text-sm font-medium text-white"
                   style={{ backgroundColor: THEME.buttonColor }}
                 >
                   <span>Review Changes</span>
@@ -841,7 +797,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
               <div className="w-full flex items-center justify-between">
                 <button
                   onClick={() => setCurrentStep(1)}
-                  className="flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                  className="flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                 >
                   <ArrowLeft size={18} className="mr-2" />
                   <span>Edit Information</span>
@@ -850,7 +806,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                 <button
                   onClick={handleSubmit}
                   disabled={isLoading || relevantTables.length === 0}
-                  className={`flex items-center justify-center px-4 py-2.5 rounded-md text-sm font-medium text-white transition-colors ${isLoading || relevantTables.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`flex items-center justify-center px-4 py-2.5 rounded-md text-sm font-medium text-white ${isLoading || relevantTables.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   style={{ backgroundColor: THEME.buttonColor }}
                 >
                   {isLoading ? (
@@ -869,8 +825,8 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
             )}
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 

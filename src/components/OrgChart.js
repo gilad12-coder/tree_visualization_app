@@ -44,9 +44,11 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [initialTransform, setInitialTransform] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isOrgMode, setIsOrgMode] = useState(false);
+  const [isHierarchyMode, setIsHierarchyMode] = useState(false);
+  const [isOrganizationMode, setIsOrganizationMode] = useState(false);
   const [hideVacancies, setHideVacancies] = useState(false); // New state for hiding vacant positions
-  const [orgModeData, setOrgModeData] = useState(null);
+  const [hierarchyModeData, setHierarchyModeData] = useState(null);
+  const [organizationModeData, setOrganizationModeData] = useState(null);
   const [collapseAll, setCollapseAll] = useState(false);
   const [swapKey, setSwapKey] = useState(0);
   const [settings, setSettings] = useState({
@@ -205,6 +207,99 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     }
     
     return newNode;
+  }, []);
+
+  // Process organization view - new function
+  const processOrganizationView = useCallback((orgData) => {
+    if (!orgData) return null;
+    
+    // Deep clone the tree to avoid modifying the original
+    const cloneNode = (node) => {
+      if (!node) return null;
+      const newNode = { ...node };
+      if (node.children) {
+        newNode.children = node.children.map(cloneNode);
+      }
+      return newNode;
+    };
+    
+    const tree = cloneNode(orgData);
+    
+    // Process each level to add organization grouping metadata
+    const enhanceWithOrgGroups = (node, parentOrgName = null) => {
+      if (!node) return null;
+      
+      // Get this node's org name or inherit from parent
+      const nodeOrgName = node.organization_name || parentOrgName || 'Unknown';
+      
+      // Add org info to this node
+      node.orgInfo = {
+        name: nodeOrgName,
+        color: generateColorFromString(nodeOrgName),
+        isGroupStart: false,
+        isGroupEnd: false
+      };
+      
+      // Process children if they exist
+      if (node.children && node.children.length > 0) {
+        // First, sort children by organization name to group them
+        node.children.sort((a, b) => {
+          const orgA = a.organization_name || 'Unknown';
+          const orgB = b.organization_name || 'Unknown';
+          return orgA.localeCompare(orgB);
+        });
+        
+        // Then process each child and mark group boundaries
+        let currentOrg = null;
+        
+        node.children.forEach((child, index) => {
+          const childOrg = child.organization_name || nodeOrgName || 'Unknown';
+          
+          // Mark group start
+          if (childOrg !== currentOrg) {
+            child.orgInfo = {
+              ...(child.orgInfo || {}),
+              isGroupStart: true,
+              name: childOrg,
+              color: generateColorFromString(childOrg)
+            };
+            
+            // Mark previous child as group end (if not first child)
+            if (index > 0) {
+              node.children[index - 1].orgInfo = {
+                ...(node.children[index - 1].orgInfo || {}),
+                isGroupEnd: true
+              };
+            }
+            
+            currentOrg = childOrg;
+          }
+          
+          // Process this child's children
+          enhanceWithOrgGroups(child, childOrg);
+        });
+        
+        // Mark the last child as group end
+        if (node.children.length > 0) {
+          const lastChild = node.children[node.children.length - 1];
+          lastChild.orgInfo = {
+            ...(lastChild.orgInfo || {}),
+            isGroupEnd: true
+          };
+        }
+      }
+      
+      return node;
+    };
+    
+    // Generate a consistent color from organization name
+    const generateColorFromString = (text) => {
+      const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const hue = hash % 360;
+      return `hsl(${hue}, 70%, 60%)`;
+    };
+    
+    return enhanceWithOrgGroups(tree);
   }, []);
 
   const findNodesInTree = useCallback((originalTree, searchResults) => {
@@ -402,33 +497,61 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   }, [setExpandAll]);
 
   // Mode handlers
-  const handleOrgMode = useCallback(() => {
-    setIsOrgMode((prevMode) => {
+  const handleHierarchyMode = useCallback(() => {
+    setIsHierarchyMode((prevMode) => {
       const newMode = !prevMode;
       if (newMode) {
-        const processOrgMode = (node) => {
+        const processHierarchyMode = (node) => {
           if (!node) return null;
           const newNode = { ...node };
 
           if (node.children && node.children.length > 0) {
-            newNode.children = node.children.map(processOrgMode).filter(Boolean);
+            newNode.children = node.children.map(processHierarchyMode).filter(Boolean);
           }
 
           return node.children && node.children.length > 0 ? newNode : null;
         };
 
-        const orgModeTree = processOrgMode(filteredOrgData);
+        const hierarchyTree = processHierarchyMode(filteredOrgData);
         
-        if (orgModeTree) {
-          setOrgModeData(orgModeTree);
+        if (hierarchyTree) {
+          setHierarchyModeData(hierarchyTree);
         } else {
-          setOrgModeData(filteredOrgData);
-          toast.warning("No organizational structure to display in Org Mode. Showing full tree.");
+          setHierarchyModeData(filteredOrgData);
+          toast.warning("No hierarchical structure to display in Hierarchy Mode. Showing full tree.");
         }
       }
+      
+      // Turn off organization mode if it's active
+      if (isOrganizationMode) {
+        setIsOrganizationMode(false);
+      }
+      
       return newMode;
     });
-  }, [filteredOrgData]);
+  }, [filteredOrgData, isOrganizationMode]);
+
+  // Organization Mode Handler - new handler
+  const handleOrganizationMode = useCallback(() => {
+    setIsOrganizationMode((prevMode) => {
+      const newMode = !prevMode;
+      if (newMode) {
+        // Process data for organization view
+        const orgViewTree = processOrganizationView(filteredOrgData);
+        setOrganizationModeData(orgViewTree);
+        
+        // Auto-expand all nodes in organization view
+        setExpandAll(true);
+      }
+      
+      // Turn off hierarchy mode if it's active
+      if (isHierarchyMode) {
+        setIsHierarchyMode(false);
+      }
+      
+      return newMode;
+    });
+  }, [filteredOrgData, processOrganizationView, isHierarchyMode, setExpandAll]);
 
   // Search and filter handlers
   const handleSearch = useCallback((results) => {
@@ -749,9 +872,10 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       'q': handleCollapseAll,
       'u': () => setIsUploadOpen(true),
       'r': handleClearFilter,
-      'o': handleOrgMode,
+      'j': handleHierarchyMode,
+      'o': handleOrganizationMode,
       'f': toggleSearchBar,
-      'v': handleToggleVacancies // New shortcut for toggling vacancies
+      'v': handleToggleVacancies
     };
 
     if (e.key in singleKeyShortcuts) {
@@ -773,7 +897,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     handleExpandAll,
     handleCollapseAll,
     handleClearFilter,
-    handleOrgMode,
+    handleHierarchyMode,
+    handleOrganizationMode,
     handleToggleVacancies,
     toggleSearchBar,
     setIsTableSelectionOpen,
@@ -946,7 +1071,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onHome={handleHome}
           onCenter={handleCenter}
           onFilter={toggleFilterModal}
-          onOrgMode={handleOrgMode}
+          onHierarchyMode={handleHierarchyMode}
+          onOrganizationMode={handleOrganizationMode}
           onToggleVacancies={handleToggleVacancies}
           onChangeTable={() => setIsTableSelectionOpen(true)}
           onExpandAll={handleExpandAll}
@@ -958,7 +1084,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onClearFilter={handleClearFilter}
           onExportExcel={handleExportExcel}
           onExportImage={handleExportImage}
-          isOrgMode={isOrgMode}
+          isHierarchyMode={isHierarchyMode}
+          isOrganizationMode={isOrganizationMode}
           hideVacancies={hideVacancies}
           hasActiveFilters={activeFilters.length > 0 || searchResults}
           activeMenuId={activeMenuId}
@@ -993,24 +1120,24 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         </div>
   
         {/* Swap Instructions */}
-{selectedSwapNode && (
-  <div className="fixed top-20 inset-x-0 flex justify-center z-40">
-    <motion.div 
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.2 }}
-      className="bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2.5 rounded-md shadow-md"
-    >
-      <span className="font-medium text-sm">
-        Node selected for swapping.
-      </span>
-      <span className="text-sm ml-1">
-        Click another node at the same level to swap positions, or click elsewhere to cancel.
-      </span>
-    </motion.div>
-  </div>
-)}
+        {selectedSwapNode && (
+          <div className="fixed top-20 inset-x-0 flex justify-center z-40">
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+              className="bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2.5 rounded-md shadow-md"
+            >
+              <span className="font-medium text-sm">
+                Node selected for swapping.
+              </span>
+              <span className="text-sm ml-1">
+                Click another node at the same level to swap positions, or click elsewhere to cancel.
+              </span>
+            </motion.div>
+          </div>
+        )}
   
         {/* Main Content */}
         <div 
@@ -1032,7 +1159,11 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
             <div className="p-8 pt-20">
               <TreeNode
                 key={`tree-${swapKey}`}
-                node={isOrgMode ? (orgModeData || filteredOrgData) : filteredOrgData}
+                node={isHierarchyMode ? 
+                       (hierarchyModeData || filteredOrgData) : 
+                       (isOrganizationMode ? 
+                        (organizationModeData || filteredOrgData) : 
+                        filteredOrgData)}
                 onNodeClick={handleNodeClick}
                 expandAll={expandAll}
                 collapseAll={collapseAll}
@@ -1040,7 +1171,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
                 tableId={selectedTableId}
                 highlightedNodes={highlightedNodes}
                 onHighlight={handleHighlight}
-                isOrgMode={isOrgMode}
+                isHierarchyMode={isHierarchyMode}
+                isOrganizationMode={isOrganizationMode}
                 searchTerm={searchTerm}
                 searchResults={treeSearchResults}
                 currentSearchIndex={currentTreeSearchIndex}

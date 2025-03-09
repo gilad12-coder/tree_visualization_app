@@ -438,7 +438,6 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                 transition={{ duration: 0.2 }}
                 className="bg-white shadow-md border border-gray-200 p-6 w-full max-w-lg"
               >
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Get Started</h3>
                 
                 <div className="space-y-3">
                   {recentDbPath && (

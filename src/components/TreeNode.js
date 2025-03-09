@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users, Move, X, ExternalLink } from 'react-feather';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
@@ -17,7 +17,8 @@ const TreeNode = ({
   tableId,
   highlightedNodes,
   onHighlight,
-  isOrgMode,
+  isHierarchyMode,
+  isOrganizationMode,
   searchTerm,
   searchResults = [],
   currentSearchIndex,
@@ -81,11 +82,11 @@ const TreeNode = ({
   
   const primaryField = settings.primaryField || 'name';
   const secondaryField = settings.secondaryField || 'role';
-  const displayPrimaryField = isOrgMode ? 
+  const displayPrimaryField = isHierarchyMode ? 
     (primaryField === 'name' ? 'role' : (primaryField === 'role' ? 'name' : primaryField)) : 
     primaryField;
   
-  const displaySecondaryField = isOrgMode ? 
+  const displaySecondaryField = isHierarchyMode ? 
     (secondaryField === 'role' ? 'name' : (secondaryField === 'name' ? 'role' : secondaryField)) : 
     secondaryField;
   
@@ -276,24 +277,96 @@ const TreeNode = ({
     );
   };
 
-  const sortedChildren = hasChildren && node.children ? [...node.children] : [];
-  if (hasChildren && nodeOrder && nodeOrder[node.hierarchical_structure]) {
-    const orderMap = nodeOrder[node.hierarchical_structure].reduce((acc, id, index) => {
-      acc[id] = index;
-      return acc;
-    }, {});
+  // New function to render organization group
+  const renderOrgGroup = (node, children) => {
+    if (!isOrganizationMode || !node?.orgInfo) {
+      return children;
+    }
     
-    sortedChildren.sort((a, b) => {
-      const aIndex = orderMap[a.hierarchical_structure] !== undefined ? orderMap[a.hierarchical_structure] : 999;
-      const bIndex = orderMap[b.hierarchical_structure] !== undefined ? orderMap[b.hierarchical_structure] : 999;
-      return aIndex - bIndex;
-    });
-  }
+    const { isGroupStart, isGroupEnd, name, color } = node.orgInfo;
+    
+    // No special rendering needed if not a boundary
+    if (!isGroupStart && !isGroupEnd) {
+      return children;
+    }
+    
+    // If this is a group start, add a header
+    if (isGroupStart) {
+      return (
+        <div className="relative">
+          {/* Organization header */}
+          {isGroupStart && (
+            <div 
+              className="py-2 px-3 mb-2 rounded-t-lg font-medium text-sm" 
+              style={{ 
+                backgroundColor: color,
+                color: 'white',
+                opacity: 0.9
+              }}
+            >
+              {name}
+            </div>
+          )}
+          
+          {/* Node content */}
+          <div
+            className="pl-2"
+            style={{ 
+              borderLeft: `3px solid ${color}`,
+            }}
+          >
+            {children}
+          </div>
+          
+          {/* Group end padding */}
+          {isGroupEnd && <div className="h-4" />}
+        </div>
+      );
+    }
+    
+    // If only a group end, just add some spacing
+    return (
+      <div>
+        {children}
+        {isGroupEnd && <div className="h-4" />}
+      </div>
+    );
+  };
 
-  if (!node) return null;
+  // Sort children based on nodeOrder or organization name when in org mode
+  const sortedChildren = useMemo(() => {
+    if (!hasChildren || !node.children) return [];
+    
+    let children = [...node.children];
+    
+    // Apply organization sorting in organization mode
+    if (isOrganizationMode) {
+      children.sort((a, b) => {
+        const orgA = a.organization_name || 'Unknown';
+        const orgB = b.organization_name || 'Unknown';
+        return orgA.localeCompare(orgB);
+      });
+    } 
+    // Apply node order sorting
+    else if (nodeOrder && nodeOrder[node.hierarchical_structure]) {
+      const orderMap = nodeOrder[node.hierarchical_structure].reduce((acc, id, index) => {
+        acc[id] = index;
+        return acc;
+      }, {});
+      
+      children.sort((a, b) => {
+        const aIndex = orderMap[a.hierarchical_structure] !== undefined ? orderMap[a.hierarchical_structure] : 999;
+        const bIndex = orderMap[b.hierarchical_structure] !== undefined ? orderMap[b.hierarchical_structure] : 999;
+        return aIndex - bIndex;
+      });
+    }
+    
+    return children;
+  }, [hasChildren, node, nodeOrder, isOrganizationMode]);
 
-  return (
-    <div className="flex flex-col items-center">
+  // Render the node with organization groups if needed
+  const renderNodeContent = () => {
+    const nodeContent = (
       <motion.div
         id={`node-${node.hierarchical_structure}`}
         ref={nodeRef}
@@ -453,6 +526,17 @@ const TreeNode = ({
           )}
         </div>
       </motion.div>
+    );
+    
+    // Apply organization grouping if in organization mode
+    return isOrganizationMode ? renderOrgGroup(node, nodeContent) : nodeContent;
+  };
+
+  if (!node) return null;
+
+  return (
+    <div className="flex flex-col items-center">
+      {renderNodeContent()}
       <AnimatePresence initial={false}>
         {hasChildren && isExpanded && (
           <motion.div
@@ -496,7 +580,8 @@ const TreeNode = ({
                       tableId={tableId}
                       highlightedNodes={highlightedNodes}
                       onHighlight={onHighlight}
-                      isOrgMode={isOrgMode}
+                      isHierarchyMode={isHierarchyMode}
+                      isOrganizationMode={isOrganizationMode}
                       searchTerm={searchTerm}
                       searchResults={searchResults}
                       currentSearchIndex={currentSearchIndex}

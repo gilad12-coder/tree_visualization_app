@@ -13,7 +13,8 @@ const NavigationBar = ({
   onHome,
   onCenter,
   onFilter,
-  onOrgMode,
+  onHierarchyMode,
+  onOrganizationMode,
   onToggleVacancies,
   onChangeTable,
   onExpandAll,
@@ -25,7 +26,8 @@ const NavigationBar = ({
   onClearFilter,
   onExportExcel,
   onExportImage,
-  isOrgMode,
+  isHierarchyMode,
+  isOrganizationMode,
   hideVacancies,
   hasActiveFilters,
   activeMenuId,
@@ -118,11 +120,18 @@ const NavigationBar = ({
       icon: Users,
       items: [
         { 
-          id: 'orgMode', 
-          label: 'Org Mode', 
+          id: 'hierarchyMode', 
+          label: 'Hierarchy Mode', 
           icon: Users, 
-          onClick: onOrgMode,
-          active: isOrgMode
+          onClick: onHierarchyMode,
+          active: isHierarchyMode
+        },
+        { 
+          id: 'organizationMode', 
+          label: 'Org Mode', 
+          icon: Home, 
+          onClick: onOrganizationMode,
+          active: isOrganizationMode
         },
         { 
           id: 'hideVacancies', 

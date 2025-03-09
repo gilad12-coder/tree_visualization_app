@@ -802,7 +802,8 @@ def entry_to_dict(entry):
         "hierarchical_structure": entry.hierarchical_structure,
         "personal_information": entry.personal_information,
         "role_information": entry.role_information,
-        "is_dead": entry.is_dead
+        "is_dead": entry.is_dead,
+        "organization_name": entry.organization_name
     }
 
     
@@ -912,7 +913,8 @@ def get_all_results(session, table_id):
             'rank': entry.rank,
             'organization_id': entry.organization_id,
             'matched_terms': [],
-            'hierarchical_structure': entry.hierarchical_structure
+            'hierarchical_structure': entry.hierarchical_structure,
+            'organization_name': entry.organization_name
         }
         search_results.append(result)
         logger.debug(f"Result added for person_id: {entry.person_id}")
@@ -1149,7 +1151,7 @@ def fetch_relevant_tables_by_field(folder_id):
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-@app.route("/update_node_by_person/<int:folder_id>/<int:person_id>", methods=["POST"])
+@app.route("/update_node_by_person/<int:folder_id>/<string:person_id>", methods=["POST"])
 def update_node_data_by_person(folder_id, person_id):
     data = request.json
     start_date = data.get('start_date')
@@ -1251,7 +1253,8 @@ def update_person_data(session, table_id, person_id, updates):
             "organization_id": data_entry.organization_id,
             "personal_information": data_entry.personal_information,
             "role_information": data_entry.role_information,
-            "is_dead": data_entry.is_dead
+            "is_dead": data_entry.is_dead,
+            "organization_name": data_entry.organization_name
         }
 
         logger.info(f"Successfully updated data for person with ID {person_id} in table {table_id}")

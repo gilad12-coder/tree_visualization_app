@@ -46,6 +46,7 @@ class DataEntry(Base):
     department = Column(String)
     rank = Column(String)
     organization_id = Column(String)
+    organization_name = Column(String, nullable=True)
     role_information = Column(String, nullable=True)
     is_dead = Column(String, default="alive")
     

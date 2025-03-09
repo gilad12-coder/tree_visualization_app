@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { X, ArrowRight, User, Edit, GitBranch, ArrowLeft, FileText } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
 import CVTimelineSection from './NodeCardComponents/CVTimelineSection';
@@ -50,11 +51,22 @@ const EnhancedNodeCard = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden flex flex-col"
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2, delay: 0.05 }}
+        className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: "calc(100vh - 40px)" }}>
+        style={{ maxHeight: "calc(100vh - 40px)" }}
+      >
         
         {/* Header - Fixed height */}
         <div className="flex justify-between items-center p-4 border-b border-gray-100">
@@ -63,7 +75,7 @@ const EnhancedNodeCard = ({
           </div>
           <button 
             onClick={onClose} 
-            className="text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-gray-500 hover:text-gray-700"
           >
             <X size={20} />
           </button>
@@ -102,7 +114,7 @@ const EnhancedNodeCard = ({
                   <div className="space-y-3 pt-2">
                     <button
                       onClick={() => setActiveScreen('information')}
-                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
                       <span>View Information</span>
                       <FileText size={18} />
@@ -110,7 +122,7 @@ const EnhancedNodeCard = ({
                     
                     <button
                       onClick={() => setActiveScreen('cv')}
-                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
                       <span>View CV</span>
                       <ArrowRight size={18} />
@@ -118,7 +130,7 @@ const EnhancedNodeCard = ({
                     
                     <button
                       onClick={handleOpenUpdateScreen}
-                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-white font-medium transition-colors"
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-white font-medium"
                       style={{ backgroundColor: THEME.buttonColor }}
                     >
                       <span>Update Information</span>
@@ -132,7 +144,7 @@ const EnhancedNodeCard = ({
                 <div className="p-6 space-y-4">
                   <button
                     onClick={handleCloseUpdateScreen}
-                    className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                    className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                   >
                     <ArrowLeft size={18} className="mr-2" />
                     <span>Back to Main Info</span>
@@ -141,7 +153,7 @@ const EnhancedNodeCard = ({
                   <div className="pt-2 space-y-3">
                     <button
                       onClick={() => setActiveScreen('updatePersonal')}
-                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
                       <span>Update Personal Information</span>
                       <User size={18} />
@@ -149,7 +161,7 @@ const EnhancedNodeCard = ({
                     
                     <button
                       onClick={() => setActiveScreen('updateHierarchical')}
-                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
                       <span>Update Hierarchical Information</span>
                       <GitBranch size={18} />
@@ -211,8 +223,8 @@ const EnhancedNodeCard = ({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

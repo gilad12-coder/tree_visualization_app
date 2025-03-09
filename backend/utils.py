@@ -133,6 +133,7 @@ def parse_org_data(df):
             "children": [],
             "row": row.name,
             "hierarchical_structure": row.hierarchical_structure,
+            "organization_name": row.get('organization_name', '')
         }
 
         if new_node['birth_date']:
@@ -304,7 +305,8 @@ def insert_data_entries(session, table_id, df):
         'organization_id': 'organization_id',
         'personal_information': 'personal_information',
         'role_information': 'role_information',
-        'is_dead': 'is_dead'
+        'is_dead': 'is_dead',
+        'organization_name': 'organization_name'
     }
     
     for _, row in df.iterrows():
@@ -381,7 +383,8 @@ def export_excel_data(session, table_id):
             "Hierarchical Structure": entry.hierarchical_structure,
             "Personal Information": entry.personal_information,
             "Role Information": entry.role_information,
-            "is_dead": entry.is_dead
+            "is_dead": entry.is_dead,
+            "Organization Name": entry.organization_name
         }
         for entry in data_entries
     ])

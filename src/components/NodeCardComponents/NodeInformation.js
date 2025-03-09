@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, User, BookOpen, Briefcase, Heart, Calendar, BadgeInfo, Award, Building } from 'lucide-react';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import DOMPurify from 'dompurify';
@@ -170,15 +169,13 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
     <div className="bg-white rounded-lg overflow-hidden">
       {/* Back button with updated styling */}
       <div className="p-4 border-b border-gray-100">
-        <motion.button
+        <button
           onClick={onBack}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+          className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
         >
           <ArrowLeft size={18} className="mr-2" />
           <span>Back to Main Info</span>
-        </motion.button>
+        </button>
       </div>
 
       {/* Profile header - simplified */}
@@ -209,7 +206,7 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2 px-1 flex items-center justify-center transition-colors relative text-xs ${
+            className={`flex-1 py-2 px-1 flex items-center justify-center relative text-xs ${
               activeTab === tab.id
                 ? `text-${theme.primary} bg-white font-medium`
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -221,12 +218,10 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
             {tab.icon}
             <span className={activeTab === tab.id ? 'font-medium' : ''}>{tab.label}</span>
             {activeTab === tab.id && (
-              <motion.div 
+              <div 
                 className="absolute bottom-0 left-0 right-0 h-0.5"
                 style={{ backgroundColor: theme.primary }}
-                layoutId="activeTab"
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              ></motion.div>
+              ></div>
             )}
           </button>
         ))}
@@ -234,138 +229,136 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
 
       {/* Tab content - updated styling */}
       <div className="p-4 min-h-[250px]">
-        <AnimatePresence mode="wait">
-          {activeTab === 'personal' && (
-            <motion.div
-              key="personal-tab"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ type: "spring", stiffness: 300, damping: 24 }}
-              className="bg-white rounded-md overflow-hidden"
-            >
-              <div className="space-y-2">
-                {personalDetails.map((item, index) => (
-                  <motion.div 
-                    key={index} 
-                    className="p-3 bg-gray-50 rounded-md flex items-center space-x-3"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <div className="flex-shrink-0">
-                      {item.icon}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xs font-medium text-gray-500">{item.label}</h3>
-                      <div className="text-gray-800 text-sm">{item.value}</div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-          
-          {activeTab === 'role' && (
-            <motion.div
-              key="role-tab"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ type: "spring", stiffness: 300, damping: 24 }}
-              className="space-y-3"
-            >
-              {/* Role information header */}
-              <div className="p-3 bg-gray-50 rounded-md">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-sm text-gray-800">{node.role || 'Role not specified'}</h3>
-                    <p className="text-gray-500 text-xs">{node.department || 'Department not specified'}</p>
+        {activeTab === 'personal' && (
+          <div
+            key="personal-tab"
+            className="bg-white rounded-md overflow-hidden"
+          >
+            <div className="space-y-2">
+              {personalDetails.map((item, index) => (
+                <div 
+                  key={index} 
+                  className="p-3 bg-gray-50 rounded-md flex items-center space-x-3"
+                >
+                  <div className="flex-shrink-0">
+                    {item.icon}
                   </div>
-                  {node.rank && (
-                    <div className="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-medium">
-                      Rank: {node.rank}
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Hierarchical structure */}
-              <div className="p-3 bg-gray-50 rounded-md">
-                <h3 className="text-xs font-medium text-gray-500 mb-1">HIERARCHICAL STRUCTURE</h3>
-                <div className="p-2 bg-white rounded border border-gray-100 text-gray-700 font-mono text-xs break-all overflow-y-auto max-h-24 custom-scrollbar">
-                  {node.hierarchical_structure || 'Not available'}
-                </div>
-              </div>
-              
-              {/* Role information content with scrolling */}
-              {formattedRoleInfo ? (
-                <div className="p-3 bg-gray-50 rounded-md">
-                  <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
-                    <Briefcase size={14} className="mr-1" />
-                    ROLE INFORMATION
-                  </h3>
-                  <div 
-                    className={`${getFontClass(roleInfoLanguage)} overflow-y-auto max-h-60 rounded-md bg-white p-3 border border-gray-100 custom-scrollbar`}
-                    dir={getTextDirection(roleInfoLanguage)}
-                    ref={contentRef}
-                  >
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                      dangerouslySetInnerHTML={{ __html: formattedRoleInfo }} 
-                      className="prose max-w-none text-gray-700 text-sm leading-relaxed"
-                    />
+                  <div className="flex-1">
+                    <h3 className="text-xs font-medium text-gray-500">{item.label}</h3>
+                    <div className="text-gray-800 text-sm">{item.value}</div>
                   </div>
                 </div>
-              ) : (
-                <div className="text-center py-8 px-4 text-gray-500 bg-gray-50 rounded-md">
-                  <Briefcase size={24} className="mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm">No role information available for this profile.</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-          
-          {activeTab === 'personal_info' && (
-            <motion.div
-              key="personal-info-tab"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ type: "spring", stiffness: 300, damping: 24 }}
-              className="bg-gray-50 rounded-md p-3"
-            >
-              {/* Personal Information Content with improved scrolling */}
-              {formattedPersonalInfo ? (
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'role' && (
+          <div
+            key="role-tab"
+            className="space-y-3"
+          >
+            {/* Role information header */}
+            <div className="p-3 bg-gray-50 rounded-md">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
-                    <User size={14} className="mr-1" />
-                    PERSONAL INFORMATION
-                  </h3>
-                  <div 
-                    className={`${getFontClass(personalInfoLanguage)} overflow-y-auto max-h-60 rounded-md bg-white p-3 border border-gray-100 custom-scrollbar`}
-                    dir={getTextDirection(personalInfoLanguage)}
-                  >
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                      dangerouslySetInnerHTML={{ __html: formattedPersonalInfo }} 
-                      className="prose max-w-none text-gray-700 text-sm leading-relaxed"
-                    />
+                  <h3 className="font-medium text-sm text-gray-800">{node.role || 'Role not specified'}</h3>
+                  <p className="text-gray-500 text-xs">{node.department || 'Department not specified'}</p>
+                </div>
+                {node.rank && (
+                  <div className="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-medium">
+                    Rank: {node.rank}
                   </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Organization information - new section */}
+            <div className="p-3 bg-gray-50 rounded-md">
+              <h3 className="text-xs font-medium text-gray-500 mb-1">ORGANIZATION</h3>
+              <div className="flex flex-col space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    <Building className="text-gray-600 mr-2" size={14} />
+                    <span className="text-sm text-gray-700">Organization Name:</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-800">{node.organization_name || 'Not specified'}</span>
                 </div>
-              ) : (
-                <div className="text-center py-6 text-gray-500">
-                  <User size={24} className="mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm">No personal information available.</p>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    <BadgeInfo className="text-gray-600 mr-2" size={14} />
+                    <span className="text-sm text-gray-700">Organization ID:</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-800">{node.organization_id || 'Not specified'}</span>
                 </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </div>
+            </div>
+            
+            {/* Hierarchical structure */}
+            <div className="p-3 bg-gray-50 rounded-md">
+              <h3 className="text-xs font-medium text-gray-500 mb-1">HIERARCHICAL STRUCTURE</h3>
+              <div className="p-2 bg-white rounded border border-gray-100 text-gray-700 font-mono text-xs break-all overflow-y-auto max-h-24 custom-scrollbar">
+                {node.hierarchical_structure || 'Not available'}
+              </div>
+            </div>
+            
+            {/* Role information content with scrolling */}
+            {formattedRoleInfo ? (
+              <div className="p-3 bg-gray-50 rounded-md">
+                <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
+                  <Briefcase size={14} className="mr-1" />
+                  ROLE INFORMATION
+                </h3>
+                <div 
+                  className={`${getFontClass(roleInfoLanguage)} overflow-y-auto max-h-60 rounded-md bg-white p-3 border border-gray-100 custom-scrollbar`}
+                  dir={getTextDirection(roleInfoLanguage)}
+                  ref={contentRef}
+                >
+                  <div 
+                    dangerouslySetInnerHTML={{ __html: formattedRoleInfo }} 
+                    className="prose max-w-none text-gray-700 text-sm leading-relaxed"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 px-4 text-gray-500 bg-gray-50 rounded-md">
+                <Briefcase size={24} className="mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No role information available for this profile.</p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {activeTab === 'personal_info' && (
+          <div
+            key="personal-info-tab"
+            className="bg-gray-50 rounded-md p-3"
+          >
+            {/* Personal Information Content with improved scrolling */}
+            {formattedPersonalInfo ? (
+              <div>
+                <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
+                  <User size={14} className="mr-1" />
+                  PERSONAL INFORMATION
+                </h3>
+                <div 
+                  className={`${getFontClass(personalInfoLanguage)} overflow-y-auto max-h-60 rounded-md bg-white p-3 border border-gray-100 custom-scrollbar`}
+                  dir={getTextDirection(personalInfoLanguage)}
+                >
+                  <div 
+                    dangerouslySetInnerHTML={{ __html: formattedPersonalInfo }} 
+                    className="prose max-w-none text-gray-700 text-sm leading-relaxed"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-500">
+                <User size={24} className="mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No personal information available.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
