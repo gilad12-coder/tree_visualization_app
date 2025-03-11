@@ -7,8 +7,7 @@ import subprocess
 import re
 from contextlib import contextmanager
 from datetime import datetime
-from io import BytesIO
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 import pandas as pd
 from flask import Flask, request, jsonify, send_file, send_from_directory
@@ -1846,7 +1845,6 @@ def get_org_structure_data(table_id: int) -> jsonify:
             } for entry in entries]
             
             df = pd.DataFrame(data)
-            df = df[(df['person_id'] != 'nan') & (~df['person_id'].isna())]
             
             member_counts = df.groupby('organization_name')['person_id'].nunique().reset_index()
             member_counts.columns = ['organization_name', 'member_count']

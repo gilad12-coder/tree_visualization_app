@@ -130,7 +130,6 @@ const ComparisonRow = ({ label, before, after, onChangeCount, icon: Icon }) => {
 
 // Main component
 const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete }) => {
-  // Initialize form data with all possible node fields
   const [formData, setFormData] = useState({
     name: node.name || '',
     role: node.role || '',

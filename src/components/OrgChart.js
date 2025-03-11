@@ -21,7 +21,6 @@ import OrgNode from './OrgNode';
 const API_BASE_URL = "http://localhost:5001";
 
 const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }) => {
-  // =========== Context & Core State ===========
   const { 
     activeFilters, 
     setActiveFilters, 
@@ -37,17 +36,24 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   
   const [orgData, setOrgData] = useState(null);
   const [filteredOrgData, setFilteredOrgData] = useState(null);
+  const [filteredOrgId, setFilteredOrgId] = useState(null);
+  const [originalOrgData, setOriginalOrgData] = useState(null);
+  const [preFilterOrgData, setPreFilterOrgData] = useState(null);
   const [selectedTableId, setSelectedTableId] = useState(initialTableId);
   const [selectedFolderId, setSelectedFolderId] = useState(initialFolderId);
   const [folderStructure, setFolderStructure] = useState([]);
   
-  // =========== UI State ===========
+  // Removing needsCentering state as we're eliminating automatic centering
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const [initialTransform, setInitialTransform] = useState(null);
+  const [initialRootPosition, setInitialRootPosition] = useState(null); // State to store initial root position
+  // Add mode-specific position storage
+  const [regularModePosition, setRegularModePosition] = useState(null);
+  const [orgModePosition, setOrgModePosition] = useState(null);
+  
   const [isDragging, setIsDragging] = useState(false);
   const [isHierarchyMode, setIsHierarchyMode] = useState(false);
   const [isOrganizationMode, setIsOrganizationMode] = useState(false);
-  const [hideVacancies, setHideVacancies] = useState(false); // New state for hiding vacant positions
+  const [hideVacancies, setHideVacancies] = useState(false);
   const [hierarchyModeData, setHierarchyModeData] = useState(null);
   const [organizationModeData, setOrganizationModeData] = useState(null);
   const [collapseAll, setCollapseAll] = useState(false);
@@ -60,7 +66,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     secondaryField: 'role'
   });
   
-  // =========== Modal State ===========
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
@@ -70,7 +75,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const [selectedNode, setSelectedNode] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
   
-  // =========== Search & Filter State ===========
   const [searchResults, setSearchResults] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [directSearchResults, setDirectSearchResults] = useState([]);
@@ -80,24 +84,128 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const [treeSearchResults, setTreeSearchResults] = useState([]);
   const [currentTreeSearchIndex, setCurrentTreeSearchIndex] = useState(0);
   
-  // =========== Node State ===========
   const [highlightedNodes, setHighlightedNodes] = useState([]);
   const [renderedNodes, setRenderedNodes] = useState([]);
   
-  // =========== Status State ===========
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // =========== Refs ===========
   const dragRef = useRef(null);
   const chartRef = useRef(null);
 
-  // =========== Data Functions ===========
+const findRootNodeElement = useCallback(() => {
+  const rootNodeId = isOrganizationMode
+    ? `orgnode-${organizationModeData?.hierarchical_structure}`
+    : isHierarchyMode
+    ? `node-${hierarchyModeData?.hierarchical_structure}`
+    : `node-${filteredOrgData?.hierarchical_structure}`;
+    
+  let rootElement = document.getElementById(rootNodeId);
+  if (!rootElement) {
+    const allNodes = document.querySelectorAll('[id^="node-"], [id^="orgnode-"]');
+    if (allNodes.length > 0) {
+      let highestElement = null;
+      let highestY = Infinity;
+      
+      allNodes.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < highestY) {
+          highestY = rect.top;
+          highestElement = el;
+        }
+      });
+      
+      rootElement = highestElement;
+    }
+  }
+  
+  return rootElement;
+}, [isOrganizationMode, isHierarchyMode, organizationModeData, hierarchyModeData, filteredOrgData]);
+
+// Modified function to store the initial position of the root node WITHOUT applying it
+const storeInitialRootPosition = useCallback(() => {
+  const rootElement = findRootNodeElement();
+  
+  if (rootElement && chartRef.current) {
+    try {
+      const rootRect = rootElement.getBoundingClientRect();
+      const chartRect = chartRef.current.getBoundingClientRect();
+      
+      // Account for the navigation bar height
+      const navBarHeight = 60;
+      
+      // Calculate center coordinates
+      const centerX = window.innerWidth / 2 - rootRect.width / 2;
+      const centerY = (window.innerHeight - navBarHeight) / 2 - rootRect.height / 2 + navBarHeight;
+      
+      // Calculate the transform to center the root node
+      const x = centerX - rootRect.left + chartRect.left;
+      const y = centerY - rootRect.top + chartRect.top;
+      
+      // Store position for future use only, without applying it
+      setInitialRootPosition({ x, y, scale: 1 });
+      console.log("Stored initial position:", { x, y, scale: 1 });
+      
+      // No longer automatically applying the transform here
+    } catch (error) {
+      console.error("Error calculating initial position:", error);
+    }
+  }
+}, [findRootNodeElement]);
+
+// Updated function to center the chart - using mode-specific positions
+const centerOnRoot = useCallback(() => {
+  // Use the appropriate stored position based on current mode
+  const positionToUse = isOrganizationMode ? 
+                         orgModePosition : 
+                         regularModePosition || initialRootPosition;
+  
+  if (positionToUse) {
+    // Use the stored position
+    chartRef.current.style.transition = 'transform 0.5s ease-out';
+    setTransform(positionToUse);
+    
+    // Reset transition after animation completes
+    setTimeout(() => {
+      if (chartRef.current) {
+        chartRef.current.style.transition = '';
+      }
+    }, 500);
+  } else {
+    // If position isn't stored yet, calculate and store it
+    storeInitialRootPosition();
+    
+    // Then use it (after a slight delay to allow state to update)
+    setTimeout(() => {
+      if (initialRootPosition) {
+        chartRef.current.style.transition = 'transform 0.5s ease-out';
+        setTransform(initialRootPosition);
+        
+        // Store in the mode-specific state
+        if (isOrganizationMode) {
+          setOrgModePosition(initialRootPosition);
+        } else {
+          setRegularModePosition(initialRootPosition);
+        }
+        
+        setTimeout(() => {
+          if (chartRef.current) {
+            chartRef.current.style.transition = '';
+          }
+        }, 500);
+      }
+    }, 50);
+  }
+}, [initialRootPosition, isOrganizationMode, orgModePosition, regularModePosition, chartRef, setTransform, storeInitialRootPosition]);
+
   const fetchData = useCallback(async () => {
     if (!dbPath || !selectedTableId) return;
 
     setIsLoading(true);
     setError(null);
+    // Reset mode-specific positions when loading completely new data
+    setRegularModePosition(null);
+    setOrgModePosition(null);
 
     try {
       const [folderResponse, orgDataResponse] = await Promise.all([
@@ -120,6 +228,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
 
       setOrgData(orgDataResponse.data.org_chart);
       setFilteredOrgData(orgDataResponse.data.org_chart);
+      // No automatic centering, just set the data
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("Failed to fetch data. Please try again.");
@@ -145,9 +254,25 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const filterOrgData = useCallback((node, filters) => {
     const matchesFilter = (n) => {
       if (filters.length === 0) return true;
+      
       return filters.every(filter => {
+        if (filter.type === 'department' || filter.type === 'organization') {
+          const orgFields = ['department', 'organization', 'org', 'role'];
+          return orgFields.some(field => {
+            if (!n[field]) return false;
+            if (Array.isArray(n[field])) {
+              return n[field].some(val => 
+                val.toString().toLowerCase().includes(filter.value.toLowerCase())
+              );
+            } else {
+              return n[field].toString().toLowerCase().includes(filter.value.toLowerCase());
+            }
+          });
+        }
+        
         const value = n[filter.type];
-        return value !== null && value.toString().toLowerCase().includes(filter.value.toLowerCase());
+        return value !== null && value !== undefined && 
+               value.toString().toLowerCase().includes(filter.value.toLowerCase());
       });
     };
 
@@ -188,23 +313,19 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     return filterNode(node).node;
   }, []);
 
-  // Function to remove vacant positions (nodes with NaN person_id)
   const removeVacantPositions = useCallback((node) => {
     if (!node) return null;
     
-    // Check if current node is vacant (has NaN person_id)
     const isVacant = node.person_id === "nan";
     
-    // If current node is vacant, don't include it
     if (isVacant) return null;
     
     const newNode = { ...node };
     
-    // Process children recursively if they exist
     if (node.children && node.children.length > 0) {
       newNode.children = node.children
         .map(removeVacantPositions)
-        .filter(Boolean); // Remove null entries
+        .filter(Boolean);
     }
     
     return newNode;
@@ -224,10 +345,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const processOrganizationData = useCallback((serverResponse) => {
     if (!serverResponse) return null;
     
-    // Extract organization data
     const { organization_data } = serverResponse;
     
-    // Create a map of all organizations by name
     const orgMap = new Map();
     organization_data.forEach(org => {
       orgMap.set(org.organization_name, {
@@ -243,7 +362,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       });
     });
     
-    // Establish parent-child relationships
     organization_data.forEach(org => {
       if (org.parent) {
         const parentNode = orgMap.get(org.parent);
@@ -254,20 +372,17 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       }
     });
     
-    // Find the root nodes
     const rootOrgs = organization_data
       .filter(org => org.parent === null)
       .map(org => orgMap.get(org.organization_name))
       .filter(Boolean);
     
-    // Sort children alphabetically for consistent display
     orgMap.forEach(org => {
       if (org.children.length > 0) {
         org.children.sort((a, b) => a.name.localeCompare(b.name));
       }
     });
     
-    // If multiple root organizations, create a single root
     if (rootOrgs.length > 1) {
       return {
         name: "All Organizations",
@@ -284,23 +399,24 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     return null;
   }, []);
   
-  // Organization Mode Handler - updated implementation without fallback
   const handleOrganizationMode = useCallback(() => {
     setIsOrganizationMode((prevMode) => {
       const newMode = !prevMode;
       
       if (newMode) {
+        setFilteredOrgId(null);
+        setOriginalOrgData(null);
+        // Don't reset positions, just load org data
+        
         setIsLoading(true);
         
-        // Fetch organization structure data from the server endpoint
         fetchOrgStructureData(selectedTableId)
           .then(data => {
             if (data) {
               const processedOrgData = processOrganizationData(data);
               setOrganizationModeData(processedOrgData);
-              
-              // Auto-expand all nodes in organization view
               setExpandAll(true);
+              // No automatic centering - user must click center button
             } else {
               toast.error("Failed to load organization data");
               setIsOrganizationMode(false);
@@ -316,7 +432,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           });
       }
       
-      // Turn off hierarchy mode if it's active
       if (isHierarchyMode) {
         setIsHierarchyMode(false);
       }
@@ -336,33 +451,24 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       return originalTree;
     }
   
-    const markNodesInPath = (node, targetId) => {
+    const targetStructures = new Set(searchResults.map(result => result.hierarchical_structure));
+  
+    const markNodesInPath = (node, targetStructures) => {
       if (!node) return false;
   
-      // Store if the current node matches
-      let currentNodeMatches = false;
-      
-      // Check if this node matches the targetId
-      if (node.person_id && node.person_id.toString() === targetId.toString()) {
-        node.visible = true;
-        currentNodeMatches = true;
-        // Don't return true here - continue checking children
-      }
+      const isTarget = targetStructures.has(node.hierarchical_structure);
   
-      // Check all children and maintain visibility
-      let childrenMatch = false;
+      let hasTargetDescendant = false;
       if (node.children) {
         for (let child of node.children) {
-          // Continue to process all children, even if one already matched
-          if (markNodesInPath(child, targetId)) {
-            node.visible = true;
-            childrenMatch = true;
+          if (markNodesInPath(child, targetStructures)) {
+            hasTargetDescendant = true;
           }
         }
       }
   
-      // Return true if either this node or any of its children matched
-      return currentNodeMatches || childrenMatch;
+      node.visible = isTarget || hasTargetDescendant;
+      return node.visible;
     };
   
     const cloneTree = (node) => {
@@ -375,23 +481,50 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     };
   
     const newTree = cloneTree(originalTree);
-    
-    // Process all search results
-    searchResults.forEach(result => markNodesInPath(newTree, result.person_id));
+    markNodesInPath(newTree, targetStructures);
   
     const filterVisibleNodes = (node) => {
-      if (!node) return null;
-      if (!node.visible) return null;
+      if (!node || !node.visible) return null;
+  
       const filteredNode = { ...node };
       delete filteredNode.visible;
+  
       if (node.children) {
         filteredNode.children = node.children.map(filterVisibleNodes).filter(Boolean);
       }
+  
       return filteredNode;
     };
   
     return filterVisibleNodes(newTree);
   }, []);
+
+  useEffect(() => {
+    if (orgData && searchResults && searchResults.length > 0) {
+      const searchedData = findNodesInTree(orgData, searchResults, filteredSearchResults);
+      
+      if (searchedData) {
+        setFilteredOrgData(searchedData);
+        setExpandAll(true);
+      } else {
+        if (preFilterOrgData) {
+          setFilteredOrgData(preFilterOrgData);
+          setPreFilterOrgData(null);
+        } else {
+          setFilteredOrgData(orgData);
+        }
+        toast.warning("No matching data found");
+      }
+    }
+  }, [
+    searchResults, 
+    orgData, 
+    findNodesInTree, 
+    preFilterOrgData, 
+    filteredSearchResults,
+    setFilteredOrgData, 
+    setExpandAll
+  ]);
   
   const getParentNode = useCallback((hierarchicalStructure) => {
     const findParent = (node, targetStructure) => {
@@ -411,7 +544,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     return findParent(filteredOrgData, hierarchicalStructure);
   }, [filteredOrgData]);
 
-  // =========== Helper Functions ===========
   const duplicatePersonIds = useMemo(() => {
     const personIdCounts = {};
     const countPersonIds = (node) => {
@@ -427,17 +559,13 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     return personIdCounts;
   }, [filteredOrgData]);
   
-  // =========== Handler Functions ===========
-  // Toggle hide vacancies handler
   const handleToggleVacancies = useCallback(() => {
     setHideVacancies(prev => !prev);
   }, []);
 
-  // Node swapping handler with redraw trigger
   const handleSwapNodesWithRerender = useCallback((parentId, node1Id, node2Id) => {
     handleSwapNodes(parentId, node1Id, node2Id);
     setSwapKey(prev => prev + 1);
-    // Only update the affected connections - no need to redraw the whole tree
     setTimeout(() => {
       const parentElement = document.getElementById(`node-${parentId}`);
       if (parentElement) {
@@ -446,8 +574,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           const connections = childContainer.querySelectorAll('.bg-gray-400');
           connections.forEach(conn => {
             conn.style.opacity = '0.99';
-            // eslint-disable-next-line no-unused-vars
-            const forceReflow = conn.offsetHeight;
             conn.style.opacity = '1';
           });
         }
@@ -455,19 +581,16 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     }, 50);
   }, [handleSwapNodes]);
 
-  // Background click to cancel swap
   const handleBackgroundClick = useCallback((e) => {
     if (e.target === e.currentTarget && selectedSwapNode) {
       handleCancelSwap();
     }
   }, [selectedSwapNode, handleCancelSwap]);
 
-  // Navigation handlers
+  // This is the only way centering should happen - user explicitly clicks the center button
   const handleCenter = useCallback(() => {
-    if (initialTransform) {
-      setTransform(initialTransform);
-    }
-  }, [initialTransform]);
+    centerOnRoot();
+  }, [centerOnRoot]);
   
   const handleHome = useCallback(() => {
     setSelectedNode(null);
@@ -475,10 +598,154 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     onReturnToLanding();
   }, [handleCenter, onReturnToLanding]);
 
-  // Node handlers
-  const handleNodeClick = useCallback((node) => {
-    setSelectedNode({ ...node, folderId: selectedFolderId, tableId: selectedTableId });
-  }, [selectedFolderId, selectedTableId]);
+  const handleFilterByOrg = useCallback((orgName) => {
+    if (!orgName) return;
+    
+    if (!preFilterOrgData) {
+      setPreFilterOrgData(orgData);
+    }
+    
+    setIsOrganizationMode(false);
+    setIsLoading(true);
+    
+    axios.get(
+      `${API_BASE_URL}/search/${selectedFolderId}/${selectedTableId}`,
+      {
+        params: {
+          query: orgName,
+          columns: 'organization_name'
+        },
+      }
+    )
+      .then(response => {
+        if (response.data && Array.isArray(response.data.results)) {
+          const results = response.data.results;
+          
+          if (results.length > 0) {
+            const resultStructures = results.map(result => result.hierarchical_structure);
+            setSearchResults(results);
+            setDirectSearchResults(resultStructures);
+            setActiveFilters([]);
+            setFilterModalResetTrigger(prev => prev + 1);
+            setTreeSearchResults(resultStructures);
+            setCurrentTreeSearchIndex(0);
+            
+            const findAncestors = (node, targetStructures, ancestors = []) => {
+              if (targetStructures.includes(node.hierarchical_structure)) {
+                return [...ancestors, node.hierarchical_structure];
+              }
+              if (node.children) {
+                for (let child of node.children) {
+                  const result = findAncestors(child, targetStructures, [...ancestors, node.hierarchical_structure]);
+                  if (result.length > 0) return result;
+                }
+              }
+              return [];
+            };
+            
+            const allIncludedStructures = new Set();
+            const addAncestors = (tree) => {
+              resultStructures.forEach(structure => {
+                const ancestors = findAncestors(tree, [structure]);
+                ancestors.forEach(ancestorStructure => allIncludedStructures.add(ancestorStructure));
+              });
+            };
+            
+            addAncestors(orgData);
+            setFilteredSearchResults(Array.from(allIncludedStructures));
+            setExpandAll(true);
+            // No automatic centering - user must click center button
+            toast.info(`Showing people in "${orgName}" organization`);
+          } else {
+            toast.warning(`No people found in "${orgName}" organization`);
+            if (preFilterOrgData) {
+              setFilteredOrgData(preFilterOrgData);
+              setPreFilterOrgData(null);
+            }
+          }
+        }
+      })
+      .catch(error => {
+        console.error("Error searching for organization:", error);
+        toast.error("Failed to filter by organization. Please try again.");
+        if (preFilterOrgData) {
+          setFilteredOrgData(preFilterOrgData);
+          setPreFilterOrgData(null);
+        }
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [
+    selectedFolderId,
+    selectedTableId,
+    orgData,
+    preFilterOrgData,
+    setIsOrganizationMode,
+    setActiveFilters,
+    setSearchResults,
+    setDirectSearchResults,
+    setFilterModalResetTrigger,
+    setTreeSearchResults,
+    setCurrentTreeSearchIndex,
+    setFilteredSearchResults,
+    setExpandAll
+  ]);
+
+  
+  const handleNodeClick = useCallback((node, isOrgFilter = false) => {
+    if (isOrgFilter && node.isOrgNode) {
+      if (filteredOrgId === node.hierarchical_structure) {
+        setFilteredOrgId(null);
+        if (originalOrgData) {
+          setFilteredOrgData(originalOrgData);
+        }
+        toast.info(`Showing all organizations`);
+      } else {
+        if (!originalOrgData) {
+          setOriginalOrgData(filteredOrgData);
+        }
+        setFilteredOrgId(node.hierarchical_structure);
+        const filterOrgOnly = (rootNode) => {
+          if (!rootNode) return null;
+          if (rootNode.hierarchical_structure === node.hierarchical_structure) {
+            return { ...rootNode };
+          }
+          if (rootNode.children && rootNode.children.length > 0) {
+            const filteredChildren = rootNode.children
+              .map(filterOrgOnly)
+              .filter(Boolean);
+            if (filteredChildren.length > 0) {
+              return {
+                ...rootNode,
+                children: filteredChildren
+              };
+            }
+          }
+          return null;
+        };
+        
+        const rootData = organizationModeData || originalOrgData || filteredOrgData;
+        const filteredData = filterOrgOnly(rootData);
+        
+        if (filteredData) {
+          setFilteredOrgData(filteredData);
+          toast.info(`Filtered to show ${node.name} organization`);
+        } else {
+          toast.error("Could not filter to the selected organization");
+        }
+      }
+    } else {
+      setSelectedNode({ ...node, folderId: selectedFolderId, tableId: selectedTableId });
+    }
+  }, [
+    filteredOrgId, 
+    originalOrgData, 
+    filteredOrgData,
+    organizationModeData, 
+    selectedFolderId, 
+    selectedTableId
+  ]);
   
   const handleHighlight = useCallback(async (hierarchicalNodeStructure) => {
     try {
@@ -513,7 +780,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     setRenderedNodes(prev => prev.filter(node => node.hierarchical_structure !== nodeStructure));
   }, []);
 
-  // Tree expansion handlers
   const handleExpandAll = useCallback(() => {
     setExpandAll(true);
     setCollapseAll(false);
@@ -525,11 +791,12 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     setTimeout(() => setCollapseAll(false), 100);
   }, [setExpandAll]);
 
-  // Mode handlers
   const handleHierarchyMode = useCallback(() => {
     setIsHierarchyMode((prevMode) => {
       const newMode = !prevMode;
       if (newMode) {
+        // Don't reset position when switching to hierarchy mode
+        
         const processHierarchyMode = (node) => {
           if (!node) return null;
           const newNode = { ...node };
@@ -549,9 +816,10 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           setHierarchyModeData(filteredOrgData);
           toast.warning("No hierarchical structure to display in Hierarchy Mode. Showing full tree.");
         }
+        
+        // No automatic centering - user must click center button
       }
       
-      // Turn off organization mode if it's active
       if (isOrganizationMode) {
         setIsOrganizationMode(false);
       }
@@ -560,7 +828,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     });
   }, [filteredOrgData, isOrganizationMode]);
 
-  // Search and filter handlers
   const handleSearch = useCallback((results) => {
     const resultStructures = results.map(result => result.hierarchical_structure);
     setSearchResults(results);
@@ -593,6 +860,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
 
     addAncestors(orgData);
     setFilteredSearchResults(Array.from(allIncludedStructures));
+    
+    // No automatic centering - user must click center button
   }, [orgData, setActiveFilters]);
   
   const handleTreeSearch = useCallback((term) => {
@@ -603,12 +872,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       return;
     }
     
-    // Improve search for nodes with multiple roles
     const results = renderedNodes.filter(node => {
-      // Check if the name or role contains the search term
       const nameMatch = node.name && node.name.toLowerCase().includes(term.toLowerCase());
-      
-      // Handle role as potentially an array or string
       let roleMatch = false;
       if (typeof node.role === 'string') {
         roleMatch = node.role.toLowerCase().includes(term.toLowerCase());
@@ -663,6 +928,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     setActiveFilters(filters);
     setSearchResults(null);
     setIsFilterOpen(false);
+    
+    // No automatic centering - user must click center button
   }, [setActiveFilters]);
   
   const handleClearFilter = useCallback(() => {
@@ -670,26 +937,110 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     setSearchResults(null);
     setFilteredSearchResults([]);
     setDirectSearchResults([]);
-    setFilteredOrgData(orgData);
+    setTreeSearchResults([]);
+    setCurrentTreeSearchIndex(-1);
+    setSearchTerm('');
+    if (preFilterOrgData) {
+      setFilteredOrgData(preFilterOrgData);
+      setPreFilterOrgData(null);
+      toast.info("Filters cleared");
+    } else {
+      setFilteredOrgData(orgData);
+    }
     setExpandAll(false);
     setFilterModalResetTrigger(prev => prev + 1);
-    setTreeSearchResults([]);
-    setCurrentTreeSearchIndex(-1);
-    setSearchTerm('');
-  }, [orgData, setActiveFilters, setExpandAll]);
+    
+    // No automatic centering - user must click center button
+  }, [
+    orgData, 
+    preFilterOrgData, 
+    setActiveFilters, 
+    setExpandAll, 
+    setFilteredOrgData, 
+    setPreFilterOrgData
+  ]);
   
-  const handleClearSearch = useCallback(() => {
-    setSearchResults(null);
-    setFilteredSearchResults([]);
-    setDirectSearchResults([]);
-    setFilteredOrgData(orgData);
-    setExpandAll(false);
-    setTreeSearchResults([]);
-    setCurrentTreeSearchIndex(-1);
-    setSearchTerm('');
-  }, [orgData, setExpandAll]);
+  useEffect(() => {
+    if (!isOrganizationMode) {
+      if (preFilterOrgData && !searchResults && activeFilters.length === 0) {
+        setFilteredOrgData(preFilterOrgData);
+        setPreFilterOrgData(null);
+      }
+    }
+  }, [
+    isOrganizationMode, 
+    preFilterOrgData, 
+    searchResults, 
+    activeFilters.length
+  ]);
+  
+  useEffect(() => {
+    if (orgData && searchResults && searchResults.length > 0) {
+      const searchedData = findNodesInTree(orgData, searchResults);
+      
+      if (searchedData) {
+        setFilteredOrgData(searchedData);
+        setExpandAll(true);
+      } else {
+        if (preFilterOrgData) {
+          setFilteredOrgData(preFilterOrgData);
+          setPreFilterOrgData(null);
+        } else {
+          setFilteredOrgData(orgData);
+        }
+        toast.warning("No matching data found");
+      }
+    }
+  }, [
+    searchResults, 
+    orgData, 
+    findNodesInTree, 
+    preFilterOrgData, 
+    setFilteredOrgData, 
+    setExpandAll
+  ]);
 
-  // UI toggle handlers
+  // Modified effect to store initial position once tree is loaded and rendered
+  // Now it checks for mode-specific positions before calculating
+  useEffect(() => {
+    if (!isLoading && 
+        (filteredOrgData || organizationModeData || hierarchyModeData)) {
+      
+      // Check if we already have a position for this mode
+      const hasPositionForCurrentMode = 
+        (isOrganizationMode && orgModePosition) ||
+        (!isOrganizationMode && regularModePosition);
+      
+      if (!hasPositionForCurrentMode) {
+        // Wait for DOM to be fully rendered, then calculate (but don't apply) position
+        const timer = setTimeout(() => {
+          storeInitialRootPosition();
+          
+          // Store this position in the appropriate mode-specific state
+          if (initialRootPosition) {
+            if (isOrganizationMode) {
+              setOrgModePosition(initialRootPosition);
+            } else {
+              setRegularModePosition(initialRootPosition);
+            }
+          }
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [
+    isLoading,
+    filteredOrgData, 
+    organizationModeData, 
+    hierarchyModeData,
+    isOrganizationMode,
+    regularModePosition,
+    orgModePosition,
+    storeInitialRootPosition,
+    initialRootPosition
+  ]);
+
   const toggleFilterModal = useCallback(() => {
     setIsFilterOpen(prev => !prev);
   }, []);
@@ -714,7 +1065,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     setIsTableSelectionOpen(false);
   }, []);
 
-  // Export handlers
   const handleExportExcel = useCallback(() => {
     axios({
       url: `${API_BASE_URL}/export_excel/${selectedTableId}`,
@@ -756,8 +1106,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         element.style.width = 'auto';
         element.style.height = 'auto';
 
-        // eslint-disable-next-line no-unused-vars
-        const forceReflow = element.offsetHeight;
         const rect = element.getBoundingClientRect();
         const contentSize = { width: rect.width, height: rect.height };
 
@@ -798,10 +1146,12 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     handleCenter();
   }, [setExpandAll, handleCenter]);
 
-  // File handling
   const handleFileUpload = async (uploadedData) => {
     setSelectedTableId(uploadedData.table_id);
     setSelectedFolderId(uploadedData.folder_id);
+    // Reset mode-specific positions on new file upload
+    setRegularModePosition(null);
+    setOrgModePosition(null);
     await fetchData();
     setIsUploadOpen(false);
   };
@@ -809,11 +1159,13 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const handleTableSelection = useCallback(async (tableId, folderId) => {
     setSelectedTableId(tableId);
     setSelectedFolderId(folderId);
+    // Reset mode-specific positions on table change
+    setRegularModePosition(null);
+    setOrgModePosition(null);
     await fetchData();
     setIsTableSelectionOpen(false);
   }, [fetchData]);
 
-  // Chart pan/zoom handlers
   const handleMouseDown = useCallback((e) => {
     if (e.button === 0) {
       setIsDragging(true);
@@ -849,11 +1201,9 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     });
   }, []);
 
-  // Keyboard shortcuts
   const handleKeyDown = useCallback((e) => {
     if (isUpdateModalOpen || isFilterOpen) return;
 
-    // Clear swap selection on Escape
     if (e.key === 'Escape' && selectedSwapNode) {
       handleCancelSwap();
       return;
@@ -913,42 +1263,33 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     setTransform
   ]);
 
-  // =========== Effects ===========
-  // Fetch data on mount and when table changes
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Apply filters when data or filters change
   useEffect(() => {
     if (orgData) {
       try {
         let processedData = orgData;
         
-        // Apply hide vacancies filter first if enabled
         if (hideVacancies) {
           processedData = removeVacantPositions(processedData);
           if (!processedData) {
             toast.warning("No data available after hiding vacant positions.");
-            processedData = orgData; // Fallback if all nodes are filtered out
+            processedData = orgData;
             setHideVacancies(false);
           }
         }
         
-        // Then apply search results filter
         if (searchResults && searchResults.length > 0) {
           const searchedData = findNodesInTree(processedData, searchResults);
           setFilteredOrgData(searchedData || processedData);
           setExpandAll(!!searchedData);
-        } 
-        // Then apply other filters
-        else if (activeFilters.length > 0) {
+        } else if (activeFilters.length > 0) {
           const filtered = filterOrgData(processedData, activeFilters);
           setFilteredOrgData(filtered || processedData);
           setExpandAll(!!filtered);
-        } 
-        // No filters
-        else {
+        } else {
           setFilteredOrgData(processedData);
           setExpandAll(false);
         }
@@ -961,27 +1302,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     }
   }, [orgData, activeFilters, searchResults, hideVacancies, filterOrgData, setExpandAll, findNodesInTree, removeVacantPositions]);
 
-  // Set up initial transform
-  useEffect(() => {
-    const updateInitialTransform = () => {
-      if (chartRef.current) {
-        const rect = chartRef.current.getBoundingClientRect();
-        const centerX = window.innerWidth / 2 - rect.width / 2;
-        const centerY = (window.innerHeight / 2 - rect.height / 2) * 0.9;
-        const initialState = { x: centerX, y: centerY, scale: 1 };
-        setInitialTransform(initialState);
-        setTransform(initialState);
-      }
-    };
-
-    updateInitialTransform();
-    window.addEventListener("resize", updateInitialTransform);
-    return () => {
-      window.removeEventListener("resize", updateInitialTransform);
-    };
-  }, [orgData]);
-
-  // Handle drag events
   useEffect(() => {
     if (isDragging) {
       document.addEventListener("mousemove", handleMouseMove);
@@ -996,7 +1316,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Set up keyboard shortcuts
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
     return () => {
@@ -1004,10 +1323,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     };
   }, [handleKeyDown]);
 
-  // Add document click handler to cancel swap selection when clicking outside
   useEffect(() => {
     const handleDocumentClick = (e) => {
-      // If we have a selected swap node and we're clicking on the background (not a node)
       if (selectedSwapNode && !e.target.closest('[id^="node-"]')) {
         handleCancelSwap();
       }
@@ -1022,7 +1339,54 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     };
   }, [selectedSwapNode, handleCancelSwap]);
 
-  // =========== Render Functions ===========
+  useEffect(() => {
+    if (!isOrganizationMode) {
+      if (preFilterOrgData && activeFilters.length === 0) {
+        setFilteredOrgData(preFilterOrgData);
+        setPreFilterOrgData(null);
+      }
+    }
+  }, [isOrganizationMode, preFilterOrgData, activeFilters]);
+
+  useEffect(() => {
+    if (orgData && searchResults && searchResults.length > 0) {
+      const searchedData = findNodesInTree(orgData, searchResults);
+      
+      if (searchedData) {
+        setFilteredOrgData(searchedData);
+        setExpandAll(true);
+      } else {
+        if (preFilterOrgData) {
+          setFilteredOrgData(preFilterOrgData);
+          setPreFilterOrgData(null);
+        } else {
+          setFilteredOrgData(orgData);
+        }
+        toast.warning("No matching data found");
+      }
+    }
+  }, [
+    searchResults, 
+    orgData, 
+    findNodesInTree, 
+    preFilterOrgData, 
+    setFilteredOrgData, 
+    setExpandAll
+  ]);
+  
+  const handleClearSearch = useCallback(() => {
+    setSearchResults(null);
+    setFilteredSearchResults([]);
+    setDirectSearchResults([]);
+    setFilteredOrgData(orgData);
+    setExpandAll(false);
+    setTreeSearchResults([]);
+    setCurrentTreeSearchIndex(-1);
+    setSearchTerm('');
+    
+    // No automatic centering - user must click center button
+  }, [orgData, setExpandAll]);
+
   if (isLoading) {
     return (
       <motion.div 
@@ -1073,7 +1437,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         exit={{ opacity: 0 }} 
         className="h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 pt-20"
       >
-        {/* Navigation Bar */}
         <NavigationBar
           onHome={handleHome}
           onCenter={handleCenter}
@@ -1100,7 +1463,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           selectedTableId={selectedTableId}
         />
   
-        {/* Search Bar */}
         <div className="absolute top-18 right-4 z-10 flex items-center">
           <AnimatePresence>
             {isSearchBarVisible && (
@@ -1126,7 +1488,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           </AnimatePresence>
         </div>
   
-        {/* Swap Instructions */}
         {selectedSwapNode && !isOrganizationMode && (
           <div className="fixed top-20 inset-x-0 flex justify-center z-40">
             <motion.div 
@@ -1146,7 +1507,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           </div>
         )}
   
-        {/* Main Content */}
         <div 
           ref={dragRef} 
           className="w-full h-full cursor-move" 
@@ -1166,25 +1526,26 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
             <div className="p-8 pt-20">
               {isOrganizationMode ? (
                 <OrgNode
-                  key={`org-tree-${swapKey}`}
-                  node={organizationModeData || filteredOrgData}
-                  onNodeClick={handleNodeClick}
-                  expandAll={expandAll}
-                  collapseAll={collapseAll}
-                  folderId={selectedFolderId}
-                  tableId={selectedTableId}
-                  searchTerm={searchTerm}
-                  onNodePosition={(id, x, y) => {
-                    const element = document.getElementById(`orgnode-${id}`);
-                    if (element) {
-                      element.dataset.x = x;
-                      element.dataset.y = y;
-                    }
-                  }}
-                  onNodeRendered={handleNodeRendered}
-                  onNodeUnrendered={handleNodeUnrendered}
-                  settings={settings}
-                />
+                key={`org-tree-${swapKey}`}
+                node={organizationModeData || filteredOrgData}
+                onNodeClick={handleNodeClick}
+                onFilterByOrg={handleFilterByOrg}
+                expandAll={expandAll}
+                collapseAll={collapseAll}
+                folderId={selectedFolderId}
+                tableId={selectedTableId}
+                searchTerm={searchTerm}
+                onNodePosition={(id, x, y) => {
+                  const element = document.getElementById(`orgnode-${id}`);
+                  if (element) {
+                    element.dataset.x = x;
+                    element.dataset.y = y;
+                  }
+                }}
+                onNodeRendered={handleNodeRendered}
+                onNodeUnrendered={handleNodeUnrendered}
+                settings={settings}
+              />
               ) : (
                 <TreeNode
                   key={`tree-${swapKey}`}
@@ -1199,7 +1560,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
                   highlightedNodes={highlightedNodes}
                   onHighlight={handleHighlight}
                   isHierarchyMode={isHierarchyMode}
-                  isOrganizationMode={false} // Always false when using TreeNode
+                  isOrganizationMode={false}
                   searchTerm={searchTerm}
                   searchResults={treeSearchResults}
                   currentSearchIndex={currentTreeSearchIndex}
@@ -1229,7 +1590,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           </div>
         </div>
   
-        {/* Modals */}
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}

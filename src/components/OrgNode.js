@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Users, Home, Briefcase } from 'react-feather';
+import { 
+  ChevronDown, 
+  ChevronRight, 
+  Briefcase, 
+  Filter, 
+  Layers,
+  UserPlus, 
+} from 'react-feather';
 
 const OrgNode = ({ 
   node, 
   onNodeClick, 
+  onFilterByOrg,
   depth = 0, 
   expandAll, 
   collapseAll,
@@ -16,12 +24,8 @@ const OrgNode = ({
   onNodeUnrendered,
   settings = {}
 }) => {
-  // eslint-disable-next-line no-unused-vars
-  const nodeKey = node?.hierarchical_structure || `org-${depth}-${node?.name}`;
-  const [isExpanded, setIsExpanded] = useState(() => {
-    // Default to expanded for organization view
-    return true;
-  });
+  const [isExpanded, setIsExpanded] = useState(() => true);
+  const [isHovered, setIsHovered] = useState(false);
   
   const nodeRef = useRef(null);
   const isRendered = useRef(false);
@@ -30,7 +34,6 @@ const OrgNode = ({
   const isSingleChild = hasChildren && node.children.length === 1;
   
   const orgColor = useMemo(() => {
-    // Generate a consistent color from organization name
     const text = node.name || "Unknown";
     const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const hue = hash % 360;
@@ -71,7 +74,7 @@ const OrgNode = ({
       }
     };
   }, [node, onNodeRendered, onNodeUnrendered]);
-
+  
   const handleToggleExpand = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -85,6 +88,34 @@ const OrgNode = ({
       setIsExpanded(prev => !prev);
     }
   }, [hasChildren]);
+  
+  const handleFilter = useCallback((e) => {
+    e.stopPropagation();
+    if (node.isOrgNode && onFilterByOrg) {
+      onFilterByOrg(node.name);
+    }
+  }, [node, onFilterByOrg]);
+
+  const ActionButton = useCallback(({ icon: Icon, onClick, tooltip, className = "" }) => (
+    <motion.div
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.9 }}
+      onClick={onClick}
+      className={`p-1 rounded-full bg-white hover:bg-white border border-gray-200 
+                 shadow-sm hover:shadow transition-all duration-200 opacity-80 
+                 group-hover:opacity-100 z-50 cursor-pointer relative ${className}`}
+    >
+      <Icon 
+        size={16} 
+        className="text-gray-500 hover:text-gray-700 transition-colors duration-200" 
+      />
+      {tooltip && isHovered && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap">
+          {tooltip}
+        </div>
+      )}
+    </motion.div>
+  ), [isHovered]);
 
   const highlightText = (text, term) => {
     if (!text || !term || typeof text !== 'string') return text;
@@ -103,50 +134,75 @@ const OrgNode = ({
         id={`orgnode-${node.hierarchical_structure}`}
         ref={nodeRef}
         whileHover={{ scale: 1.02 }}
+        onHoverStart={() => setIsHovered(true)}
+        onHoverEnd={() => setIsHovered(false)}
+        onClick={handleNodeClick}
         style={{ 
           backgroundColor: 'white',
-          borderLeft: `6px solid ${orgColor}`,
+          borderLeft: `5px solid ${orgColor}`,
         }}
-        className="rounded-xl shadow-md p-4 w-80 relative overflow-hidden group cursor-pointer"
-        onClick={handleNodeClick}
+        className="rounded-xl shadow-md p-4 w-80 relative overflow-hidden group cursor-pointer transition-all duration-200"
       >
-        <div className="flex items-center gap-2 mb-2">
-          <Home size={20} style={{ color: orgColor }} />
-          <h3 className="text-lg font-bold text-gray-800">
+        {/* Node header with name and expand/actions control */}
+        <div className="flex items-center gap-2 mb-3">
+          <div 
+            className="w-8 h-8 rounded-md flex items-center justify-center"
+            style={{ backgroundColor: `${orgColor}20` }}
+          >
+            <Layers size={18} style={{ color: orgColor }} />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800 flex-grow">
             {highlightText(node.name, searchTerm)}
           </h3>
-          {hasChildren && (
-            <motion.div
-              animate={{ rotate: isExpanded ? 90 : 0 }}
-              transition={{ duration: 0.3 }}
-              onClick={handleToggleExpand}
-              className="ml-auto cursor-pointer"
-            >
-              {isExpanded ? (
-                <ChevronDown size={20} className="text-gray-600" />
-              ) : (
-                <ChevronRight size={20} className="text-gray-600" />
-              )}
-            </motion.div>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Action buttons container */}
+            {node.isOrgNode && onFilterByOrg && (
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <ActionButton 
+                  icon={Filter} 
+                  onClick={handleFilter}
+                />
+              </div>
+            )}
+            {hasChildren && (
+              <motion.div
+                animate={{ rotate: isExpanded ? 90 : 0 }}
+                transition={{ duration: 0.3 }}
+                onClick={handleToggleExpand}
+                className="cursor-pointer p-1 hover:bg-gray-100 rounded"
+              >
+                {isExpanded ? (
+                  <ChevronDown size={18} className="text-gray-600" />
+                ) : (
+                  <ChevronRight size={18} className="text-gray-600" />
+                )}
+              </motion.div>
+            )}
+          </div>
         </div>
         
-        <div className="mb-2 flex gap-2 items-center">
-          <Users size={16} className="text-gray-500" />
-          <span className="text-sm text-gray-600">
+        {/* Member count with enhanced styling */}
+        <div className="flex items-center gap-2 mb-3 bg-gray-50 py-2 px-3 rounded-md">
+          <UserPlus size={15} className="text-gray-500" />
+          <span className="text-sm text-gray-700 font-medium">
             {node.memberCount} {node.memberCount === 1 ? 'member' : 'members'}
           </span>
         </div>
         
+        {/* Departments section with enhanced styling */}
         {node.departments && node.departments.length > 0 && (
           <div className="mt-2">
-            <div className="flex items-center gap-1 mb-1">
+            <div className="flex items-center gap-1 mb-2">
               <Briefcase size={14} className="text-gray-500" />
-              <p className="text-xs text-gray-500">Departments:</p>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Departments</p>
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {node.departments.map((dept, index) => (
-                <span key={index} className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-600">
+                <span 
+                  key={index} 
+                  className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full"
+                  style={{ borderLeft: `2px solid ${orgColor}` }}
+                >
                   {dept}
                 </span>
               ))}
@@ -155,6 +211,7 @@ const OrgNode = ({
         )}
       </motion.div>
 
+      {/* Children nodes with animations */}
       <AnimatePresence initial={false}>
         {hasChildren && isExpanded && (
           <motion.div
@@ -165,7 +222,10 @@ const OrgNode = ({
             className="relative mt-4 pt-8 w-full"
             key={`children-${node.hierarchical_structure}`}
           >
-            <div className={`absolute left-1/2 -translate-x-px w-1 bg-gray-400 ${isSingleChild ? 'h-16' : 'h-8'} top-0`} />
+            {/* Vertical connector line */}
+            <div className={`absolute left-1/2 -translate-x-px w-1 bg-gray-300 ${isSingleChild ? 'h-16' : 'h-8'} top-0`} />
+            
+            {/* Children container */}
             <div className={`relative flex justify-center ${isSingleChild ? 'mt-10' : ''}`}>
               {node.children.map((child, index, array) => {
                 const isFirst = index === 0;
@@ -174,23 +234,29 @@ const OrgNode = ({
                 
                 return (
                   <div key={child.hierarchical_structure || `org-${depth}-${index}`} className="flex flex-col items-center px-4 relative">
+                    {/* Horizontal connector lines for multiple children */}
                     {!isSingleChild && !isSolo && (
                       <>
                         {isFirst && (
-                          <div className="absolute w-1/2 h-1 bg-gray-400 right-0 top-0" />
+                          <div className="absolute w-1/2 h-1 bg-gray-300 right-0 top-0" />
                         )}
                         {isLast && (
-                          <div className="absolute w-1/2 h-1 bg-gray-400 left-0 top-0" />
+                          <div className="absolute w-1/2 h-1 bg-gray-300 left-0 top-0" />
                         )}
                         {!isFirst && !isLast && (
-                          <div className="absolute w-full h-1 bg-gray-400 top-0" />
+                          <div className="absolute w-full h-1 bg-gray-300 top-0" />
                         )}
                       </>
                     )}
-                    {!isSingleChild && <div className="w-1 bg-gray-400 h-8 mb-4" />}
+                    
+                    {/* Vertical connector for each child */}
+                    {!isSingleChild && <div className="w-1 bg-gray-300 h-8 mb-4" />}
+                    
+                    {/* Recursive child OrgNode */}
                     <OrgNode 
                       node={child} 
-                      onNodeClick={onNodeClick} 
+                      onNodeClick={onNodeClick}
+                      onFilterByOrg={onFilterByOrg} 
                       depth={depth + 1} 
                       expandAll={expandAll}
                       collapseAll={collapseAll}
