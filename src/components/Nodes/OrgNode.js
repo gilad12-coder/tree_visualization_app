@@ -125,13 +125,52 @@ const OrgNode = ({
         <span key={index} className="bg-yellow-300">{part}</span> : part
     );
   };
+  
+  // Check if this node matches the search term in any of its properties
+  const isSearchMatch = useMemo(() => {
+    if (!searchTerm || searchTerm.trim() === '') return false;
+    
+    return Object.entries(node).some(([key, value]) => {
+      // Skip non-searchable properties
+      if (
+        key === 'children' || 
+        key === 'hierarchical_structure' || 
+        key === 'id' || 
+        value === null || 
+        value === undefined
+      ) {
+        return false;
+      }
+      
+      // Handle string values
+      if (typeof value === 'string') {
+        return value.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      
+      // Handle array values
+      if (Array.isArray(value)) {
+        return value.some(item => 
+          typeof item === 'string' && 
+          item.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+      
+      // Handle object values by converting to string
+      if (typeof value === 'object') {
+        const stringValue = JSON.stringify(value);
+        return stringValue.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      
+      return false;
+    });
+  }, [node, searchTerm]);
 
   if (!node) return null;
 
   return (
     <div className="flex flex-col items-center">
       <motion.div
-        id={`orgnode-${node.hierarchical_structure}`}
+        id={`node-${node.hierarchical_structure}`}
         ref={nodeRef}
         whileHover={{ scale: 1.02 }}
         onHoverStart={() => setIsHovered(true)}
@@ -141,7 +180,7 @@ const OrgNode = ({
           backgroundColor: 'white',
           borderLeft: `5px solid ${orgColor}`,
         }}
-        className="rounded-xl shadow-md p-4 w-80 relative overflow-hidden group cursor-pointer transition-all duration-200"
+        className={`rounded-xl shadow-md p-4 w-80 relative overflow-hidden group cursor-pointer transition-all duration-200 ${isSearchMatch ? 'ring-2 ring-blue-400' : ''}`}
       >
         {/* Node header with name and expand/actions control */}
         <div className="flex items-center gap-2 mb-3">
@@ -152,6 +191,7 @@ const OrgNode = ({
             <Layers size={18} style={{ color: orgColor }} />
           </div>
           <h3 className="text-lg font-semibold text-gray-800 flex-grow">
+            {/* Only highlight the name if it's a match, otherwise highlight other matching fields */}
             {highlightText(node.name, searchTerm)}
           </h3>
           <div className="flex items-center gap-2">
@@ -185,7 +225,8 @@ const OrgNode = ({
         <div className="flex items-center gap-2 mb-3 bg-gray-50 py-2 px-3 rounded-md">
           <UserPlus size={15} className="text-gray-500" />
           <span className="text-sm text-gray-700 font-medium">
-            {node.memberCount} {node.memberCount === 1 ? 'member' : 'members'}
+            {searchTerm && node.memberCount && String(node.memberCount).includes(searchTerm) ? 
+              highlightText(String(node.memberCount), searchTerm) : node.memberCount} {node.memberCount === 1 ? 'member' : 'members'}
           </span>
         </div>
         
@@ -203,7 +244,7 @@ const OrgNode = ({
                   className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full"
                   style={{ borderLeft: `2px solid ${orgColor}` }}
                 >
-                  {dept}
+                  {searchTerm ? highlightText(dept, searchTerm) : dept}
                 </span>
               ))}
             </div>

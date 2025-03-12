@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, ArrowRight, User, Edit, GitBranch, ArrowLeft, FileText } from 'lucide-react';
-import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
-import CVTimelineSection from './NodeCardComponents/CVTimelineSection';
-import UpdatePersonalInfoSection from './NodeCardComponents/UpdatePersonalInfoSection.js';
-import UpdateHierarchicalInfoSection from './NodeCardComponents/UpdateHierarchicalInfoSection.js';
-import NodeInformation from './NodeCardComponents/NodeInformation.js';
-import '../styles/fonts.css';
-import '../styles/scrollbar.css';
+import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
+import CVTimelineSection from '../NodeCardComponents/CVTimelineSection';
+import UpdatePersonalInfoSection from '../NodeCardComponents/UpdatePersonalInfoSection.js';
+import UpdateHierarchicalInfoSection from '../NodeCardComponents/UpdateHierarchicalInfoSection.js';
+import NodeInformation from '../NodeCardComponents/NodeInformation.js';
+import '../../styles/fonts.css';
+import '../../styles/scrollbar.css';
 
 const THEME = {
   primary: '#1F2937',

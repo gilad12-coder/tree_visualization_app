@@ -56,11 +56,12 @@ const SearchBar = ({ onSearch, totalResults, currentResult, onNavigate, onClose,
         value={searchTerm}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
-        placeholder="Search tree..."
+        placeholder="Search all node information..."
         className="py-1.5 px-2 bg-transparent focus:outline-none text-sm text-gray-700 placeholder-gray-400 flex-grow w-40"
         autoComplete="off"
       />
-      {totalResults > 0 && searchTerm.trim() !== '' && (
+      {searchTerm.trim() !== '' && (
+        totalResults > 0 ? (
         <div className="flex items-center">
           <span className="text-xs text-gray-500 mr-1 font-medium">
             {currentResult}/{totalResults}
@@ -70,6 +71,11 @@ const SearchBar = ({ onSearch, totalResults, currentResult, onNavigate, onClose,
             <SearchNavButton onClick={() => onNavigate('next')} icon={ChevronDown} label="Next result" />
           </div>
         </div>
+        ) : (
+          <span className="text-xs text-gray-500 mx-2 font-medium">
+            No results
+          </span>
+        )
       )}
       <SearchNavButton onClick={onClose} icon={X} label="Close search" variant="danger" />
     </div>

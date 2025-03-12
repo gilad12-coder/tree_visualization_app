@@ -29,3 +29,4 @@ yarn-error.log*
 *.iml
 
 *.pyc
+.qodo

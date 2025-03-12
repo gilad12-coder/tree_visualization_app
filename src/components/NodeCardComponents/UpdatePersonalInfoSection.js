@@ -464,33 +464,18 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
         <div className="space-y-3">
           {/* Status field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
-            <label className="block text-xs font-medium text-gray-500 mb-2">
+            <label htmlFor="is_dead" className="block text-xs font-medium text-gray-500 mb-1">
               Current Status
             </label>
-            <div className="flex items-center space-x-6">
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  name="is_dead"
-                  value="alive"
-                  checked={formData.is_dead === 'alive'}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <span className="ml-2 text-sm text-gray-700">Active</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  name="is_dead"
-                  value="dead"
-                  checked={formData.is_dead === 'dead'}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <span className="ml-2 text-sm text-gray-700">Inactive/Removed</span>
-              </label>
-            </div>
+            <input
+              type="text"
+              id="is_dead"
+              name="is_dead"
+              value={formData.is_dead || ''}
+              onChange={handleInputChange}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.is_dead))}`}
+              dir={getTextDirection(getLanguage(formData.is_dead))}
+            />
           </div>
 
           {/* Hierarchical structure (readonly) */}

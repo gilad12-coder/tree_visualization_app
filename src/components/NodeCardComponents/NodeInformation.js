@@ -89,26 +89,12 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
     setFormattedRoleInfo(formatInformationText(node.role_information));
   }, [node.personal_information, node.role_information]);
 
-  // Format status based on is_dead field
+  // Display raw status string from is_dead field
   const getStatusDisplay = () => {
-    const status = node.is_dead?.toLowerCase();
-    
-    if (status === 'dead' || status === 'true' || status === 'yes') {
-      return {
-        text: 'Deceased',
-        className: 'bg-gray-200 text-gray-700'
-      };
-    } else if (status === 'unknown') {
-      return {
-        text: 'Status Unknown',
-        className: 'bg-gray-200 text-gray-700'
-      };
-    } else {
-      return {
-        text: 'Active',
-        className: 'bg-gray-200 text-gray-700'
-      };
-    }
+    return {
+      text: node.is_dead || 'N/A',
+      className: 'bg-gray-200 text-gray-700'
+    };
   };
 
   const statusDisplay = getStatusDisplay();
@@ -182,9 +168,9 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
       <div className="px-4 py-3 border-b border-gray-100">
         <h2 className="text-base font-medium text-gray-900 flex items-center">
           <span>{node.name || 'Unknown Name'}</span>
-          {node.is_dead?.toLowerCase() === 'dead' && (
+          {node.is_dead && (
             <span className="ml-2 text-gray-400 text-xs">
-              (Deceased)
+              (Status: {node.is_dead})
             </span>
           )}
         </h2>

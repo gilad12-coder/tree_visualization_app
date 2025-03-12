@@ -15,13 +15,13 @@ import {
   Activity
 } from "react-feather";
 import axios from "axios";
-import FileUploadModal from "./FileUploadModal";
-import TableSelectionModal from "./TableSelectionModal";
+import FileUploadModal from "../Modals/FileUploadModal";
+import TableSelectionModal from "../Modals/TableSelectionModal";
 import {
   ExistingDatabaseSection,
   NewDatabaseSection,
-} from "../components/DatabaseSelectionComponents";
-import { getFontClass } from '../Utilities/languageUtils';
+} from "../DatabaseSelectionComponents";
+import { getFontClass } from '../../Utilities/languageUtils';
 
 const API_BASE_URL = "http://localhost:5001";
 

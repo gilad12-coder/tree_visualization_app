@@ -14,9 +14,9 @@ import {
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
-import DatePickerWrapper from "./HelperComponents/DatePickerWrapper";
-import "../styles/datepicker.css";
-import '../styles/scrollbar.css';
+import DatePickerWrapper from "../HelperComponents/DatePickerWrapper";
+import "../../styles/datepicker.css";
+import '../../styles/scrollbar.css';
 
 const API_BASE_URL = "http://localhost:5001";
 

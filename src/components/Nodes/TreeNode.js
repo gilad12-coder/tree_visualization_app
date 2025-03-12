@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users, Move, X, ExternalLink } from 'react-feather';
-import { getLanguage, getFontClass, getTextDirection } from '../Utilities/languageUtils';
+import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 
 const DEFAULT_NODE_COLOR = '#F5F7FA'; 
 
@@ -35,7 +35,8 @@ const TreeNode = ({
   selectedSwapNode = null,
   onSelectForSwap = null,
   onSwapNodes = null,
-  onCancelSwap = null
+  onCancelSwap = null,
+  swapKey = 0
 }) => {
   const nodeKey = node?.hierarchical_structure || `${depth}-${parentNodeId}-${node?.name}`;
   const [isExpanded, setIsExpanded] = useState(() => {
@@ -45,6 +46,17 @@ const TreeNode = ({
   const nodeRef = useRef(null);
   const isRendered = useRef(false);
   const [showSwapSuccess, setShowSwapSuccess] = useState(false);
+  
+  // Add a renderKey to force re-renders when node order changes
+  const [renderKey, setRenderKey] = useState(0);
+  
+  // Update renderKey when swapKey changes to force re-rendering
+  useEffect(() => {
+    if (swapKey > 0) {
+      setRenderKey(prev => prev + 1);
+      console.log(`Node ${node?.hierarchical_structure}: Updating renderKey to force re-render`);
+    }
+  }, [swapKey, node?.hierarchical_structure]);
   
   const longPressTimer = useRef(null);
   const isLongPress = useRef(false);
@@ -347,22 +359,99 @@ const TreeNode = ({
         return orgA.localeCompare(orgB);
       });
     } 
-    // Apply node order sorting
-    else if (nodeOrder && nodeOrder[node.hierarchical_structure]) {
-      const orderMap = nodeOrder[node.hierarchical_structure].reduce((acc, id, index) => {
-        acc[id] = index;
-        return acc;
-      }, {});
-      
-      children.sort((a, b) => {
-        const aIndex = orderMap[a.hierarchical_structure] !== undefined ? orderMap[a.hierarchical_structure] : 999;
-        const bIndex = orderMap[b.hierarchical_structure] !== undefined ? orderMap[b.hierarchical_structure] : 999;
-        return aIndex - bIndex;
-      });
+    // Apply node order sorting - keyed by swapKey to force re-sorting when it changes
+    else if (nodeOrder && node && node.hierarchical_structure && nodeOrder[node.hierarchical_structure]) {
+      try {
+        console.log(`Sorting children for node ${node.hierarchical_structure} with swapKey ${swapKey}`);
+        
+        // Check if nodeOrder is an array (new implementation) or object (old implementation)
+        const orderArray = Array.isArray(nodeOrder[node.hierarchical_structure]);
+        
+        if (orderArray) {
+          console.log('Using array-based node order:', nodeOrder[node.hierarchical_structure]);
+        } else {
+          console.log('Using object-based node order:', Object.keys(nodeOrder[node.hierarchical_structure]).join(', '));
+        }
+        
+        // First log the current order before sorting
+        if (children.length > 0) {
+          console.log('Current child order before sorting:');
+          children.forEach(child => {
+            console.log(`- ${child.name || 'Unnamed'} (${child.hierarchical_structure})`);
+          });
+        }
+        
+        // Sort the children based on the nodeOrder structure
+        if (orderArray) {
+          // Array-based sorting (new implementation)
+          const orderList = nodeOrder[node.hierarchical_structure];
+          children.sort((a, b) => {
+            const aIndex = orderList.indexOf(a.hierarchical_structure);
+            const bIndex = orderList.indexOf(b.hierarchical_structure);
+            
+            // Debug the comparison
+            console.log(`Comparing ${a.name}(${aIndex}) vs ${b.name}(${bIndex})`);
+            
+            // If either index is not found, use name as fallback for stable sorting
+            if (aIndex === -1 && bIndex === -1) {
+              const nameA = a.name || '';
+              const nameB = b.name || '';
+              return nameA.localeCompare(nameB);
+            }
+            
+            // If only one index is not found, put it at the end
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+            
+            // Normal index-based sorting
+            return aIndex - bIndex;
+          });
+        } else {
+          // Object-based sorting (old implementation)
+          children.sort((a, b) => {
+            // Safe access to indices with fallbacks to ensure stable sorting
+            const aIndex = nodeOrder[node.hierarchical_structure][a.hierarchical_structure];
+            const bIndex = nodeOrder[node.hierarchical_structure][b.hierarchical_structure];
+            
+            // Debug the comparison
+            console.log(`Comparing ${a.name}(${aIndex}) vs ${b.name}(${bIndex})`);
+            
+            // If either index is undefined, use name as fallback for stable sorting
+            if (aIndex === undefined && bIndex === undefined) {
+              const nameA = a.name || '';
+              const nameB = b.name || '';
+              return nameA.localeCompare(nameB);
+            }
+            
+            // If only one index is undefined, treat it as a large number
+            if (aIndex === undefined) return 1;
+            if (bIndex === undefined) return -1;
+            
+            // Normal index-based sorting
+            return aIndex - bIndex;
+          });
+        }
+        
+        // Log the new order after sorting
+        if (children.length > 0) {
+          console.log('New child order after sorting:');
+          children.forEach(child => {
+            console.log(`- ${child.name || 'Unnamed'} (${child.hierarchical_structure})`);
+          });
+        }
+      } catch (error) {
+        console.error('Error sorting nodes by order:', error);
+        // Fall back to default sorting if there's an error
+        children.sort((a, b) => {
+          const nameA = a.name || '';
+          const nameB = b.name || '';
+          return nameA.localeCompare(nameB);
+        });
+      }
     }
     
     return children;
-  }, [hasChildren, node, nodeOrder, isOrganizationMode]);
+  }, [hasChildren, node, nodeOrder, isOrganizationMode, swapKey]);
 
   // Render the node with organization groups if needed
   const renderNodeContent = () => {
@@ -371,6 +460,7 @@ const TreeNode = ({
         id={`node-${node.hierarchical_structure}`}
         ref={nodeRef}
         whileHover={{ scale: 1.02 }}
+        key={`node-${node.hierarchical_structure}-${renderKey}`}
         animate={{
           scale: isSelectedForSwap ? 1.1 : (showSwapSuccess ? 1.05 : 1),
           boxShadow: isSelectedForSwap 

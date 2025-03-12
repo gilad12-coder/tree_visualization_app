@@ -1914,6 +1914,50 @@ def get_org_structure_data(table_id: int) -> jsonify:
         logger.error(f"Error generating organization structure data: {str(e)}")
         return jsonify({"error": f"Failed to generate organization structure data: {str(e)}"}), 500
 
+@app.route("/generate_org_report_pdf/<int:table_id>", methods=["GET"])
+def generate_org_report_pdf(table_id: int):
+    """
+    Generates a PDF report for the organization structure of a specific table.
+    
+    Parameters:
+        table_id (int): The ID of the table to generate a report for.
+        
+    Returns:
+        Response: A PDF file as an attachment.
+    """
+    try:
+        # Set the database path if provided
+        db_path = request.args.get('db_path')
+        if db_path:
+            set_db_path(db_path)
+        
+        # Use a session_scope to ensure proper session management
+        with session_scope() as session:
+            # Initialize the report service with the table_id
+            # The session is already set up by set_db_path and session_scope
+            report_service = OrganizationReportService(table_id)
+            
+            # Generate the PDF report
+            pdf_bytes = report_service.generate_pdf_report()
+            
+            # Create a response with the PDF
+            from io import BytesIO
+            buffer = BytesIO(pdf_bytes)
+            
+            # Get the table name for the filename
+            table = session.query(Table).filter_by(id=table_id).first()
+            filename = f"org_report_{table.name if table else table_id}.pdf"
+            
+            return send_file(
+                buffer,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=filename
+            )
+    except Exception as e:
+        logger.error(f"Error generating PDF report: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     print("Starting application...")
     print(f"Current working directory: {os.getcwd()}")

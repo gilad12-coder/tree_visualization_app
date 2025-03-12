@@ -4,8 +4,8 @@ import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, F
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { format, parseISO } from 'date-fns';
-import DatePickerWrapper from './HelperComponents/DatePickerWrapper';
-import '../styles/scrollbar.css';
+import DatePickerWrapper from '../HelperComponents/DatePickerWrapper';
+import '../../styles/scrollbar.css';
 
 const THEME = {
   primary: '#1F2937',

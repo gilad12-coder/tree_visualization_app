@@ -8,8 +8,8 @@ import {
 } from "react-feather";
 import axios from "axios";
 import { toast } from "react-toastify";
-import ResultCard from "./FliterAndSearchComponents/ResultCard";
-import '../styles/scrollbar.css';
+import ResultCard from "../FliterAndSearchComponents/ResultCard";
+import '../../styles/scrollbar.css';
 
 // Theme to match other modals
 const THEME = {

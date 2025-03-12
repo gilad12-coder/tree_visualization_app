@@ -36,3 +36,21 @@
     transform: rotate(360deg);
   }
 }
+
+@keyframes search-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.search-highlight-pulse {
+  animation: search-pulse 1.5s ease-in-out infinite;
+  z-index: 100;
+  position: relative;
+}
