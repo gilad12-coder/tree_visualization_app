@@ -1,0 +1,3 @@
+@echo off
+echo Starting Tree Visualization App...
+start "" "%~dp0dist\TreeVisualizationApp.exe"
