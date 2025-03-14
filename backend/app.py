@@ -1957,10 +1957,3 @@ def generate_org_report_pdf(table_id: int):
     except Exception as e:
         logger.error(f"Error generating PDF report: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-if __name__ == "__main__":
-    print("Starting application...")
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Static folder path: {app.static_folder}")
-    print(f"MEIPASS (if packaged): {getattr(sys, '_MEIPASS', 'Not packaged')}")
-    app.run(host='0.0.0.0', port=5001, use_reloader=False)

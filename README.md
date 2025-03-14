@@ -1,8 +1,8 @@
-# 🌳 OrgChart Visualizer
+# OrgChart Visualizer
 
 <div align="center">
   
-![OrgChart Visualizer Logo](public/logo192.png)
+![OrgChart Visualizer Logo](public/Be-net_icon.ico)
 
 **Transform your organizational data into interactive, insightful visualizations**
 
@@ -79,27 +79,12 @@ For end users, the application can be run as a standalone executable:
 
 ## 🛠️ Building the Executable
 
-### Windows
 
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
 # Build the executable
-python build_exe.py
-# or
-pyinstaller app.spec
-```
-
-### macOS
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Build the application
-python build_exe.py
-# or
 pyinstaller app.spec
 ```
 
