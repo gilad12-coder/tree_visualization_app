@@ -30,6 +30,4 @@ yarn-error.log*
 
 *.pyc
 .qodo
-
-*.exe
 .idea/.gitignore
