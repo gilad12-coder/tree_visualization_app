@@ -115,10 +115,8 @@ const useSearchAndFilter = (
     // If we have results, set the current index to 0
     if (results.length > 0) {
       setCurrentTreeSearchIndex(0);
-      toast.success(`Found ${results.length} ${results.length === 1 ? 'result' : 'results'} for "${term}"`); 
     } else {
       setCurrentTreeSearchIndex(-1);
-      toast.info(`No results found for "${term}"`);
     }
   }, []);
 
