@@ -1957,3 +1957,22 @@ def generate_org_report_pdf(table_id: int):
     except Exception as e:
         logger.error(f"Error generating PDF report: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/')
+def backend_status():
+    """Simple backend status endpoint"""
+    return {
+        "status": "running",
+        "message": "TreeVisualizationApp Backend is running",
+        "version": "1.0.0",
+        "endpoints": {
+            "status": "/",
+            "health": "/health",
+            "api": "/api/*"
+        }
+    }
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "timestamp": time.time()}
