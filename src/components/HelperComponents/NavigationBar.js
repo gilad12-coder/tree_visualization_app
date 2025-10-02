@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Home, Target, Filter, Users, Layers, ChevronDown, ChevronUp, 
+import {
+  Home, Target, Filter, Users, Layers, ChevronDown, ChevronUp,
   Upload, Settings, X,
   Table, Camera, FileText, Eye, Download, Minus
 } from 'react-feather';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 
 const API_BASE_URL = "http://localhost:5001";
 
@@ -34,10 +35,11 @@ const NavigationBar = ({
   setActiveMenuId,
   selectedTableId
 }) => {
+  const { t } = useTranslation();
 
   const downloadReport = async (format) => {
     if (!selectedTableId) {
-      toast.warning("Please select a table first");
+      toast.warning(t('navigation.pleaseSelectTable'));
       return;
     }
 
@@ -47,7 +49,7 @@ const NavigationBar = ({
           `${API_BASE_URL}/generate_org_report_pdf/${selectedTableId}`,
           { responseType: 'blob' }
         );
-        
+
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
@@ -55,12 +57,12 @@ const NavigationBar = ({
         document.body.appendChild(link);
         link.click();
         link.remove();
-        
-        toast.success("PDF report downloaded successfully");
-      } 
+
+        toast.success(t('navigation.pdfDownloadSuccess'));
+      }
       else if (format === 'json') {
         const response = await axios.get(`${API_BASE_URL}/generate_org_report/${selectedTableId}`);
-        
+
         const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -69,8 +71,8 @@ const NavigationBar = ({
         document.body.appendChild(link);
         link.click();
         link.remove();
-        
-        toast.success("JSON report downloaded successfully");
+
+        toast.success(t('navigation.jsonDownloadSuccess'));
       }
       else if (format.startsWith('chart_')) {
         const chartType = format.split('_')[1];
@@ -78,7 +80,7 @@ const NavigationBar = ({
           `${API_BASE_URL}/org_report_visualization/${selectedTableId}/${chartType}`,
           { responseType: 'json' }
         );
-        
+
         // Convert base64 to blob
         const byteString = atob(response.data.image_data);
         const ab = new ArrayBuffer(byteString.length);
@@ -87,7 +89,7 @@ const NavigationBar = ({
           ia[i] = byteString.charCodeAt(i);
         }
         const blob = new Blob([ab], { type: 'image/png' });
-        
+
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -95,48 +97,48 @@ const NavigationBar = ({
         document.body.appendChild(link);
         link.click();
         link.remove();
-        
-        toast.success(`${chartType.replace('_', ' ')} chart downloaded successfully`);
+
+        toast.success(t('navigation.chartDownloadSuccess', { chartType: chartType.replace('_', ' ') }));
       }
     } catch (error) {
       console.error("Error downloading report:", error);
-      toast.error("Failed to download report");
+      toast.error(t('navigation.downloadFailed'));
     }
   };
 
   const menus = [
     {
       id: 'view',
-      label: 'View',
+      label: t('navigation.view'),
       icon: Eye,
       items: [
-        { id: 'expandAll', label: 'Expand All', icon: ChevronDown, onClick: onExpandAll },
-        { id: 'collapseAll', label: 'Collapse All', icon: ChevronUp, onClick: onCollapseAll }
+        { id: 'expandAll', label: t('navigation.expandAll'), icon: ChevronDown, onClick: onExpandAll },
+        { id: 'collapseAll', label: t('navigation.collapseAll'), icon: ChevronUp, onClick: onCollapseAll }
       ]
     },
     {
       id: 'display',
-      label: 'Display',
+      label: t('navigation.display'),
       icon: Users,
       items: [
-        { 
-          id: 'hierarchyMode', 
-          label: 'Hierarchy Mode', 
-          icon: Users, 
+        {
+          id: 'hierarchyMode',
+          label: t('navigation.hierarchyMode'),
+          icon: Users,
           onClick: onHierarchyMode,
           active: isHierarchyMode
         },
-        { 
-          id: 'organizationMode', 
-          label: 'Org Mode', 
-          icon: Home, 
+        {
+          id: 'organizationMode',
+          label: t('navigation.orgMode'),
+          icon: Home,
           onClick: onOrganizationMode,
           active: isOrganizationMode
         },
-        { 
-          id: 'hideVacancies', 
-          label: 'Hide Vacant', 
-          icon: Minus, 
+        {
+          id: 'hideVacancies',
+          label: t('navigation.hideVacant'),
+          icon: Minus,
           onClick: onToggleVacancies,
           active: hideVacancies
         }
@@ -144,12 +146,12 @@ const NavigationBar = ({
     },
     {
       id: 'export',
-      label: 'Export',
+      label: t('navigation.export'),
       icon: Download,
       items: [
-        { id: 'exportExcel', label: 'Excel', icon: Table, onClick: onExportExcel },
-        { id: 'exportImage', label: 'Tree Image', icon: Camera, onClick: onExportImage },
-        { id: 'exportPdf', label: 'PDF Report', icon: FileText, onClick: () => downloadReport('pdf') }
+        { id: 'exportExcel', label: t('navigation.excel'), icon: Table, onClick: onExportExcel },
+        { id: 'exportImage', label: t('navigation.treeImage'), icon: Camera, onClick: onExportImage },
+        { id: 'exportPdf', label: t('navigation.pdfReport'), icon: FileText, onClick: () => downloadReport('pdf') }
       ]
     }
   ];
@@ -159,37 +161,37 @@ const NavigationBar = ({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-      <nav className="h-14 px-6 flex items-center">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm w-full">
+      <nav className="h-14 px-6 flex items-center justify-start w-full">
         {/* All elements in a flat row layout */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3">
           {/* Individual buttons without grouping */}
-          <button onClick={onHome} className="text-gray-600 p-2 rounded-md" title="Home">
+          <button onClick={onHome} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.home')}>
             <Home size={18} />
           </button>
-          
-          <button onClick={onCenter} className="text-gray-600 p-2 rounded-md" title="Center View">
+
+          <button onClick={onCenter} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.centerView')}>
             <Target size={18} />
           </button>
-          
-          <button onClick={onChangeTable} className="text-gray-600 p-2 rounded-md" title="Change Table">
+
+          <button onClick={onChangeTable} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.changeTable')}>
             <Layers size={18} />
           </button>
-          
-          <button onClick={onUpload} className="text-gray-600 p-2 rounded-md" title="Upload New Table">
+
+          <button onClick={onUpload} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.uploadNewTable')}>
             <Upload size={18} />
           </button>
-          
-          <button 
-            onClick={onFilter} 
-            className={`p-2 rounded-md ${hasActiveFilters ? 'text-blue-600' : 'text-gray-600'}`}
-            title="Filter"
+
+          <button
+            onClick={onFilter}
+            className={`p-2 rounded-md hover:bg-gray-100 transition-colors ${hasActiveFilters ? 'text-blue-600' : 'text-gray-600'}`}
+            title={t('navigation.filter')}
           >
             <Filter size={18} />
           </button>
-          
+
           {hasActiveFilters && (
-            <button onClick={onClearFilter} className="text-red-500 p-2 rounded-md" title="Clear Filters">
+            <button onClick={onClearFilter} className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors" title={t('navigation.clearFilters')}>
               <X size={18} />
             </button>
           )}
@@ -199,20 +201,20 @@ const NavigationBar = ({
             <div key={menu.id} className="relative">
               <button
                 onClick={() => toggleMenu(menu.id)}
-                className={`flex items-center px-3 py-1.5 rounded-md ${
-                  activeMenuId === menu.id 
-                    ? 'bg-blue-50 text-blue-600 border border-blue-200' 
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors hover:bg-gray-100 ${
+                  activeMenuId === menu.id
+                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
                     : 'text-gray-600 border border-transparent'
                 }`}
                 title={menu.label}
               >
-                <menu.icon size={17} className="mr-1.5" />
+                <menu.icon size={17} />
                 <span className="text-sm font-medium">{menu.label}</span>
               </button>
               <AnimatePresence>
                 {activeMenuId === menu.id && (
                   <motion.div
-                    className="absolute top-full mt-1 left-0 bg-white rounded-md shadow-lg py-1 min-w-[180px] z-50 border border-gray-200"
+                    className="absolute top-full mt-1 left-0 rtl:left-auto rtl:right-0 bg-white rounded-md shadow-lg py-1 min-w-[180px] z-50 border border-gray-200"
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
@@ -222,9 +224,9 @@ const NavigationBar = ({
                       {menu.items.map((item) => (
                         <li key={item.id}>
                           <button
-                            className={`w-full text-left px-4 py-2 text-sm flex items-center ${
-                              item.disabled 
-                                ? 'text-gray-300 cursor-not-allowed' 
+                            className={`w-full text-left rtl:text-right px-4 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 transition-colors ${
+                              item.disabled
+                                ? 'text-gray-300 cursor-not-allowed'
                                 : item.active
                                   ? 'text-blue-600 bg-gray-50'
                                   : 'text-gray-700'
@@ -237,7 +239,7 @@ const NavigationBar = ({
                             }}
                             disabled={item.disabled}
                           >
-                            <span className={`mr-2 ${item.disabled ? 'text-gray-300' : item.active ? 'text-blue-600' : 'text-gray-500'}`}>
+                            <span className={`${item.disabled ? 'text-gray-300' : item.active ? 'text-blue-600' : 'text-gray-500'}`}>
                               {item.icon && <item.icon size={16} />}
                             </span>
                             {item.label}
@@ -251,21 +253,21 @@ const NavigationBar = ({
             </div>
           ))}
 
-          <button 
+          <button
             onClick={onSearch}
-            className="text-gray-600 p-2 rounded-md"
-            title="Search"
+            className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors"
+            title={t('navigation.search')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </button>
-          
-          <button 
+
+          <button
             onClick={onOpenSettings}
-            className="text-gray-600 p-2 rounded-md"
-            title="Settings"
+            className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors"
+            title={t('settings.title')}
           >
             <Settings size={18} />
           </button>

@@ -44,7 +44,7 @@ const DatePickerWrapper = ({
         borderColor: "#9CA3AF"
       }}
     >
-      <div className="flex items-center space-x-3 w-full">
+      <div className="flex items-center gap-3 w-full">
         <DatePicker
           selected={isRange ? (Array.isArray(date) ? date[0] : null) : date}
           onChange={handleDateChange}
@@ -80,7 +80,7 @@ const DatePickerWrapper = ({
                 </svg>
               </button>
               
-              <div className="flex space-x-2">
+              <div className="flex gap-2">
                 <select
                   value={headerDate.getFullYear()}
                   onChange={({ target: { value } }) => changeYear(Number(value))}

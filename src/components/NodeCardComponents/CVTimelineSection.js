@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, User, GitBranch, Clock, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, User, GitBranch, Clock, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getLanguage, getFontClass, getTextAlignClass, getTextDirection } from '../../Utilities/languageUtils';
 import axios from 'axios';
 import '../../styles/scrollbar.css';
@@ -19,6 +20,8 @@ const DEFAULT_THEME = {
 };
 
 const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_THEME }) => {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
   const [activeScreen, setActiveScreen] = useState('main');
   const [showRoleHistory, setShowRoleHistory] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
@@ -68,7 +71,7 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
       }
       setActiveScreen('data');
     } catch (err) {
-      setError('An error occurred while fetching the data. Please try again later.');
+      setError(t('cvTimeline.errorFetching'));
       console.error("Error fetching timeline and CV data:", err);
       setDataStatus('error');
       setActiveScreen('data');
@@ -78,8 +81,8 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
   const renderNavigationButton = () => (
     <button
       onClick={
-        activeScreen === 'main' 
-          ? onBack 
+        activeScreen === 'main'
+          ? onBack
           : () => {
             setActiveScreen('main');
             setDataStatus('idle');
@@ -89,8 +92,8 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
       }
       className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
     >
-      <ArrowLeft size={18} className="mr-2" />
-      <span>{activeScreen === 'main' ? "Back to Main Info" : "Back to Query Selection"}</span>
+      {isRTL ? <ArrowRight size={18} className="ml-2" /> : <ArrowLeft size={18} className="mr-2" />}
+      <span>{activeScreen === 'main' ? t('cvTimeline.backToMainInfo') : t('cvTimeline.backToQuerySelection')}</span>
     </button>
   );
 
@@ -100,14 +103,14 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
         onClick={() => fetchTimelineAndCV('person_id')}
         className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
       >
-        <span>Query Personal Information</span>
+        <span>{t('cvTimeline.queryPersonalInfo')}</span>
         <User size={18} />
       </button>
       <button
         onClick={() => fetchTimelineAndCV('hierarchical')}
         className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
       >
-        <span>Query Hierarchical Information</span>
+        <span>{t('cvTimeline.queryHierarchicalInfo')}</span>
         <GitBranch size={18} />
       </button>
     </div>
@@ -122,7 +125,7 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
             <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
             <div className="h-3 bg-gray-200 rounded w-1/2"></div>
           </div>
-          <p className="text-sm text-gray-500 mt-4">Loading CV data...</p>
+          <p className="text-sm text-gray-500 mt-4">{t('cvTimeline.loadingData')}</p>
         </div>
       );
     }
@@ -130,7 +133,7 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
     if (dataStatus === 'error') {
       return (
         <div className="p-4 rounded-md bg-gray-50 border-l-4 border-gray-300 text-gray-700">
-          <p className="font-medium mb-1">Error</p>
+          <p className="font-medium mb-1">{t('cvTimeline.error')}</p>
           <p className="text-sm">{error}</p>
         </div>
       );
@@ -139,8 +142,8 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
     if (dataStatus === 'no_data') {
       return (
         <div className="p-4 rounded-md bg-gray-50 border-l-4 border-gray-300 text-gray-700">
-          <p className="font-medium mb-1">No Historical Data</p>
-          <p className="text-sm">There is no historical data available for this query.</p>
+          <p className="font-medium mb-1">{t('cvTimeline.noHistoricalData')}</p>
+          <p className="text-sm">{t('cvTimeline.noDataAvailable')}</p>
         </div>
       );
     }
@@ -153,9 +156,9 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
               onClick={() => setShowRoleHistory(!showRoleHistory)}
               className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
             >
-              <span className="flex items-center">
-                <User size={18} className="mr-2" />
-                Role History
+              <span className="flex items-center gap-2">
+                <User size={18} />
+                {t('cvTimeline.roleHistory')}
               </span>
               <ChevronDown
                 size={18}
@@ -207,9 +210,9 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
               onClick={() => setShowTimeline(!showTimeline)}
               className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
             >
-              <span className="flex items-center">
-                <Clock size={18} className="mr-2" />
-                Organization Timeline
+              <span className="flex items-center gap-2">
+                <Clock size={18} />
+                {t('cvTimeline.organizationTimeline')}
               </span>
               <ChevronDown
                 size={18}
@@ -222,16 +225,16 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
                 <div 
                   ref={timelineRef}
                   style={{ height: timelineHeight, maxHeight: `${MAX_HEIGHT}px` }}
-                  className="relative pl-4 overflow-y-auto custom-scrollbar rounded-md bg-gray-50 p-3"
+                  className="relative pl-4 rtl:pl-0 rtl:pr-4 overflow-y-auto custom-scrollbar rounded-md bg-gray-50 p-3"
                 >
-                  <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                  <div className="absolute left-3 rtl:left-auto rtl:right-3 top-0 bottom-0 w-0.5 bg-gray-200"></div>
                   {timeline.map((entry, index) => (
                     <div
                       key={index}
                       className="mb-4 relative"
                     >
-                      <div className="absolute -left-[13px] top-0 w-4 h-4 bg-white rounded-full border-2 border-gray-300" />
-                      <div className="bg-white p-2 rounded-md border border-gray-100 ml-2">
+                      <div className="absolute -left-[13px] rtl:-left-auto rtl:-right-[13px] top-0 w-4 h-4 bg-white rounded-full border-2 border-gray-300" />
+                      <div className="bg-white p-2 rounded-md border border-gray-100 ml-2 rtl:ml-0 rtl:mr-2">
                         <p className="text-sm font-medium text-gray-800">
                           {new Date(entry.upload_date).toLocaleDateString()}
                         </p>

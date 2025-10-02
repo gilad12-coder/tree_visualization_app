@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 
 const useTransformHandlers = () => {
+  const { t } = useTranslation();
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [initialRootPosition, setInitialRootPosition] = useState(null);
   const [regularModePosition, setRegularModePosition] = useState(null);
@@ -90,7 +92,7 @@ const useTransformHandlers = () => {
       setTransform(positionToUse);
       
       // Show a success notification when chart is centered
-      toast.success("Chart centered successfully");
+      toast.success(t('chartOperations.chartCentered'));
       
       // Reset transition after animation completes
       setTimeout(() => {
@@ -123,7 +125,7 @@ const useTransformHandlers = () => {
         }
       }, 50);
     }
-  }, [initialRootPosition, orgModePosition, regularModePosition, storeInitialRootPosition]);
+  }, [initialRootPosition, orgModePosition, regularModePosition, storeInitialRootPosition, t]);
 
   const handleMouseDown = useCallback((e) => {
     if (e.button === 0) {

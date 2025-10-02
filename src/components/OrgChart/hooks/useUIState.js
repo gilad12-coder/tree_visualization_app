@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import {
   DEFAULT_KEYBINDINGS,
   DEFAULT_MOVE_AMOUNT,
@@ -14,6 +15,7 @@ const useUIState = (
   setExpandAll,
   handleCenter
 ) => {
+  const { t } = useTranslation();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
@@ -23,41 +25,64 @@ const useUIState = (
   const [collapseAll, setCollapseAll] = useState(false);
   // Initialize settings from localStorage or use defaults
   const getInitialSettings = () => {
-    try {
-      const savedSettings = localStorage.getItem('orgChartSettings');
-      if (savedSettings) {
-        const parsedSettings = JSON.parse(savedSettings);
-        // Ensure keybindings exist
-        if (!parsedSettings.keybindings) {
-          parsedSettings.keybindings = DEFAULT_KEYBINDINGS;
-        }
-        return parsedSettings;
-      }
-    } catch (error) {
-      console.error('Error loading settings from localStorage:', error);
-    }
-    
-    // Return default settings when nothing is found in localStorage
-    // This ensures proper functionality before the first settings save
-    return {
+    const defaultSettings = {
       moveAmount: DEFAULT_MOVE_AMOUNT,
       zoomAmount: DEFAULT_ZOOM_AMOUNT,
       searchZoomLevel: DEFAULT_SEARCH_ZOOM_LEVEL,
       primaryField: DEFAULT_PRIMARY_FIELD,
       secondaryField: DEFAULT_SECONDARY_FIELD,
-      keybindings: DEFAULT_KEYBINDINGS
+      keybindings: DEFAULT_KEYBINDINGS,
+      toggle: {} // Initialize toggle as empty object to prevent undefined errors
     };
+
+    try {
+      const savedSettings = localStorage.getItem('orgChartSettings');
+      if (savedSettings) {
+        const parsedSettings = JSON.parse(savedSettings);
+        // Merge parsed settings with defaults to ensure all properties exist
+        return {
+          ...defaultSettings,
+          ...parsedSettings,
+          keybindings: parsedSettings.keybindings || DEFAULT_KEYBINDINGS,
+          toggle: parsedSettings.toggle || {}
+        };
+      }
+    } catch (error) {
+      console.error('Error loading settings from localStorage:', error);
+    }
+
+    // Return default settings when nothing is found in localStorage
+    return defaultSettings;
   };
   
   const [settings, setSettings] = useState(getInitialSettings);
-  
+
+  // Wrapper for setSettings to ensure it always has toggle property
+  const safeSetSettings = useCallback((newSettings) => {
+    if (typeof newSettings === 'function') {
+      setSettings((prevSettings) => {
+        const updated = newSettings(prevSettings);
+        return {
+          ...updated,
+          toggle: updated?.toggle || {}
+        };
+      });
+    } else if (newSettings && typeof newSettings === 'object') {
+      setSettings({
+        ...newSettings,
+        toggle: newSettings?.toggle || {}
+      });
+    }
+  }, []);
+
   // Save settings to localStorage whenever they change
   useEffect(() => {
-    try {
-      localStorage.setItem('orgChartSettings', JSON.stringify(settings));
-      console.log('Settings saved to localStorage:', settings);
-    } catch (error) {
-      console.error('Error saving settings to localStorage:', error);
+    if (settings && typeof settings === 'object') {
+      try {
+        localStorage.setItem('orgChartSettings', JSON.stringify(settings));
+      } catch (error) {
+        console.error('Error saving settings to localStorage:', error);
+      }
     }
   }, [settings]);
 
@@ -74,15 +99,15 @@ const useUIState = (
   const handleExpandAll = useCallback(() => {
     setExpandAll(true);
     setCollapseAll(false);
-    toast.info("Expanded all nodes");
-  }, [setExpandAll]);
-  
+    toast.info(t('orgChart.expandedAllNodes'));
+  }, [setExpandAll, t]);
+
   const handleCollapseAll = useCallback(() => {
     setExpandAll(false);
     setCollapseAll(true);
     setTimeout(() => setCollapseAll(false), 100);
-    toast.info("Collapsed all nodes");
-  }, [setExpandAll]);
+    toast.info(t('orgChart.collapsedAllNodes'));
+  }, [setExpandAll, t]);
 
   const handleExportImage = useCallback((chartRef) => {
     if (chartRef.current) {
@@ -135,7 +160,7 @@ const useUIState = (
             link.download = 'org_chart.png';
             link.click();
             URL.revokeObjectURL(url);
-            toast.success("Organization chart image downloaded successfully");
+            toast.success(t('orgChart.imageDownloadSuccess'));
           }, 'image/png');
         }).catch((error) => {
           console.error('Error capturing image', error);
@@ -145,7 +170,7 @@ const useUIState = (
       }, 1000);
     }
     handleCenter();
-  }, [setExpandAll, handleCenter]);
+  }, [setExpandAll, handleCenter, t]);
 
   const handleKeyDown = useCallback((e, isUpdateModalOpen, isFilterOpen, selectedSwapNode, handleCancelSwap, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleClearFilter, handleHierarchyMode, handleOrganizationMode, handleToggleVacancies, toggleSearchBar, setIsTableSelectionOpen, setIsUploadOpen, setTransform) => {
     // More detailed logging for debugging
@@ -377,7 +402,7 @@ const useUIState = (
     collapseAll,
     setCollapseAll,
     settings,
-    setSettings,
+    setSettings: safeSetSettings, // Use the safe wrapper
     toggleFilterModal,
 
     handleCloseTableSelection,

@@ -8,6 +8,7 @@ import {
 } from "react-feather";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useTranslation } from 'react-i18next';
 import ResultCard from "../FliterAndSearchComponents/ResultCard";
 import '../../styles/scrollbar.css';
 
@@ -64,7 +65,7 @@ const Button = ({ children, onClick, icon: Icon, variant = "primary", disabled =
     <motion.button
       whileHover={!disabled ? { scale: 1.02 } : {}}
       whileTap={!disabled ? { scale: 0.98 } : {}}
-      className={`px-4 py-2.5 rounded-md text-sm font-medium flex items-center justify-center space-x-2 ${style.text} ${
+      className={`px-4 py-2.5 rounded-md text-sm font-medium flex items-center justify-center gap-2 ${style.text} ${
         variant === "primary" || variant === "active" ? "" : style.bg + " " + style.hoverBg
       } ${disabled ? "opacity-50 cursor-not-allowed" : ""} ${className}`}
       style={{
@@ -75,7 +76,7 @@ const Button = ({ children, onClick, icon: Icon, variant = "primary", disabled =
       onClick={onClick}
       disabled={disabled}
     >
-      {Icon && <Icon size={18} className="mr-2" />}
+      {Icon && <Icon size={18} className="mr-2 rtl:mr-0 rtl:ml-2" />}
       <span>{children}</span>
     </motion.button>
   );
@@ -89,6 +90,7 @@ const EnhancedFilterModal = ({
   tableId,
   resetTrigger,
 }) => {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState("");
   const [results, setResults] = useState([]);
   const [selectedResults, setSelectedResults] = useState([]);
@@ -119,13 +121,13 @@ const EnhancedFilterModal = ({
         }
       } catch (error) {
         console.error("Error fetching results:", error);
-        toast.error("Failed to fetch results. Please try again.");
+        toast.error(t('filterModal.failedToFetch'));
         setResults([]);
       } finally {
         setIsLoading(false);
       }
     },
-    [folderId, tableId]
+    [folderId, tableId, t]
   );
 
   // Keep a ref to avoid dependency loop while still respecting the ESLint warning
@@ -171,7 +173,7 @@ const EnhancedFilterModal = ({
 
   const handleViewResults = () => {
     if (selectedResults.length === 0) {
-      toast.warn("Select results first", { autoClose: 2000 });
+      toast.warn(t('filterModal.selectResultsFirst'), { autoClose: 2000 });
       return;
     }
     const selectedResultsData = results.filter((result) =>
@@ -205,7 +207,7 @@ const EnhancedFilterModal = ({
             <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
             <div className="h-3 bg-gray-200 rounded w-1/2"></div>
           </div>
-          <p className="text-sm text-gray-500 mt-4">Loading results...</p>
+          <p className="text-sm text-gray-500 mt-4">{t('filterModal.loadingResults')}</p>
         </div>
       );
     }
@@ -213,8 +215,8 @@ const EnhancedFilterModal = ({
     if (results.length === 0) {
       return (
         <div className="text-center py-8">
-          <p className="text-gray-500">No results found</p>
-          <p className="text-sm text-gray-400 mt-2">Try adjusting your search criteria</p>
+          <p className="text-gray-500">{t('filterModal.noResultsFound')}</p>
+          <p className="text-sm text-gray-400 mt-2">{t('filterModal.tryAdjusting')}</p>
         </div>
       );
     }
@@ -264,7 +266,7 @@ const EnhancedFilterModal = ({
       >
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-gray-100">
-          <div className="text-lg font-medium text-gray-800">Search Results</div>
+          <div className="text-lg font-medium text-gray-800">{t('filterModal.searchResults')}</div>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
             <X size={20} />
           </button>
@@ -276,7 +278,7 @@ const EnhancedFilterModal = ({
             <div className="relative flex-grow">
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={t('filterModal.searchPlaceholder')}
                 className="w-full p-2.5 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-500"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
@@ -293,10 +295,10 @@ const EnhancedFilterModal = ({
           <div className="px-6 py-3 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">
-                Results sorted by relevance (highest match count first)
+                {t('filterModal.sortedByRelevance')}
               </span>
               <span className="bg-gray-200 text-gray-800 rounded-full px-3 py-1 text-sm font-medium">
-                {results.length} {results.length === 1 ? 'result' : 'results'}
+                {results.length} {results.length === 1 ? t('filterModal.result') : t('filterModal.results')}
               </span>
             </div>
           </div>
@@ -316,14 +318,14 @@ const EnhancedFilterModal = ({
         {/* Action Buttons - Footer */}
         <div className="p-4 border-t border-gray-100">
           <div className="flex justify-between items-center">
-            <div className="flex space-x-2">
+            <div className="flex gap-2">
               <Button
                 onClick={handleClearAll}
                 icon={Trash2}
                 variant="secondary"
                 disabled={selectedResults.length === 0}
               >
-                Clear Selection
+                {t('filterModal.clearSelection')}
               </Button>
               <Button
                 onClick={handleSelectAll}
@@ -331,17 +333,17 @@ const EnhancedFilterModal = ({
                 variant="secondary"
                 disabled={results.length === 0}
               >
-                Select All
+                {t('filterModal.selectAll')}
               </Button>
             </div>
-            
+
             <Button
               onClick={handleViewResults}
               icon={Eye}
               variant="primary"
               disabled={selectedResults.length === 0}
             >
-              View Selected ({selectedResults.length})
+              {t('filterModal.viewSelected')} ({selectedResults.length})
             </Button>
           </div>
         </div>

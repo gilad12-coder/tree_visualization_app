@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { List, Upload } from "react-feather";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useTranslation } from 'react-i18next';
 import { useOrgChartContext } from "../Context/OrgChartContext";
 import FilterModal from "../Modals/FilterModal";
 import TreeNode from "../Nodes/TreeNode";
@@ -26,6 +27,7 @@ import {
 } from './hooks';
 
 const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }) => {
+  const { t } = useTranslation();
   const [orgData, setOrgData] = useState(null);
   const [filteredOrgData, setFilteredOrgData] = useState(null);
   const [selectedTableId, setSelectedTableId] = useState(initialTableId);
@@ -35,8 +37,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const [error, setError] = useState(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
 
-  const { 
-    expandAll, 
+  const {
+    expandAll,
     setExpandAll
   } = useOrgChartContext();
 
@@ -305,7 +307,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         if (hideVacancies) {
           processedData = removeVacantPositions(processedData);
           if (!processedData) {
-            toast.warning("No data available after hiding vacant positions.");
+            toast.warning(t('orgChart.noDataAfterHidingVacancies'));
             processedData = orgData;
             setHideVacancies(false);
           }
@@ -325,12 +327,12 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         }
       } catch (error) {
         console.error("Error processing org data:", error);
-        toast.error("An error occurred while processing the organizational data. Please try refreshing the page.");
+        toast.error(t('orgChart.errorProcessingData'));
         setFilteredOrgData(orgData);
         setExpandAll(false);
       }
     }
-  }, [orgData, activeFilters, searchResults, hideVacancies, filterOrgData, setExpandAll, findNodesInTree, removeVacantPositions, setHideVacancies]);
+  }, [orgData, activeFilters, searchResults, hideVacancies, filterOrgData, setExpandAll, findNodesInTree, removeVacantPositions, setHideVacancies, t]);
 
   useEffect(() => {
     if (isDragging) {
@@ -440,17 +442,18 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         } else {
           setFilteredOrgData(orgData);
         }
-        toast.warning("No matching data found");
+        toast.warning(t('orgChart.noMatchingData'));
       }
     }
   }, [
-    searchResults, 
-    orgData, 
-    findNodesInTree, 
-    preFilterOrgData, 
-    setFilteredOrgData, 
+    searchResults,
+    orgData,
+    findNodesInTree,
+    preFilterOrgData,
+    setFilteredOrgData,
     setExpandAll,
-    setPreFilterOrgData
+    setPreFilterOrgData,
+    t
   ]);
 
   // Modified effect to store initial position once tree is loaded and rendered
@@ -581,15 +584,15 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           selectedTableId={selectedTableId}
         />
   
-        <div className="absolute top-18 right-4 z-10 flex items-center">
+        <div className="absolute top-18 right-4 rtl:right-auto rtl:left-4 z-10 flex items-center">
           <AnimatePresence>
             {isSearchBarVisible && (
-              <motion.div 
-                initial={{ opacity: 0, width: 0 }} 
-                animate={{ opacity: 1, width: "auto" }} 
-                exit={{ opacity: 0, width: 0 }} 
-                transition={{ duration: 0.3 }} 
-                className="mr-2"
+              <motion.div
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mr-2 rtl:mr-0 rtl:ml-2"
               >
                 <SearchBar
                   onSearch={handleTreeSearchWrapper}
@@ -625,11 +628,11 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           </div>
         )}
   
-        <div 
-          ref={dragRef} 
-          className="w-full h-full cursor-move" 
-          onMouseDown={handleMouseDown} 
-          onWheel={handleWheel} 
+        <div
+          ref={dragRef}
+          className="w-full h-full cursor-move"
+          onMouseDown={handleMouseDown}
+          onWheel={handleWheel}
           onClick={handleBackgroundClick}
           style={{ overflow: "hidden" }}
         >

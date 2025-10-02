@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 
 const useModeHandlers = (
   fetchOrgStructureData,
@@ -8,6 +9,7 @@ const useModeHandlers = (
   setExpandAll,
   filteredOrgData
 ) => {
+  const { t } = useTranslation();
   const [isHierarchyMode, setIsHierarchyMode] = useState(false);
   const [isOrganizationMode, setIsOrganizationMode] = useState(false);
   const [hideVacancies, setHideVacancies] = useState(false);
@@ -29,13 +31,13 @@ const useModeHandlers = (
               setExpandAll(true);
               // No automatic centering - user must click center button
             } else {
-              toast.error("Failed to load organization data");
+              toast.error(t('chartOperations.failedToLoadOrgData'));
               setIsOrganizationMode(false);
             }
           })
           .catch(error => {
             console.error("Error in organization mode:", error);
-            toast.error("Failed to load organization view");
+            toast.error(t('chartOperations.failedToLoadOrgView'));
             setIsOrganizationMode(false);
           });
       }
@@ -46,19 +48,20 @@ const useModeHandlers = (
       
       // Provide feedback when toggling organization mode
       if (newMode) {
-        toast.info("Switched to Organization Mode");
+        toast.info(t('chartOperations.switchedToOrgMode'));
       } else {
-        toast.info("Exited Organization Mode");
+        toast.info(t('chartOperations.exitedOrgMode'));
       }
       
       return newMode;
     });
   }, [
-    fetchOrgStructureData, 
-    processOrganizationData, 
-    selectedTableId, 
-    isHierarchyMode, 
-    setExpandAll
+    fetchOrgStructureData,
+    processOrganizationData,
+    selectedTableId,
+    isHierarchyMode,
+    setExpandAll,
+    t
   ]);
 
   const handleHierarchyMode = useCallback(() => {
@@ -84,7 +87,7 @@ const useModeHandlers = (
           setHierarchyModeData(hierarchyTree);
         } else {
           setHierarchyModeData(filteredOrgData);
-          toast.warning("No hierarchical structure to display in Hierarchy Mode. Showing full tree.");
+          toast.warning(t('chartOperations.noHierarchyStructure'));
         }
         
         // No automatic centering - user must click center button
@@ -96,22 +99,22 @@ const useModeHandlers = (
       
       // Provide feedback when toggling hierarchy mode
       if (newMode) {
-        toast.info("Switched to Hierarchy Mode");
+        toast.info(t('chartOperations.switchedToHierarchyMode'));
       } else {
-        toast.info("Exited Hierarchy Mode");
+        toast.info(t('chartOperations.exitedHierarchyMode'));
       }
       
       return newMode;
     });
-  }, [filteredOrgData, isOrganizationMode]);
+  }, [filteredOrgData, isOrganizationMode, t]);
 
   const handleToggleVacancies = useCallback(() => {
     setHideVacancies(prev => {
       const newValue = !prev;
-      toast.info(newValue ? "Vacancies hidden" : "Vacancies visible");
+      toast.info(newValue ? t('chartOperations.vacanciesHidden') : t('chartOperations.vacanciesVisible'));
       return newValue;
     });
-  }, []);
+  }, [t]);
 
   return {
     isHierarchyMode,

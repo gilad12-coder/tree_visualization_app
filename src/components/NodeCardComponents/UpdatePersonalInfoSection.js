@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Save, 
-  ArrowRightCircle, 
-  User, 
-  Briefcase, 
-  Users, 
-  Award, 
-  Calendar, 
-  Info, 
+import {
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  ArrowRightCircle,
+  User,
+  Briefcase,
+  Users,
+  Award,
+  Calendar,
+  Info,
   AlertTriangle,
   Building,
   BookOpen,
@@ -20,6 +20,7 @@ import {
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import PopupInfoModal from '../HelperComponents/PopupInfoModal';
 import '../../styles/datepicker.css';
 import '../../styles/fonts.css';
@@ -58,6 +59,7 @@ const FIELD_ICONS = {
 
 // Comparison row component for before/after view
 const ComparisonRow = ({ label, before, after, onChangeCount, icon: Icon }) => {
+  const { t } = useTranslation();
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [popupContent, setPopupContent] = useState('');
   const triggerRef = useRef(null);
@@ -82,7 +84,7 @@ const ComparisonRow = ({ label, before, after, onChangeCount, icon: Icon }) => {
   };
 
   const truncateText = (text) => {
-    if (!text) return 'Not set';
+    if (!text) return t('updatePersonalInfo.notSet');
     if (text === 'alive' || text === 'dead') return text;
     return text.length > 20 ? `${text.substring(0, 17)}...` : text;
   };
@@ -92,36 +94,36 @@ const ComparisonRow = ({ label, before, after, onChangeCount, icon: Icon }) => {
   return (
     <div className="flex items-center py-3 border-b border-gray-200 last:border-b-0">
       <div className="w-1/4 font-medium text-gray-700 flex items-center">
-        <IconComponent size={16} className="mr-2 text-gray-500" />
+        <IconComponent size={16} className="mr-2 rtl:mr-0 rtl:ml-2 text-gray-500" />
         {label}
       </div>
       <div className="w-5/12 px-2">
         <span
           className={`inline-block py-1 px-2 rounded cursor-pointer ${hasChanged ? 'bg-gray-200 text-gray-800' : 'bg-gray-100 text-gray-600'}`}
-          onClick={(e) => handleClick(before || 'Not set', e)}
+          onClick={(e) => handleClick(before || t('updatePersonalInfo.notSet'), e)}
         >
-          {label === 'birth_date' && before instanceof Date 
-            ? formatDateForAPI(before) 
-            : truncateText(before || 'Not set')}
+          {label === 'birth_date' && before instanceof Date
+            ? formatDateForAPI(before)
+            : truncateText(before || t('updatePersonalInfo.notSet'))}
         </span>
       </div>
       <ArrowRightCircle className={`w-1/12 ${hasChanged ? 'text-gray-500' : 'text-gray-300'}`} size={16} />
       <div className="w-5/12 px-2">
         <span
           className={`inline-block py-1 px-2 rounded cursor-pointer ${hasChanged ? 'bg-gray-700 text-white font-medium' : 'bg-gray-100 text-gray-600'}`}
-          onClick={(e) => handleClick(after || 'Not set', e)}
+          onClick={(e) => handleClick(after || t('updatePersonalInfo.notSet'), e)}
           style={{ backgroundColor: hasChanged ? THEME.primary : undefined }}
         >
-          {label === 'birth_date' && after instanceof Date 
-            ? formatDateForAPI(after) 
-            : truncateText(after || 'Not set')}
+          {label === 'birth_date' && after instanceof Date
+            ? formatDateForAPI(after)
+            : truncateText(after || t('updatePersonalInfo.notSet'))}
         </span>
       </div>
       <PopupInfoModal
         isOpen={isPopupOpen}
         onClose={() => setIsPopupOpen(false)}
         content={popupContent}
-        title="Field Value"
+        title={t('updatePersonalInfo.fieldValue')}
         triggerRef={triggerRef}
       />
     </div>
@@ -130,6 +132,8 @@ const ComparisonRow = ({ label, before, after, onChangeCount, icon: Icon }) => {
 
 // Main component
 const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete }) => {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
   const [formData, setFormData] = useState({
     name: node.name || '',
     role: node.role || '',
@@ -173,22 +177,22 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           field_value: node.person_id
         }
       });
-      
+
       setRelevantTables(response.data.tables || []);
 
       if (!response.data.tables || response.data.tables.length === 0) {
-        toast.warning("No tables found in the selected date range. Please adjust the dates and try again.");
+        toast.warning(t('updatePersonalInfo.noTablesFound'));
         return false;
       }
       return true;
     } catch (error) {
       console.error("Error fetching relevant tables:", error);
-      toast.error("Failed to fetch relevant tables. Please try again.");
+      toast.error(t('updatePersonalInfo.failedToFetchTables'));
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [folderId, dateRange, node.person_id]);
+  }, [folderId, dateRange, node.person_id, t]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -225,7 +229,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
       });
 
       if (response.data.message === "Update operation completed") {
-        toast.success("Personal information updated successfully!");
+        toast.success(t('updatePersonalInfo.updateSuccess'));
 
         timeoutRef.current = setTimeout(() => {
           onUpdateComplete();
@@ -234,7 +238,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
       } else if (response.data.error) {
         handleErrorResponse(response.data.error);
       } else {
-        toast.warn("Update completed with some issues. Please check the results.");
+        toast.warn(t('updatePersonalInfo.updateWithIssues'));
         console.log("Update results:", response.data.results);
       }
     } catch (error) {
@@ -242,7 +246,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
       if (error.response && error.response.data && error.response.data.error) {
         handleErrorResponse(error.response.data.error);
       } else {
-        toast.error("An unexpected error occurred. Please try again.");
+        toast.error(t('updatePersonalInfo.unexpectedError'));
       }
     } finally {
       setIsLoading(false);
@@ -252,16 +256,16 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
   const handleErrorResponse = (errorMessage) => {
     switch (errorMessage) {
       case "Missing required parameters":
-        toast.error("Missing required information. Please fill all fields.");
+        toast.error(t('updatePersonalInfo.missingRequiredInfo'));
         break;
       case "Invalid date format. Use YYYY-MM-DD":
-        toast.error("Invalid date format. Please select valid dates.");
+        toast.error(t('updatePersonalInfo.invalidDateFormat'));
         break;
       case "No relevant tables found for the given person ID and date range":
-        toast.error("The selected person was not found in any tables within the date range.");
+        toast.error(t('updatePersonalInfo.personNotFoundInTables'));
         break;
       default:
-        toast.error(`An error occurred: ${errorMessage}`);
+        toast.error(`${t('updatePersonalInfo.errorOccurred')}: ${errorMessage}`);
     }
   };
 
@@ -269,18 +273,18 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
   const tabs = [
     {
       id: 'personal',
-      label: 'Personal Details',
-      icon: <User size={16} className="mr-1" />
+      label: t('updatePersonalInfo.personalDetails'),
+      icon: <User size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />
     },
     {
       id: 'role',
-      label: 'Role Information',
-      icon: <Briefcase size={16} className="mr-1" />
+      label: t('updatePersonalInfo.roleInformation'),
+      icon: <Briefcase size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />
     },
     {
       id: 'status',
-      label: 'Status',
-      icon: <Heart size={16} className="mr-1" />
+      label: t('updatePersonalInfo.status'),
+      icon: <Heart size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />
     }
   ];
 
@@ -288,14 +292,14 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
   const reviewTabs = [
     {
       id: 'changes',
-      label: 'Changes',
-      icon: <FileText size={16} className="mr-1" />,
+      label: t('updatePersonalInfo.changes'),
+      icon: <FileText size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />,
       count: changeCount
     },
     {
       id: 'tables',
-      label: 'Affected Tables',
-      icon: <Table size={16} className="mr-1" />,
+      label: t('updatePersonalInfo.affectedTables'),
+      icon: <Table size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />,
       count: relevantTables.length
     }
   ];
@@ -305,14 +309,14 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
     <div className="space-y-3">
       <div className="p-3 bg-gray-50 rounded-md">
         <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
-          <User size={14} className="mr-1" />
-          PERSONAL DETAILS
+          <User size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+          {t('updatePersonalInfo.personalDetailsUpper')}
         </h3>
         <div className="space-y-3">
           {/* Name field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="name" className="block text-xs font-medium text-gray-500 mb-1">
-              Full Name
+              {t('updatePersonalInfo.fullName')}
             </label>
             <input
               type="text"
@@ -328,12 +332,12 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           {/* Birth date field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="birth_date" className="block text-xs font-medium text-gray-500 mb-1">
-              Birth Date
+              {t('updatePersonalInfo.birthDate')}
             </label>
             <DatePickerWrapper
               date={formData.birth_date}
               handleDateChange={handleDateChange}
-              placeholderText="Select birth date"
+              placeholderText={t('updatePersonalInfo.selectBirthDate')}
               wrapperColor="bg-white"
               wrapperOpacity="bg-opacity-100"
               containerClassName="w-full"
@@ -343,7 +347,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           {/* Personal information */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="personal_information" className="block text-xs font-medium text-gray-500 mb-1">
-              Additional Personal Information
+              {t('updatePersonalInfo.additionalPersonalInfo')}
             </label>
             <textarea
               id="personal_information"
@@ -365,14 +369,14 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
     <div className="space-y-3">
       <div className="p-3 bg-gray-50 rounded-md">
         <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
-          <Briefcase size={14} className="mr-1" />
-          ROLE & POSITION
+          <Briefcase size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+          {t('updatePersonalInfo.roleAndPosition')}
         </h3>
         <div className="space-y-3">
           {/* Role field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="role" className="block text-xs font-medium text-gray-500 mb-1">
-              Position/Role
+              {t('updatePersonalInfo.positionRole')}
             </label>
             <input
               type="text"
@@ -388,7 +392,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           {/* Department field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="department" className="block text-xs font-medium text-gray-500 mb-1">
-              Department
+              {t('updatePersonalInfo.department')}
             </label>
             <input
               type="text"
@@ -404,7 +408,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           {/* Rank field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="rank" className="block text-xs font-medium text-gray-500 mb-1">
-              Rank
+              {t('updatePersonalInfo.rank')}
             </label>
             <input
               type="text"
@@ -420,7 +424,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           {/* Organization ID field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="organization_id" className="block text-xs font-medium text-gray-500 mb-1">
-              Organization ID
+              {t('updatePersonalInfo.organizationId')}
             </label>
             <input
               type="text"
@@ -436,7 +440,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           {/* Role information */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="role_information" className="block text-xs font-medium text-gray-500 mb-1">
-              Additional Role Information
+              {t('updatePersonalInfo.additionalRoleInfo')}
             </label>
             <textarea
               id="role_information"
@@ -458,14 +462,14 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
     <div className="space-y-3">
       <div className="p-3 bg-gray-50 rounded-md">
         <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
-          <Heart size={14} className="mr-1" />
-          STATUS INFORMATION
+          <Heart size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+          {t('updatePersonalInfo.statusInformation')}
         </h3>
         <div className="space-y-3">
           {/* Status field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="is_dead" className="block text-xs font-medium text-gray-500 mb-1">
-              Current Status
+              {t('updatePersonalInfo.currentStatus')}
             </label>
             <input
               type="text"
@@ -481,13 +485,13 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           {/* Hierarchical structure (readonly) */}
           <div className="bg-white rounded-md p-3 border border-gray-200">
             <label className="block text-xs font-medium text-gray-500 mb-1">
-              Hierarchical Structure
+              {t('updatePersonalInfo.hierarchicalStructure')}
             </label>
             <div className="p-2 bg-gray-50 rounded border border-gray-100 text-gray-700 font-mono text-xs break-all overflow-auto max-h-20 custom-scrollbar">
-              {node.hierarchical_structure || 'Not available'}
+              {node.hierarchical_structure || t('updatePersonalInfo.notAvailable')}
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              To update hierarchical structure, please use the Hierarchical Update tool.
+              {t('updatePersonalInfo.hierarchicalUpdateNote')}
             </p>
           </div>
         </div>
@@ -498,17 +502,17 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
   const renderDateRangeSelection = () => (
     <div className="p-3 bg-gray-50 rounded-md border border-gray-200 mt-4">
       <div className="flex items-center mb-3 pb-2 border-b border-gray-200">
-        <Calendar size={16} className="text-gray-600 mr-2" />
-        <h3 className="text-sm font-medium text-gray-800">Data Range Selection</h3>
+        <Calendar size={16} className="text-gray-600 mr-2 rtl:mr-0 rtl:ml-2" />
+        <h3 className="text-sm font-medium text-gray-800">{t('updatePersonalInfo.dataRangeSelection')}</h3>
       </div>
       <p className="text-xs text-gray-600 mb-3">
-        Select the date range for tables that should be updated with this information.
+        {t('updatePersonalInfo.dateRangeDescription')}
       </p>
       <DatePickerWrapper
         date={dateRange}
         handleDateChange={handleDateRangeChange}
         isRange={true}
-        placeholderText="Select date range"
+        placeholderText={t('updatePersonalInfo.selectDateRange')}
         wrapperColor="bg-white"
         wrapperOpacity="bg-opacity-100"
       />
@@ -563,14 +567,14 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           {isLoading ? (
             <div className="text-center py-4">
               <div className="animate-spin w-8 h-8 border-4 border-gray-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-              <p className="text-sm text-gray-600">Loading relevant tables...</p>
+              <p className="text-sm text-gray-600">{t('updatePersonalInfo.loadingTables')}</p>
             </div>
           ) : relevantTables.length > 0 ? (
             <div className="space-y-2">
               {relevantTables.map((table, index) => (
                 <div key={index} className="bg-white rounded-md p-2 border border-gray-100 flex items-center justify-between">
                   <div className="flex items-center">
-                    <span className="w-5 h-5 flex items-center justify-center bg-gray-100 text-gray-700 rounded-full text-xs font-bold mr-2">
+                    <span className="w-5 h-5 flex items-center justify-center bg-gray-100 text-gray-700 rounded-full text-xs font-bold mr-2 rtl:mr-0 rtl:ml-2">
                       {index + 1}
                     </span>
                     <span className="text-sm font-medium text-gray-700">{table.name}</span>
@@ -584,8 +588,8 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           ) : (
             <div className="text-center py-6">
               <AlertTriangle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">No tables found in the selected date range.</p>
-              <p className="text-xs text-gray-500 mt-1">Try adjusting the date range to include more tables.</p>
+              <p className="text-sm text-gray-600">{t('updatePersonalInfo.noTablesFoundInRange')}</p>
+              <p className="text-xs text-gray-500 mt-1">{t('updatePersonalInfo.tryAdjustingDateRange')}</p>
             </div>
           )}
         </div>
@@ -680,7 +684,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                   <span className={reviewTab === tab.id ? 'font-medium' : ''}>
                     {tab.label}
                     {tab.count > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded-full text-xs">
+                      <span className="ml-1 rtl:ml-0 rtl:mr-1 px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded-full text-xs">
                         {tab.count}
                       </span>
                     )}
@@ -722,24 +726,24 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
             onClick={onBack}
             className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
           >
-            <ArrowLeft size={18} className="mr-2" />
-            <span>Back to Main Info</span>
+            {isRTL ? <ArrowRight size={18} className="ml-2" /> : <ArrowLeft size={18} className="mr-2" />}
+            <span>{t('updatePersonalInfo.backToMainInfo')}</span>
           </button>
         </div>
 
         {/* Profile header */}
         <div className="px-4 py-3 border-b border-gray-100">
           <h2 className="text-base font-medium text-gray-900 flex items-center">
-            <span>{node.name || 'Unknown Name'}</span>
+            <span>{node.name || t('updatePersonalInfo.unknownName')}</span>
             {node.is_dead?.toLowerCase() === 'dead' && (
-              <span className="ml-2 text-gray-400 text-xs">
-                (Inactive)
+              <span className="ml-2 rtl:ml-0 rtl:mr-2 text-gray-400 text-xs">
+                ({t('updatePersonalInfo.inactive')})
               </span>
             )}
           </h2>
           <div className="flex items-center mt-1 text-gray-500 text-sm">
-            <Briefcase size={14} className="mr-1" />
-            <span>{node.role || 'Role not specified'}</span>
+            <Briefcase size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+            <span>{node.role || t('updatePersonalInfo.roleNotSpecified')}</span>
             {node.department && (
               <>
                 <span className="mx-2 text-gray-300">•</span>
@@ -773,8 +777,8 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                   className="w-full flex items-center justify-center px-4 py-2.5 rounded-md text-sm font-medium text-white"
                   style={{ backgroundColor: THEME.buttonColor }}
                 >
-                  <span>Review Changes</span>
-                  <ArrowRight size={18} className="ml-2" />
+                  <span>{t('updatePersonalInfo.reviewChanges')}</span>
+                  {isRTL ? <ArrowLeft size={18} className="mr-2" /> : <ArrowRight size={18} className="ml-2" />}
                 </button>
               </>
             ) : (
@@ -783,10 +787,10 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                   onClick={() => setCurrentStep(1)}
                   className="flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                 >
-                  <ArrowLeft size={18} className="mr-2" />
-                  <span>Edit Information</span>
+                  {isRTL ? <ArrowRight size={18} className="ml-2" /> : <ArrowLeft size={18} className="mr-2" />}
+                  <span>{t('updatePersonalInfo.editInformation')}</span>
                 </button>
-                
+
                 <button
                   onClick={handleSubmit}
                   disabled={isLoading || relevantTables.length === 0}
@@ -795,13 +799,13 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
                 >
                   {isLoading ? (
                     <>
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                      <span>Updating...</span>
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2 rtl:mr-0 rtl:ml-2"></div>
+                      <span>{t('updatePersonalInfo.updating')}</span>
                     </>
                   ) : (
                     <>
-                      <Save size={18} className="mr-2" />
-                      <span>Confirm Changes</span>
+                      <Save size={18} className="mr-2 rtl:mr-0 rtl:ml-2" />
+                      <span>{t('updatePersonalInfo.confirmChanges')}</span>
                     </>
                   )}
                 </button>

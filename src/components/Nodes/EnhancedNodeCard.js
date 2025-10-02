@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, ArrowRight, User, Edit, GitBranch, ArrowLeft, FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import CVTimelineSection from '../NodeCardComponents/CVTimelineSection';
 import UpdatePersonalInfoSection from '../NodeCardComponents/UpdatePersonalInfoSection.js';
@@ -18,17 +19,19 @@ const THEME = {
   borderColor: '#E5E7EB'
 };
 
-const EnhancedNodeCard = ({ 
-  node, 
-  onClose, 
-  tableId, 
-  folderId, 
-  folderStructure, 
+const EnhancedNodeCard = ({
+  node,
+  onClose,
+  tableId,
+  folderId,
+  folderStructure,
   onUpdateComplete,
   onOpenUpdateModal,
   onCloseUpdateModal,
   getParentNode
 }) => {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
   const [activeScreen, setActiveScreen] = useState('main');
   const roleLanguage = getLanguage(node?.role || '');
   const departmentLanguage = getLanguage(node?.department || '');
@@ -90,23 +93,23 @@ const EnhancedNodeCard = ({
                 <div className="p-6 space-y-4">
                   {/* Role */}
                   <div className="bg-gray-50 rounded-md p-3">
-                    <div className="text-sm text-gray-500 mb-1">Role</div>
-                    <div 
+                    <div className="text-sm text-gray-500 mb-1">{t('nodeCard.role')}</div>
+                    <div
                       className={`text-gray-800 font-medium ${getFontClass(roleLanguage)}`}
                       dir={getTextDirection(roleLanguage)}
                     >
-                      {node?.role || 'Not specified'}
+                      {node?.role || t('nodeCard.notSpecified')}
                     </div>
                   </div>
 
                   {/* Department */}
                   <div className="bg-gray-50 rounded-md p-3">
-                    <div className="text-sm text-gray-500 mb-1">Department</div>
-                    <div 
+                    <div className="text-sm text-gray-500 mb-1">{t('nodeCard.department')}</div>
+                    <div
                       className={`text-gray-800 ${getFontClass(departmentLanguage)}`}
                       dir={getTextDirection(departmentLanguage)}
                     >
-                      {node?.department || 'Not specified'}
+                      {node?.department || t('nodeCard.notSpecified')}
                     </div>
                   </div>
 
@@ -116,24 +119,24 @@ const EnhancedNodeCard = ({
                       onClick={() => setActiveScreen('information')}
                       className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
-                      <span>View Information</span>
+                      <span>{t('nodeCard.viewInformation')}</span>
                       <FileText size={18} />
                     </button>
-                    
+
                     <button
                       onClick={() => setActiveScreen('cv')}
                       className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
-                      <span>View CV</span>
-                      <ArrowRight size={18} />
+                      <span>{t('nodeCard.viewCV')}</span>
+                      {isRTL ? <ArrowLeft size={18} /> : <ArrowRight size={18} />}
                     </button>
-                    
+
                     <button
                       onClick={handleOpenUpdateScreen}
                       className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-white font-medium"
                       style={{ backgroundColor: THEME.buttonColor }}
                     >
-                      <span>Update Information</span>
+                      <span>{t('nodeCard.updateInformation')}</span>
                       <Edit size={18} />
                     </button>
                   </div>
@@ -146,24 +149,24 @@ const EnhancedNodeCard = ({
                     onClick={handleCloseUpdateScreen}
                     className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                   >
-                    <ArrowLeft size={18} className="mr-2" />
-                    <span>Back to Main Info</span>
+                    {isRTL ? <ArrowRight size={18} className="ml-2" /> : <ArrowLeft size={18} className="mr-2" />}
+                    <span>{t('nodeCard.backToMainInfo')}</span>
                   </button>
-                  
+
                   <div className="pt-2 space-y-3">
                     <button
                       onClick={() => setActiveScreen('updatePersonal')}
                       className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
-                      <span>Update Personal Information</span>
+                      <span>{t('nodeCard.updatePersonalInfo')}</span>
                       <User size={18} />
                     </button>
-                    
+
                     <button
                       onClick={() => setActiveScreen('updateHierarchical')}
                       className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
-                      <span>Update Hierarchical Information</span>
+                      <span>{t('nodeCard.updateHierarchicalInfo')}</span>
                       <GitBranch size={18} />
                     </button>
                   </div>

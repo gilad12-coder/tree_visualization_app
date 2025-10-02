@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Layout, Move, X, RotateCcw, Command } from 'react-feather';
-import { ArrowRight } from 'lucide-react';
+import { Eye, Layout, Move, X, RotateCcw, Command, Globe } from 'react-feather';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 
 // Import default settings from the centralized file
 import {
@@ -13,31 +14,51 @@ import {
   DEFAULT_ZOOM_AMOUNT,
   DEFAULT_SEARCH_ZOOM_LEVEL,
   DEFAULT_KEYBINDINGS,
+  DEFAULT_LANGUAGE,
   THEME
 } from './DefaultSettings';
 
 const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
-  const [activeTab, setActiveTab] = useState('display');
-  const [localSettings, setLocalSettings] = useState({ ...settings });
-  
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
+  const [activeTab, setActiveTab] = useState('language');
+  const [localSettings, setLocalSettings] = useState(() => {
+    if (!settings || typeof settings !== 'object') {
+      return { toggle: {} };
+    }
+    return {
+      ...settings,
+      toggle: settings?.toggle || {}
+    };
+  });
+
+  // Sync localSettings with settings prop when it changes
+  useEffect(() => {
+    if (settings && typeof settings === 'object') {
+      setLocalSettings({
+        ...settings,
+        toggle: settings?.toggle || {}
+      });
+    }
+  }, [settings]);
+
   // Save settings to localStorage when they change
   const saveSettingsToStorage = (updatedSettings) => {
     try {
       localStorage.setItem('orgChartSettings', JSON.stringify(updatedSettings));
-      console.log('Settings saved to localStorage from SettingsModal');
     } catch (error) {
       console.error('Error saving settings to localStorage:', error);
     }
   };
-  const [availableFields] = useState([
-    { id: 'name', label: 'Name' },
-    { id: 'role', label: 'Role' },
-    { id: 'department', label: 'Department' },
-    { id: 'rank', label: 'Rank' },
-    { id: 'person_id', label: 'Person ID' },
-    { id: 'organization_id', label: 'Organization ID' },
-    { id: 'is_dead', label: 'Status' }
-  ]);
+  const availableFields = [
+    { id: 'name', label: t('fields.name') },
+    { id: 'role', label: t('fields.role') },
+    { id: 'department', label: t('fields.department') },
+    { id: 'rank', label: t('fields.rank') },
+    { id: 'person_id', label: t('fields.personId') },
+    { id: 'organization_id', label: t('fields.organizationId') },
+    { id: 'is_dead', label: t('fields.status') }
+  ];
 
   const handleTabChange = (tabId) => {
     if (tabId !== activeTab) {
@@ -47,15 +68,27 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
 
   // Initialize local settings when the modal opens or settings change
   useEffect(() => {
-    const updatedSettings = { ...settings };
-    
+    if (!settings || typeof settings !== 'object') {
+      return;
+    }
+
+    const updatedSettings = {
+      ...settings,
+      toggle: settings.toggle || {} // Ensure toggle exists
+    };
+
     // Set defaults if needed
     if (!updatedSettings.primaryField) {
       updatedSettings.primaryField = DEFAULT_PRIMARY_FIELD;
     }
-    
+
     if (!updatedSettings.secondaryField) {
       updatedSettings.secondaryField = DEFAULT_SECONDARY_FIELD;
+    }
+
+    // Set default language
+    if (!updatedSettings.language) {
+      updatedSettings.language = DEFAULT_LANGUAGE;
     }
     
     // Initialize default keybindings if they don't exist
@@ -101,6 +134,11 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     setLocalSettings(updatedSettings);
   }, [settings, isOpen]);
 
+  // Prevent rendering if settings is undefined
+  if (!settings || typeof settings !== 'object') {
+    return null;
+  }
+
   const handleNodeColorChange = (color) => {
     setLocalSettings({
       ...localSettings,
@@ -108,14 +146,29 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     });
   };
 
+  const handleLanguageChange = (language) => {
+    setLocalSettings({
+      ...localSettings,
+      language: language
+    });
+  };
+
   // Reset functions for each tab
+  const resetLanguageSettings = () => {
+    setLocalSettings({
+      ...localSettings,
+      language: DEFAULT_LANGUAGE
+    });
+    toast.info(t('settings.languageSettingsReset') || "Language settings reset to defaults");
+  };
+
   const resetDisplaySettings = () => {
     setLocalSettings({
       ...localSettings,
       primaryField: DEFAULT_PRIMARY_FIELD,
       secondaryField: DEFAULT_SECONDARY_FIELD
     });
-    toast.info("Display settings reset to defaults");
+    toast.info(t('settings.displaySettingsReset') || "Display settings reset to defaults");
   };
 
   const resetNodeColor = () => {
@@ -123,7 +176,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
       ...localSettings,
       nodeColor: DEFAULT_NODE_COLOR
     });
-    toast.info("Node color reset to default");
+    toast.info(t('settings.nodeColorReset') || "Node color reset to default");
   };
 
   const resetNavigationSettings = () => {
@@ -133,7 +186,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
       zoomAmount: DEFAULT_ZOOM_AMOUNT,
       searchZoomLevel: DEFAULT_SEARCH_ZOOM_LEVEL
     });
-    toast.info("Navigation settings reset to defaults");
+    toast.info(t('settings.navigationSettingsReset') || "Navigation settings reset to defaults");
   };
 
   const resetKeyboardSettings = () => {
@@ -141,7 +194,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
       ...localSettings,
       keybindings: { ...DEFAULT_KEYBINDINGS }
     });
-    toast.info("Keyboard shortcuts reset to defaults");
+    toast.info(t('settings.keyboardShortcutsReset') || "Keyboard shortcuts reset to defaults");
   };
   
   // Helper function to check if a key is a valid letter
@@ -201,8 +254,12 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
   
   const applyChanges = () => {
     // Ensure keybindings are properly formatted before applying
-    const formattedSettings = { ...localSettings };
-    
+    const formattedSettings = {
+      ...localSettings,
+      // Ensure toggle property always exists
+      toggle: localSettings.toggle || {}
+    };
+
     // Make sure keybindings exist
     if (!formattedSettings.keybindings) {
       formattedSettings.keybindings = { ...DEFAULT_KEYBINDINGS };
@@ -261,38 +318,71 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     });
     
     formattedSettings.keybindings = processedKeybindings;
-    
+
+    // Store language change info before any state changes
+    const needsLanguageChange = formattedSettings.language && formattedSettings.language !== i18n.language;
+    const newLanguage = formattedSettings.language;
+
+    // Get the success message in the CURRENT language before closing modal
+    const successMessage = t('settings.settingsUpdatedSuccessfully') || "Settings updated successfully";
+
     // Save to localStorage first
     saveSettingsToStorage(formattedSettings);
-    
-    // Then update the parent component
-    onSettingsChange(formattedSettings);
-    
-    // Show success message
-    toast.success("Settings updated successfully");
-    
+
+    // Close modal FIRST
     onClose();
+
+    // Update settings and handle language change in next tick
+    setTimeout(() => {
+      onSettingsChange(formattedSettings);
+
+      // Change language and show toast
+      if (needsLanguageChange) {
+        setTimeout(() => {
+          i18n.changeLanguage(newLanguage).then(() => {
+            // Wait longer for all React re-renders to complete
+            setTimeout(() => {
+              toast.success(successMessage, {
+                autoClose: 3000,
+                closeOnClick: true,
+                pauseOnHover: false
+              });
+            }, 300);
+          });
+        }, 100);
+      } else {
+        // Show success message after delay to allow state to settle
+        setTimeout(() => {
+          toast.success(successMessage, {
+            autoClose: 3000,
+            closeOnClick: true,
+            pauseOnHover: false
+          });
+        }, 100);
+      }
+    }, 50);
   };
 
   // Reset button component for consistency across tabs
-  const ResetButton = ({ onClick, label = "Reset to Defaults" }) => (
+  const ResetButton = ({ onClick, label }) => (
     <button
       onClick={onClick}
-      className="flex items-center text-sm px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 
+      className="flex items-center text-sm px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100
         transition-colors border border-gray-200 shadow-sm hover:shadow"
     >
       <RotateCcw size={14} className="mr-2" />
-      {label}
+      {label || t('settings.resetToDefaults')}
     </button>
   );
 
   if (!isOpen) return null;
 
   const tabs = [
-    { id: 'display', label: 'Display Settings', icon: Eye },
-    { id: 'colors', label: 'Node Colors', icon: Layout },
-    { id: 'navigation', label: 'Navigation', icon: Move },
-    { id: 'keyboard', label: 'Keyboard Shortcuts', icon: Command }
+    { id: 'language', label: t('settings.languageSettings'), icon: Globe },
+    { id: 'display', label: t('settings.displaySettings'), icon: Eye },
+    { id: 'colors', label: t('settings.nodeColors'), icon: Layout },
+    { id: 'navigation', label: t('settings.navigation'), icon: Move },
+    { id: 'keyboard', label: t('settings.keyboardShortcuts'), icon: Command }
   ];
 
   return (
@@ -337,8 +427,8 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                   <span>{tab.label}</span>
                   
                   {activeTab === tab.id && (
-                    <div className="absolute right-3">
-                      <ArrowRight size={16} className="text-gray-400" />
+                    <div className="absolute right-3 rtl:right-auto rtl:left-3">
+                      {isRTL ? <ArrowLeft size={16} className="text-gray-400" /> : <ArrowRight size={16} className="text-gray-400" />}
                     </div>
                   )}
                 </button>
@@ -348,10 +438,80 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
 
           {/* Content with improved visual hierarchy */}
           <div className="flex-1 p-8 overflow-y-auto relative bg-white">
+            {activeTab === 'language' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-medium text-gray-900">{t('settings.languageSettings')}</h3>
+                  <ResetButton onClick={resetLanguageSettings} label={t('settings.resetToDefaults')} />
+                </div>
+
+                <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-sm">
+                  <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                    <label className="block text-sm font-medium text-gray-700 mb-4">
+                      {t('settings.chooseLanguage')}
+                    </label>
+
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => handleLanguageChange('he')}
+                        className={`w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all ${
+                          localSettings.language === 'he'
+                            ? 'border-gray-700 bg-gray-50 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            localSettings.language === 'he'
+                              ? 'border-gray-700 bg-gray-700'
+                              : 'border-gray-300'
+                          }`}>
+                            {localSettings.language === 'he' && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <div className="font-medium text-gray-900">{t('settings.hebrew')}</div>
+                            <div className="text-sm text-gray-500">עברית (RTL)</div>
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => handleLanguageChange('en')}
+                        className={`w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all ${
+                          localSettings.language === 'en'
+                            ? 'border-gray-700 bg-gray-50 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            localSettings.language === 'en'
+                              ? 'border-gray-700 bg-gray-700'
+                              : 'border-gray-300'
+                          }`}>
+                            {localSettings.language === 'en' && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <div className="font-medium text-gray-900">{t('settings.english')}</div>
+                            <div className="text-sm text-gray-500">English (LTR)</div>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'display' && (
               <div className="h-full">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900">Node Display Fields</h3>
+                  <h3 className="text-lg font-medium text-gray-900">{t('settings.nodeDisplayFields')}</h3>
                   <ResetButton onClick={resetDisplaySettings} />
                 </div>
                 
@@ -362,10 +522,10 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                       <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
                         <div className="flex justify-between items-center mb-3">
                           <label htmlFor="primaryField" className="block text-sm font-medium text-gray-700">
-                            Primary Field
+                            {t('settings.primaryField')}
                           </label>
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                            Larger Text
+                            {t('settings.largerText')}
                           </span>
                         </div>
                         <select
@@ -392,10 +552,10 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                       <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
                         <div className="flex justify-between items-center mb-3">
                           <label htmlFor="secondaryField" className="block text-sm font-medium text-gray-700">
-                            Secondary Field
+                            {t('settings.secondaryField')}
                           </label>
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                            Smaller Text
+                            {t('settings.smallerText')}
                           </span>
                         </div>
                         <select
@@ -422,7 +582,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                     
                     {/* Right side - Enhanced Preview */}
                     <div className="flex-1">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">Preview</h4>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">{t('settings.preview')}</h4>
                       <div className="relative">
                         <div 
                           className="w-full h-40 py-4 px-6 rounded-xl flex items-center justify-center shadow-md border border-gray-200"
@@ -451,7 +611,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         </div>
                         <div className="absolute -bottom-2 inset-x-0 flex justify-center">
                           <div className="px-3 py-1 bg-gray-100 rounded-full text-xs text-gray-500 shadow-sm">
-                            Example Node
+                            {t('settings.exampleNode')}
                           </div>
                         </div>
                       </div>
@@ -464,18 +624,18 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
             {activeTab === 'colors' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900">Node Color Settings</h3>
+                  <h3 className="text-lg font-medium text-gray-900">{t('settings.nodeColorSettings')}</h3>
                   <ResetButton onClick={resetNodeColor} />
                 </div>
                 
                 <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-sm">
-                  <div className="flex items-center space-x-8">
+                  <div className="flex items-center gap-8">
                     <div className="w-1/2">
                       <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Node Background Color
+                        {t('settings.nodeBackgroundColor')}
                       </label>
                       <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
-                        <div className="flex items-center space-x-5">
+                        <div className="flex items-center gap-5">
                           <div 
                             className="w-16 h-16 rounded-lg border border-gray-300 shadow-md flex-shrink-0" 
                             style={{ 
@@ -491,7 +651,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                                 onChange={(e) => handleNodeColorChange(e.target.value)}
                                 className="h-9 w-16 cursor-pointer rounded-md border border-gray-300 flex-shrink-0"
                               />
-                              <span className="ml-2 text-xs text-gray-500">Color Picker</span>
+                              <span className="ml-2 text-xs text-gray-500">{t('settings.colorPicker')}</span>
                             </div>
                             
                             <div className="relative">
@@ -502,7 +662,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                                 placeholder="#FFFFFF"
                                 className="p-2 border border-gray-300 rounded-md text-sm w-28 font-mono flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               />
-                              <span className="ml-2 text-xs text-gray-500">Hex Value</span>
+                              <span className="ml-2 text-xs text-gray-500">{t('settings.hexValue')}</span>
                             </div>
                           </div>
                         </div>
@@ -512,7 +672,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                     {/* Enhanced Preview */}
                     <div className="w-1/2">
                       <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Preview
+                        {t('settings.preview')}
                       </label>
                       <div className="relative overflow-hidden rounded-lg shadow-md border border-gray-200 h-36 bg-white">
                         <div className="absolute inset-0 bg-gray-100 bg-opacity-50" style={{ 
@@ -528,10 +688,10 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                             }}
                           >
                             <div className="flex items-start">
-                              <span className="text-lg font-bold text-left">Sample Name</span>
+                              <span className="text-lg font-bold text-left">{t('settings.sampleName')}</span>
                             </div>
                             <div className="flex justify-end mt-2">
-                              <span className="text-sm font-medium text-gray-600">Sample Role</span>
+                              <span className="text-sm font-medium text-gray-600">{t('settings.sampleRole')}</span>
                             </div>
                           </div>
                         </div>
@@ -546,7 +706,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
               <div>
                 <div className="mb-6">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium text-gray-900">Navigation Settings</h3>
+                    <h3 className="text-lg font-medium text-gray-900">{t('settings.navigationSettings')}</h3>
                     <ResetButton onClick={resetNavigationSettings} />
                   </div>
                 </div>
@@ -555,7 +715,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                   <div className="border border-gray-200 p-5 rounded-xl bg-white shadow-sm overflow-hidden">
                     <div className="flex justify-between items-center mb-4">
                       <label htmlFor="moveAmount" className="block text-sm font-medium text-gray-700">
-                        Move Amount Per Keystroke
+                        {t('settings.moveAmountPerKeystroke')}
                       </label>
                       <span className="text-sm font-medium text-white bg-gradient-to-r from-gray-700 to-gray-800 px-3 py-1 rounded-full">
                         {localSettings.moveAmount}px
@@ -573,9 +733,9 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         style={{ accentColor: THEME.buttonColor }}
                       />
                       <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
-                        <span>Fine (10px)</span>
-                        <span>Medium (50px)</span>
-                        <span>Coarse (100px)</span>
+                        <span>{t('settings.fine')} (10px)</span>
+                        <span>{t('settings.medium')} (50px)</span>
+                        <span>{t('settings.coarse')} (100px)</span>
                       </div>
                     </div>
                   </div>
@@ -583,7 +743,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                   <div className="border border-gray-200 p-5 rounded-xl bg-white shadow-sm overflow-hidden">
                     <div className="flex justify-between items-center mb-4">
                       <label htmlFor="zoomAmount" className="block text-sm font-medium text-gray-700">
-                        Zoom Increment Per Keystroke
+                        {t('settings.zoomIncrementPerKeystroke')}
                       </label>
                       <span className="text-sm font-medium text-white bg-gradient-to-r from-gray-700 to-gray-800 px-3 py-1 rounded-full">
                         {localSettings.zoomAmount.toFixed(2)}x
@@ -602,9 +762,9 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         style={{ accentColor: THEME.buttonColor }}
                       />
                       <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
-                        <span>Subtle (0.05x)</span>
-                        <span>Medium (0.25x)</span>
-                        <span>Large (0.5x)</span>
+                        <span>{t('settings.subtle')} (0.05x)</span>
+                        <span>{t('settings.medium')} (0.25x)</span>
+                        <span>{t('settings.large')} (0.5x)</span>
                       </div>
                     </div>
                   </div>
@@ -612,7 +772,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                   <div className="border border-gray-200 p-5 rounded-xl bg-white shadow-sm overflow-hidden">
                     <div className="flex justify-between items-center mb-4">
                       <label htmlFor="searchZoomLevel" className="block text-sm font-medium text-gray-700">
-                        Search Result Zoom Level
+                        {t('settings.searchResultZoomLevel')}
                       </label>
                       <span className="text-sm font-medium text-white bg-gradient-to-r from-gray-700 to-gray-800 px-3 py-1 rounded-full">
                         {localSettings.searchZoomLevel.toFixed(2)}x
@@ -631,9 +791,9 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         style={{ accentColor: THEME.buttonColor }}
                       />
                       <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
-                        <span>Zoomed Out (0.1x)</span>
-                        <span>Normal (1.0x)</span>
-                        <span>Zoomed In (2.0x)</span>
+                        <span>{t('settings.zoomedOut')} (0.1x)</span>
+                        <span>{t('settings.normal')} (1.0x)</span>
+                        <span>{t('settings.zoomedIn')} (2.0x)</span>
                       </div>
                     </div>
                   </div>
@@ -645,7 +805,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
               <div>
                 <div className="mb-6">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium text-gray-900">Keyboard Shortcuts</h3>
+                    <h3 className="text-lg font-medium text-gray-900">{t('settings.keyboardShortcuts')}</h3>
                     <ResetButton onClick={resetKeyboardSettings} />
                   </div>
                 </div>
@@ -653,12 +813,12 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                 <div className="space-y-5">
                   {/* General Shortcuts */}
                   <div className="border border-gray-200 p-5 rounded-xl bg-white shadow-sm overflow-hidden">
-                    <h4 className="text-sm font-medium text-gray-700 mb-4">General Shortcuts</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-4">{t('settings.generalShortcuts')}</h4>
                     <div className="space-y-3">
                       {[
-                        { id: 'toggleHelp', label: 'Toggle Settings Modal', defaultKey: 'H' },
-                        { id: 'changeTable', label: 'Change Table', defaultKey: 'G' },
-                        { id: 'uploadTable', label: 'Upload New Table', defaultKey: 'U' }
+                        { id: 'toggleHelp', label: t('settings.toggleSettingsModal'), defaultKey: 'H' },
+                        { id: 'changeTable', label: t('settings.changeTable'), defaultKey: 'G' },
+                        { id: 'uploadTable', label: t('settings.uploadNewTable'), defaultKey: 'U' }
                       ].map(shortcut => (
                         <div key={shortcut.id} className="flex items-center justify-between">
                           <label htmlFor={`key-${shortcut.id}`} className="text-sm text-gray-600">
@@ -680,7 +840,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                               placeholder={extractKeyFromBinding(DEFAULT_KEYBINDINGS[shortcut.id])}
                             />
                             {!isValidKey(localSettings.keybindings?.[shortcut.id]) && localSettings.keybindings?.[shortcut.id] && (
-                              <span className="ml-2 text-xs text-red-500">Invalid</span>
+                              <span className="ml-2 text-xs text-red-500">{t('settings.invalid')}</span>
                             )}
                           </div>
                         </div>
@@ -690,10 +850,10 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                   
                   {/* Navigation Shortcuts */}
                   <div className="border border-gray-200 p-5 rounded-xl bg-white shadow-sm overflow-hidden">
-                    <h4 className="text-sm font-medium text-gray-700 mb-4">Navigation Shortcuts</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-4">{t('settings.navigationShortcuts')}</h4>
                     <div className="space-y-3">
                       {[
-                        { id: 'centerChart', label: 'Center Chart', defaultKey: 'C' }
+                        { id: 'centerChart', label: t('settings.centerChart'), defaultKey: 'C' }
                       ].map(shortcut => (
                         <div key={shortcut.id} className="flex items-center justify-between">
                           <label htmlFor={`key-${shortcut.id}`} className="text-sm text-gray-600">
@@ -715,25 +875,25 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                               placeholder={extractKeyFromBinding(DEFAULT_KEYBINDINGS[shortcut.id])}
                             />
                             {!isValidKey(localSettings.keybindings?.[shortcut.id]) && (
-                              <span className="ml-2 text-xs text-red-500">Invalid</span>
+                              <span className="ml-2 text-xs text-red-500">{t('settings.invalid')}</span>
                             )}
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Node Interaction Shortcuts */}
                   <div className="border border-gray-200 p-5 rounded-xl bg-white shadow-sm overflow-hidden">
-                    <h4 className="text-sm font-medium text-gray-700 mb-4">Node Interaction Shortcuts</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-4">{t('settings.nodeInteractionShortcuts')}</h4>
                     <div className="space-y-3">
                       {[
-                        { id: 'filterNodes', label: 'Filter Nodes', defaultKey: 'S' },
-                        { id: 'removeFilter', label: 'Remove Search Filter', defaultKey: 'R' },
-                        { id: 'toggleOrgMode', label: 'Toggle Org Mode', defaultKey: 'O' },
-                        { id: 'toggleSearchbar', label: 'Toggle Searchbar', defaultKey: 'F' },
-                        { id: 'expandAllNodes', label: 'Expand All Nodes', defaultKey: 'E' },
-                        { id: 'collapseAllNodes', label: 'Collapse All Nodes', defaultKey: 'Q' }
+                        { id: 'filterNodes', label: t('settings.filterNodes'), defaultKey: 'S' },
+                        { id: 'removeFilter', label: t('settings.removeSearchFilter'), defaultKey: 'R' },
+                        { id: 'toggleOrgMode', label: t('settings.toggleOrgMode'), defaultKey: 'O' },
+                        { id: 'toggleSearchbar', label: t('settings.toggleSearchbar'), defaultKey: 'F' },
+                        { id: 'expandAllNodes', label: t('settings.expandAllNodes'), defaultKey: 'E' },
+                        { id: 'collapseAllNodes', label: t('settings.collapseAllNodes'), defaultKey: 'Q' }
                       ].map(shortcut => (
                         <div key={shortcut.id} className="flex items-center justify-between">
                           <label htmlFor={`key-${shortcut.id}`} className="text-sm text-gray-600">
@@ -755,7 +915,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                               placeholder={extractKeyFromBinding(DEFAULT_KEYBINDINGS[shortcut.id])}
                             />
                             {!isValidKey(localSettings.keybindings?.[shortcut.id]) && (
-                              <span className="ml-2 text-xs text-red-500">Invalid</span>
+                              <span className="ml-2 text-xs text-red-500">{t('settings.invalid')}</span>
                             )}
                           </div>
                         </div>
@@ -774,13 +934,13 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
             <button
               onClick={applyChanges}
               className="w-full flex items-center justify-center px-4 py-2.5 rounded-md text-sm font-medium text-white transition-colors shadow-sm hover:shadow-md"
-              style={{ 
+              style={{
                 backgroundColor: THEME.buttonColor,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
               }}
             >
-              <span>Apply Changes</span>
-              <ArrowRight size={18} className="ml-2" />
+              <span>{t('settings.applyChanges')}</span>
+              {isRTL ? <ArrowLeft size={18} className="mr-2" /> : <ArrowRight size={18} className="ml-2" />}
             </button>
           </div>
         </div>

@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 
 const useNodeInteractions = (
   selectedFolderId,
   selectedTableId
 ) => {
+  const { t } = useTranslation();
   const [selectedNode, setSelectedNode] = useState(null);
   const [highlightedNodes, setHighlightedNodes] = useState([]);
   const [renderedNodes, setRenderedNodes] = useState([]);
@@ -21,7 +23,7 @@ const useNodeInteractions = (
         if (originalOrgData) {
           return originalOrgData;
         }
-        toast.info(`Showing all organizations`);
+        toast.info(t('chartOperations.showingAllOrganizations'));
       } else {
         if (!originalOrgData) {
           setOriginalOrgData(filteredOrgData);
@@ -50,10 +52,10 @@ const useNodeInteractions = (
         const filteredData = filterOrgOnly(rootData);
         
         if (filteredData) {
-          toast.info(`Filtered to show ${node.name} organization`);
+          toast.info(t('chartOperations.filteredToOrg', { orgName: node.name }));
           return filteredData; // Return data to update in parent
         } else {
-          toast.error("Could not filter to the selected organization");
+          toast.error(t('chartOperations.couldNotFilterOrg'));
         }
       }
     } else {
@@ -61,10 +63,11 @@ const useNodeInteractions = (
     }
     return null; // No data update needed
   }, [
-    filteredOrgId, 
-    originalOrgData, 
-    selectedFolderId, 
-    selectedTableId
+    filteredOrgId,
+    originalOrgData,
+    selectedFolderId,
+    selectedTableId,
+    t
   ]);
 
   const handleNodeRendered = useCallback((node) => {
@@ -95,13 +98,13 @@ const useNodeInteractions = (
 
   const handleSelectForSwap = useCallback((node) => {
     setSelectedSwapNode(node);
-    toast.info(`Selected "${node.name || 'Node'}" for swapping. Click another node to swap positions.`);
-  }, []);
+    toast.info(t('chartOperations.selectedForSwap', { nodeName: node.name || 'Node' }));
+  }, [t]);
 
   const handleCancelSwap = useCallback(() => {
     setSelectedSwapNode(null);
-    toast.info("Swap operation cancelled");
-  }, []);
+    toast.info(t('chartOperations.swapCancelled'));
+  }, [t]);
 
   const handleSwapNodes = useCallback((parentId, node1Id, node2Id) => {
     console.log(`Swapping nodes: Parent=${parentId}, Node1=${node1Id}, Node2=${node2Id}`);
@@ -129,8 +132,8 @@ const useNodeInteractions = (
     });
     
     // Show feedback to the user
-    toast.success("Nodes swapped successfully");
-  }, []);
+    toast.success(t('chartOperations.nodesSwapped'));
+  }, [t]);
 
   const handleSwapNodesWithRerender = useCallback((parentId, node1Id, node2Id) => {
     console.log(`Swapping nodes with rerender: Parent=${parentId}, Node1=${node1Id}, Node2=${node2Id}`);
@@ -194,8 +197,8 @@ const useNodeInteractions = (
     setSwapKey(prev => prev + 1);
     
     // Provide feedback to the user
-    toast.success(`Node moved ${direction}`); 
-  }, []);
+    toast.success(t('chartOperations.nodeMoved', { direction }));
+  }, [t]);
 
   const handleBackgroundClick = useCallback((e) => {
     if (e.target === e.currentTarget && selectedSwapNode) {

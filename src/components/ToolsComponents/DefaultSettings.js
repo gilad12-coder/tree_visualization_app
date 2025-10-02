@@ -3,6 +3,9 @@ export const DEFAULT_NODE_COLOR = '#F5F7FA';
 export const DEFAULT_PRIMARY_FIELD = 'name';
 export const DEFAULT_SECONDARY_FIELD = 'role';
 
+// Default language (Hebrew)
+export const DEFAULT_LANGUAGE = 'he';
+
 // Default navigation settings
 export const DEFAULT_MOVE_AMOUNT = 50;
 export const DEFAULT_ZOOM_AMOUNT = 0.25;

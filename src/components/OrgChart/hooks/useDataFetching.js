@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 
 const API_BASE_URL = "http://localhost:5001";
 
@@ -16,6 +17,8 @@ const useDataFetching = (
   setRegularModePosition,
   setOrgModePosition
 ) => {
+  const { t } = useTranslation();
+
   const fetchData = useCallback(async () => {
     if (!dbPath || !selectedTableId) return;
 
@@ -41,7 +44,7 @@ const useDataFetching = (
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast.warning("Parsing encountered issues. The log has been downloaded for your review.");
+        toast.warning(t('chartOperations.parsingIssues'));
       }
 
       setOrgData(orgDataResponse.data.org_chart);
@@ -62,12 +65,12 @@ const useDataFetching = (
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast.error("An error occurred. The error log has been downloaded for your review.");
+        toast.error(t('chartOperations.errorDownloadLog'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [dbPath, selectedTableId, setIsLoading, setError, setFolderStructure, setOrgData, setFilteredOrgData, setRegularModePosition, setOrgModePosition]);
+  }, [dbPath, selectedTableId, setIsLoading, setError, setFolderStructure, setOrgData, setFilteredOrgData, setRegularModePosition, setOrgModePosition, t]);
 
   const fetchOrgStructureData = useCallback(async (tableId) => {
     try {
@@ -75,10 +78,10 @@ const useDataFetching = (
       return response.data;
     } catch (error) {
       console.error("Error fetching organization structure data:", error);
-      toast.error("Failed to fetch organization data. Please try again.");
+      toast.error(t('chartOperations.failedToFetchOrgData'));
       return null;
     }
-  }, []);
+  }, [t]);
 
   const handleExportExcel = useCallback(() => {
     axios({
@@ -93,12 +96,12 @@ const useDataFetching = (
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast.success("Excel file downloaded successfully");
+      toast.success(t('chartOperations.excelDownloadSuccess'));
     }).catch((error) => {
       console.error("Error exporting Excel:", error);
-      toast.error("Failed to export as Excel. Please try again.");
+      toast.error(t('chartOperations.excelDownloadFailed'));
     });
-  }, [selectedTableId]);
+  }, [selectedTableId, t]);
 
   const handleHighlight = useCallback(async (hierarchicalNodeStructure, highlightedNodes, setHighlightedNodes) => {
     try {

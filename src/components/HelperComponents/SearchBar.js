@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { ChevronUp, ChevronDown, X, Search } from 'react-feather';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 const SearchBar = ({ onSearch, totalResults, currentResult, onNavigate, onClose, searchTerm, setSearchTerm, autoFocus }) => {
+  const { t } = useTranslation();
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -56,28 +58,28 @@ const SearchBar = ({ onSearch, totalResults, currentResult, onNavigate, onClose,
         value={searchTerm}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
-        placeholder="Search all node information..."
+        placeholder={t('searchBar.placeholder')}
         className="py-1.5 px-2 bg-transparent focus:outline-none text-sm text-gray-700 placeholder-gray-400 flex-grow w-40"
         autoComplete="off"
       />
       {searchTerm.trim() !== '' && (
         totalResults > 0 ? (
         <div className="flex items-center">
-          <span className="text-xs text-gray-500 mr-1 font-medium">
+          <span className="text-xs text-gray-500 mr-1 rtl:mr-0 rtl:ml-1 font-medium">
             {currentResult}/{totalResults}
           </span>
           <div className="flex">
-            <SearchNavButton onClick={() => onNavigate('prev')} icon={ChevronUp} label="Previous result" />
-            <SearchNavButton onClick={() => onNavigate('next')} icon={ChevronDown} label="Next result" />
+            <SearchNavButton onClick={() => onNavigate('prev')} icon={ChevronUp} label={t('searchBar.previousResult')} />
+            <SearchNavButton onClick={() => onNavigate('next')} icon={ChevronDown} label={t('searchBar.nextResult')} />
           </div>
         </div>
         ) : (
           <span className="text-xs text-gray-500 mx-2 font-medium">
-            No results
+            {t('searchBar.noResults')}
           </span>
         )
       )}
-      <SearchNavButton onClick={onClose} icon={X} label="Close search" variant="danger" />
+      <SearchNavButton onClick={onClose} icon={X} label={t('searchBar.closeSearch')} variant="danger" />
     </div>
   );
 };

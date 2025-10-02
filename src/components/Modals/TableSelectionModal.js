@@ -4,6 +4,7 @@ import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, F
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { format, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import DatePickerWrapper from '../HelperComponents/DatePickerWrapper';
 import '../../styles/scrollbar.css';
 
@@ -16,7 +17,7 @@ const THEME = {
   borderColor: '#E5E7EB'
 };
 
-const FolderCard = ({ folder, onClick, tablesCount }) => {
+const FolderCard = ({ folder, onClick, tablesCount, t }) => {
   if (!folder) return null;
   return (
     <motion.div
@@ -27,12 +28,12 @@ const FolderCard = ({ folder, onClick, tablesCount }) => {
       transition={{ duration: 0.1 }}
     >
       <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3">
           <Folder size={20} className="text-gray-500" />
           <span className="text-base font-medium text-gray-800 truncate">{folder.name}</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">{tablesCount} tables</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">{tablesCount} {t('tableSelection.tables')}</span>
           <ChevronRight size={18} className="text-gray-500" />
         </div>
       </div>
@@ -56,7 +57,7 @@ const TableCard = ({ table, onClick, isActive }) => {
       style={{ backgroundColor: isActive ? THEME.primary : undefined }}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3 flex-grow">
+        <div className="flex items-center gap-3 flex-grow">
           <File size={20} className={isActive ? "text-white" : "text-gray-500"} />
           <span className="text-base font-medium truncate">{table.name}</span>
         </div>
@@ -69,6 +70,7 @@ const TableCard = ({ table, onClick, isActive }) => {
 };
 
 const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode, currentTableId }) => {
+  const { t } = useTranslation();
   const [step, setStep] = useState('folder');
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -172,10 +174,11 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
           folder={folder}
           onClick={() => handleFolderSelect(folder.id)}
           tablesCount={Array.isArray(folder.tables) ? folder.tables.length : 0}
+          t={t}
         />
       </div>
     );
-  }, [filteredFolders, handleFolderSelect]);
+  }, [filteredFolders, handleFolderSelect, t]);
 
   const renderTable = useCallback(({ index, style }) => {
     const table = filteredTables[index];
@@ -243,17 +246,17 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                       setSelectedFolder(null);
                       setSearchTerm('');
                     }}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm"
+                    className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm"
                   >
                     <ArrowLeft size={16} />
-                    <span className="font-medium">Back to Folders</span>
+                    <span className="font-medium">{t('tableSelection.backToFolders')}</span>
                   </button>
                 )}
-                <div className="flex-grow bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 flex items-center space-x-2 min-w-[200px] hover:border-gray-400 transition-colors">
+                <div className="flex-grow bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 flex items-center gap-2 min-w-[200px] hover:border-gray-400 transition-colors">
                   <Search size={18} className="text-gray-500" />
                   <input
                     type="text"
-                    placeholder={`Search ${step === 'folder' ? 'folders' : 'tables'}...`}
+                    placeholder={step === 'folder' ? t('tableSelection.searchFolders') : t('tableSelection.searchTables')}
                     className="bg-transparent w-full outline-none text-sm text-gray-700 placeholder-gray-500"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -263,21 +266,21 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                   <>
                     <button
                       onClick={() => setSortByDate(!sortByDate)}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm ${
-                        sortByDate 
-                          ? 'bg-gray-900 text-white' 
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm ${
+                        sortByDate
+                          ? 'bg-gray-900 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                       style={{ backgroundColor: sortByDate ? THEME.primary : undefined }}
                     >
                       {sortByDate ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
-                      <span className="font-medium">Sort by Date</span>
+                      <span className="font-medium">{t('tableSelection.sortByDate')}</span>
                     </button>
                     <div className="relative">
                       <button
                         ref={filterButtonRef}
                         onClick={toggleFilterMenu}
-                        className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm ${
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm ${
                           isFilterActive
                             ? 'bg-gray-900 text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -285,7 +288,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                         style={{ backgroundColor: isFilterActive ? THEME.primary : undefined }}
                       >
                         <Filter size={16} />
-                        <span className="font-medium">Filter</span>
+                        <span className="font-medium">{t('tableSelection.filter')}</span>
                       </button>
                       <AnimatePresence>
                         {filterMenuOpen && (
@@ -294,16 +297,16 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 10 }}
-                            className="absolute right-0 mt-1 w-64 bg-white rounded-md shadow-lg p-4 z-10 border border-gray-200"
+                            className="absolute right-0 rtl:right-auto rtl:left-0 mt-1 w-64 bg-white rounded-md shadow-lg p-4 z-10 border border-gray-200"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <h3 className="text-base font-medium text-gray-800 mb-3">Date Filter</h3>
+                            <h3 className="text-base font-medium text-gray-800 mb-3">{t('tableSelection.dateFilter')}</h3>
                             <div className="space-y-2">
                               <DatePickerWrapper
                                 date={[dateFilter.start, dateFilter.end]}
                                 handleDateChange={handleDateFilterChange}
                                 isRange={true}
-                                placeholderText="Select date range"
+                                placeholderText={t('tableSelection.selectDateRange')}
                                 wrapperColor="bg-white"
                                 wrapperOpacity=""
                                 containerClassName="border border-gray-300 rounded-md shadow-sm hover:border-gray-400 transition-colors"
@@ -315,9 +318,9 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                                 setDateFilter({ start: null, end: null });
                                 setFilterMenuOpen(false);
                               }}
-                              className="mt-4 w-full py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium transition-colors flex items-center justify-center space-x-2"
+                              className="mt-4 w-full py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
                             >
-                              <span>Clear Filter</span>
+                              <span>{t('tableSelection.clearFilter')}</span>
                             </button>
                           </motion.div>
                         )}

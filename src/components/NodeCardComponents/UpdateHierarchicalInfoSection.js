@@ -4,6 +4,7 @@ import { ArrowLeft, Save, ArrowRight, ArrowRightCircle, ChevronDown } from 'luci
 import Select from 'react-select';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import '../../styles/datepicker.css';
 import '../../styles/scrollbar.css';
@@ -77,6 +78,8 @@ const ComparisonRow = ({ label, before, after, onChangeCount }) => {
 };
 
 const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpdateComplete, getParentNode }) => {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
   const [updateType, setUpdateType] = useState(null);
   const [targetPerson, setTargetPerson] = useState(null);
   const [newRole, setNewRole] = useState('');
@@ -127,17 +130,17 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpda
         }
       } catch (error) {
         console.error("Error fetching available persons:", error);
-        toast.error("Failed to fetch available persons. Please try again.");
+        toast.error(t('updateHierarchicalInfo.failedToFetchPersons'));
         setAvailablePersons([]);
       }
     };
   
     fetchAvailablePersons();
-  }, [folderId, tableId, node.hierarchical_structure, node.role, updateType]);
+  }, [folderId, tableId, node.hierarchical_structure, node.role, updateType, t]);
 
   const fetchRelevantTables = useCallback(async () => {
     if (!targetPerson) {
-      toast.error("Please select a target person before fetching relevant tables.");
+      toast.error(t('updateHierarchicalInfo.selectTargetPerson'));
       return false;
     }
 
@@ -155,25 +158,25 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpda
       setRelevantTables(response.data.tables);
 
       if (response.data.tables.length === 0) {
-        toast.warning("No tables found in the selected date range. Please adjust the dates and try again.");
+        toast.warning(t('updateHierarchicalInfo.noTablesInRange'));
         return false;
       }
       return true;
     } catch (error) {
       console.error("Error fetching relevant tables:", error);
-      toast.error("Failed to fetch relevant tables. Please try again.");
+      toast.error(t('updateHierarchicalInfo.failedToFetchTables'));
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [folderId, dateRange, targetPerson]);
+  }, [folderId, dateRange, targetPerson, t]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     if (!updateType || !targetPerson || (updateType.value === 'create_new' && !newRole)) {
-      toast.error("Please fill all required fields.");
+      toast.error(t('updateHierarchicalInfo.fillRequiredFields'));
       setIsLoading(false);
       return;
     }
@@ -190,7 +193,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpda
       });
 
       if (response.data.message === "Hierarchical location updated across relevant tables") {
-        toast.success("Hierarchical information updated successfully!");
+        toast.success(t('updateHierarchicalInfo.updateSuccess'));
         onUpdateComplete();
         onBack();
       } else if (response.data.error) {
@@ -204,7 +207,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpda
       if (error.response && error.response.data && error.response.data.error) {
         handleErrorResponse(error.response.data.error);
       } else {
-        toast.error("An unexpected error occurred. Please try again.");
+        toast.error(t('updateHierarchicalInfo.unexpectedError'));
       }
     } finally {
       setIsLoading(false);
@@ -214,22 +217,22 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpda
   const handleErrorResponse = (errorMessage) => {
     switch (errorMessage) {
       case "Missing required parameters":
-        toast.error("Missing required information. Please fill all fields.");
+        toast.error(t('updateHierarchicalInfo.missingRequiredInfo'));
         break;
       case "Invalid update type. Must be 'create_new' or 'override'":
-        toast.error("Invalid update type selected. Please try again.");
+        toast.error(t('updateHierarchicalInfo.invalidUpdateType'));
         break;
       case "New role must be provided for create_new operation":
-        toast.error("Please provide a new role when creating a new node.");
+        toast.error(t('updateHierarchicalInfo.provideNewRole'));
         break;
       case "Invalid date format. Use YYYY-MM-DD":
-        toast.error("Invalid date format. Please select valid dates.");
+        toast.error(t('updateHierarchicalInfo.invalidDateFormat'));
         break;
       case "Hierarchical structure not found in any tables within the date range":
-        toast.error("The selected node was not found in any tables within the date range.");
+        toast.error(t('updateHierarchicalInfo.nodeNotFound'));
         break;
       default:
-        toast.error(`An error occurred: ${errorMessage}`);
+        toast.error(`${t('updateHierarchicalInfo.errorOccurred')}: ${errorMessage}`);
     }
   };
 
@@ -585,12 +588,12 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpda
 
   const handleReviewChanges = async () => {
     if (!updateType || !targetPerson) {
-      toast.warning("Please select an update type and target person before proceeding.");
+      toast.warning(t('updateHierarchicalInfo.selectUpdateTypeAndPerson'));
       return;
     }
     
     if (updateType.value === 'create_new' && !newRole.trim()) {
-      toast.warning("Please enter a new role for the 'Create New Node' operation.");
+      toast.warning(t('updateHierarchicalInfo.enterNewRole'));
       return;
     }
     
@@ -603,9 +606,9 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpda
   return (
     <div className="p-3 max-w-7xl mx-auto w-full">
       {currentStep === 1 ? (
-        renderNavigationButton(onBack, <ArrowLeft size={20} className="mr-2" />, "Back to Main Info")
+        renderNavigationButton(onBack, isRTL ? <ArrowRight size={20} className="ml-2" /> : <ArrowLeft size={20} className="mr-2" />, "Back to Main Info")
       ) : (
-        renderNavigationButton(() => setCurrentStep(1), <ArrowLeft size={20} className="mr-2" />, "Previous")
+        renderNavigationButton(() => setCurrentStep(1), isRTL ? <ArrowRight size={20} className="ml-2" /> : <ArrowLeft size={20} className="mr-2" />, "Previous")
       )}
 
       <AnimatePresence mode="wait">
@@ -622,9 +625,9 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpda
             
             <div className="flex justify-end">
               {currentStep === 1 ? (
-                renderNavigationButton(handleReviewChanges, <ArrowRight size={20} className="ml-2" />, "Review Changes")
+                renderNavigationButton(handleReviewChanges, isRTL ? <ArrowLeft size={20} className="mr-2" /> : <ArrowRight size={20} className="ml-2" />, "Review Changes")
               ) : (
-                renderNavigationButton(handleSubmit, <Save size={20} className="mr-2" />, isLoading ? "Updating..." : "Confirm Changes", isLoading, true)
+                renderNavigationButton(handleSubmit, <Save size={20} className="mr-2 rtl:mr-0 rtl:ml-2" />, isLoading ? "Updating..." : "Confirm Changes", isLoading, true)
               )}
             </div>
           </form>

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 
 const useSearchAndFilter = (
   API_BASE_URL,
@@ -11,6 +12,7 @@ const useSearchAndFilter = (
   setExpandAll,
   setIsOrganizationMode
 ) => {
+  const { t } = useTranslation();
   const [activeFilters, setActiveFilters] = useState([]);
   const [searchResults, setSearchResults] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,13 +59,13 @@ const useSearchAndFilter = (
     
     // Display toast notification based on search results
     if (results.length === 0) {
-      toast.info("No results found for your search query.");
+      toast.info(t('searchAndFilter.noResultsFound'));
     } else {
-      toast.success(`Found ${results.length} ${results.length === 1 ? 'result' : 'results'} for your search query.`);
+      toast.success(t('searchAndFilter.foundResults', { count: results.length, result: results.length === 1 ? t('searchAndFilter.result') : t('searchAndFilter.results') }));
     }
     
     // No automatic centering - user must click center button
-  }, [orgData, setActiveFilters]);
+  }, [orgData, setActiveFilters, t]);
 
   const handleTreeSearch = useCallback((term, renderedNodes) => {
     setSearchTerm(term);
@@ -122,7 +124,7 @@ const useSearchAndFilter = (
 
   const handleTreeSearchNavigation = useCallback((direction, chartRef, transform, settings) => {
     if (treeSearchResults.length === 0) {
-      toast.info("No search results to navigate");
+      toast.info(t('searchAndFilter.noSearchResults'));
       return null;
     }
 
@@ -163,12 +165,12 @@ const useSearchAndFilter = (
 
         return { x: newX, y: adjustedY, scale: NAVIGATION_ZOOM_LEVEL };
       } else {
-        toast.warning("Could not locate the search result element in the DOM");
+        toast.warning(t('searchAndFilter.couldNotLocate'));
       }
     }
     
     return null;
-  }, [treeSearchResults, currentTreeSearchIndex]);
+  }, [treeSearchResults, currentTreeSearchIndex, t]);
 
   const handleFilterChange = useCallback((filters) => {
     setActiveFilters(filters);
@@ -188,7 +190,7 @@ const useSearchAndFilter = (
     if (preFilterOrgData) {
       setFilteredOrgData(preFilterOrgData);
       setPreFilterOrgData(null);
-      toast.info("Filters cleared");
+      toast.info(t('searchAndFilter.filtersCleared'));
     } else {
       setFilteredOrgData(orgData);
     }
@@ -197,10 +199,11 @@ const useSearchAndFilter = (
     
     // No automatic centering - user must click center button
   }, [
-    orgData, 
-    preFilterOrgData, 
-    setFilteredOrgData, 
-    setExpandAll
+    orgData,
+    preFilterOrgData,
+    setFilteredOrgData,
+    setExpandAll,
+    t
   ]);
 
   const handleClearSearch = useCallback(() => {
@@ -272,9 +275,9 @@ const useSearchAndFilter = (
             setFilteredSearchResults(Array.from(allIncludedStructures));
             setExpandAll(true);
             // No automatic centering - user must click center button
-            toast.success(`Found ${results.length} ${results.length === 1 ? 'person' : 'people'} in "${orgName}" organization`);
+            toast.success(t('searchAndFilter.foundInOrg', { count: results.length, person: results.length === 1 ? t('searchAndFilter.person') : t('searchAndFilter.people'), orgName }));
           } else {
-            toast.info(`No people found in "${orgName}" organization`);
+            toast.info(t('searchAndFilter.noPeopleInOrg', { orgName }));
             if (preFilterOrgData) {
               setFilteredOrgData(preFilterOrgData);
               setPreFilterOrgData(null);
@@ -284,7 +287,7 @@ const useSearchAndFilter = (
       })
       .catch(error => {
         console.error("Error searching for organization:", error);
-        toast.error("Failed to filter by organization. Please try again.");
+        toast.error(t('searchAndFilter.failedToFilter'));
         if (preFilterOrgData) {
           setFilteredOrgData(preFilterOrgData);
           setPreFilterOrgData(null);
@@ -305,7 +308,8 @@ const useSearchAndFilter = (
     setCurrentTreeSearchIndex,
     setFilteredSearchResults,
     setExpandAll,
-    setFilteredOrgData
+    setFilteredOrgData,
+    t
   ]);
 
   const toggleSearchBar = useCallback(() => {

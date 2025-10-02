@@ -519,7 +519,7 @@ const TreeNode = ({
         )}
 
         {!isSelectedForSwap && (
-          <div className="absolute top-2 right-2 flex space-x-1">
+          <div className="absolute top-2 right-2 flex gap-1">
             {isStatusUnknown && (
               <AlertCircle size={18} className="text-yellow-600" />
             )}

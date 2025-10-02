@@ -50,7 +50,7 @@ const DatabaseSelectionComponent = ({ onUseExistingDB, onCreateNewDB }) => {
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={() => setActiveTab('existing')}
-              className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center space-x-2 ${
+              className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 ${
                 activeTab === 'existing' 
                   ? 'bg-gray-800 text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -63,7 +63,7 @@ const DatabaseSelectionComponent = ({ onUseExistingDB, onCreateNewDB }) => {
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={() => setActiveTab('new')}
-              className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center space-x-2 ${
+              className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 ${
                 activeTab === 'new' 
                   ? 'bg-gray-800 text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -74,7 +74,7 @@ const DatabaseSelectionComponent = ({ onUseExistingDB, onCreateNewDB }) => {
             </motion.button>
           </div>
           
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
             <InfoIcon 
               text={
                 activeTab === 'existing' 

@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload,
   ChevronRight,
+  ChevronLeft,
   List,
   Database,
   FolderPlus,
   Clock,
   ArrowLeft,
+  ArrowRight,
   Layers,
   Grid,
   FileText,
@@ -15,6 +17,7 @@ import {
   Activity
 } from "react-feather";
 import axios from "axios";
+import { useTranslation } from 'react-i18next';
 import FileUploadModal from "../Modals/FileUploadModal";
 import TableSelectionModal from "../Modals/TableSelectionModal";
 import {
@@ -36,15 +39,15 @@ const THEME = {
 };
 
 // Database status indicator
-const StatusIndicator = ({ status }) => (
-  <div className="flex items-center space-x-2">
+const StatusIndicator = ({ status, t }) => (
+  <div className="flex items-center gap-2">
     <div className={`h-3 w-3 ${status ? 'bg-green-500' : 'bg-red-500'}`}>
       {status && (
         <span className="absolute inline-flex h-3 w-3 bg-green-500 opacity-75 animate-ping"></span>
       )}
     </div>
     <span className={`text-sm font-medium ${status ? 'text-green-600' : 'text-red-600'}`}>
-      {status ? 'Connected' : 'Disconnected'}
+      {status ? t('landingPage.connected') : t('landingPage.disconnected')}
     </span>
   </div>
 );
@@ -64,6 +67,8 @@ const FeatureCard = ({ icon: Icon, title, description }) => (
 );
 
 const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
   const [step, setStep] = useState("initial");
   const [isLoading, setIsLoading] = useState(false);
   const [dbPath, setDbPath] = useState(currentDbPath);
@@ -223,7 +228,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
             transition={{ delay: 0.2 }}
             className="text-2xl font-bold text-gray-800"
           >
-            Loading your workspace...
+            {t('landingPage.loadingWorkspace')}
           </motion.h3>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
@@ -231,7 +236,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
             transition={{ delay: 0.3 }}
             className="text-gray-500 mt-2"
           >
-            Preparing your organization data
+            {t('landingPage.preparingData')}
           </motion.p>
         </motion.div>
       </div>
@@ -243,19 +248,19 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       {/* Header */}
       <div className="w-full py-4 px-8 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between">
         <div className="flex items-center">
-          <div className="bg-gray-800 h-10 w-10 flex items-center justify-center mr-3">
+          <div className="bg-gray-800 h-10 w-10 flex items-center justify-center mr-3 rtl:mr-0 rtl:ml-3">
             <Layers size={20} className="text-white" />
           </div>
-          <h1 className="text-xl font-bold text-gray-800">OrgChart Visualizer</h1>
+          <h1 className="text-xl font-bold text-gray-800">{t('landingPage.title')}</h1>
         </div>
         
         {/* Display connection status if we have a DB */}
         {dbPath && dbInfo && (
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3">
             <p className="text-sm text-gray-500 hidden md:block">
               {dbInfo.path}
             </p>
-            <StatusIndicator status={dbInfo.exists} />
+            <StatusIndicator status={dbInfo.exists} t={t} />
           </div>
         )}
       </div>
@@ -267,7 +272,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
         <div className="p-6 border-b border-gray-200">
       {/* Headline */}
       <div className="flex mb-3">
-  <div className="bg-gray-800 w-2 self-stretch mr-3"></div>
+  <div className="bg-gray-800 w-2 self-stretch mr-3 rtl:mr-0 rtl:ml-3"></div>
   <div>
     <motion.h2
       initial={{ opacity: 0, y: 10 }}
@@ -275,7 +280,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       transition={{ duration: 0.5 }}
       className="text-4xl font-bold text-gray-800"
     >
-      Visualize
+      {t('landingPage.visualize')}
     </motion.h2>
     <motion.h2
       initial={{ opacity: 0, y: 10 }}
@@ -283,7 +288,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       transition={{ duration: 0.5, delay: 0.2 }}
       className="text-3xl font-bold text-gray-600"
     >
-      Your Organization
+      {t('landingPage.yourOrganization')}
     </motion.h2>
   </div>
 </div>
@@ -294,11 +299,11 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      title="Chief Executive Officer"
+      title={t('landingPage.ceoTitle')}
       className="shadow-sm p-4 w-48 bg-gray-50 border border-gray-200 flex items-center justify-center z-10"
       style={{ backgroundColor: "#F9FAFB" }}
     >
-      <span className={`text-lg font-bold text-gray-800 ${getFontClass('default')}`}>CEO</span>
+      <span className={`text-lg font-bold text-gray-800 ${getFontClass('default')}`}>{t('landingPage.ceo')}</span>
     </motion.div>
     
     {/* Vertical Connector from CEO - reduced height */}
@@ -336,7 +341,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.8 + index * 0.2 }}
-              title={`Chief ${exec === 'CTO' ? 'Technology' : exec === 'CFO' ? 'Financial' : 'Operating'} Officer`}
+              title={t(`landingPage.${exec.toLowerCase()}Title`)}
               className="shadow-sm p-4 w-40 bg-gray-50 border border-gray-200 flex items-center justify-center z-10"
               style={{ backgroundColor: "#F9FAFB" }}
             >
@@ -354,40 +359,11 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   initial={{ opacity: 0, x: -10 }}
   animate={{ opacity: 1, x: 0 }}
   transition={{ duration: 0.5, delay: 1.1 }}
-  className="border-l-2 border-gray-800 pl-4"
+  className="border-l-2 border-gray-800 pl-4 rtl:border-l-0 rtl:border-r-2 rtl:pl-0 rtl:pr-4"
 >
   <p className="text-sm text-gray-600">
-    Transform complex hierarchies into clear, interactive visualizations.
+    {t('landingPage.tagline')}
   </p>
-  <div className="flex flex-wrap gap-2 mt-2">
-  <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        whileHover={{ y: -2 }}
-        className="bg-gray-800 text-white px-3 py-1 text-xs font-medium"
-      >
-        INSIGHT
-      </motion.span>
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.3 }}
-        whileHover={{ y: -2 }}
-        className="bg-gray-800 text-white px-3 py-1 text-xs font-medium"
-      >
-        CLARITY
-      </motion.span>
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.4 }}
-        whileHover={{ y: -2 }}
-        className="bg-gray-800 text-white px-3 py-1 text-xs font-medium"
-      >
-        EFFICIENCY
-      </motion.span>
-  </div>
 </motion.div>
     </div>
           
@@ -395,23 +371,23 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
           <div className="grid grid-cols-2 gap-3 p-4 mt-2">
             <FeatureCard
               icon={Grid}
-              title="Interactive Charts"
-              description="Navigate through your organization with interactive nodes and branches."
+              title={t('landingPage.interactiveCharts')}
+              description={t('landingPage.interactiveChartsDesc')}
             />
             <FeatureCard
               icon={FileText}
-              title="Import Data"
-              description="Easily import your data from multiple file formats."
+              title={t('landingPage.importData')}
+              description={t('landingPage.importDataDesc')}
             />
             <FeatureCard
               icon={Layout}
-              title="Custom Views"
-              description="Create different views and layouts of your organization."
+              title={t('landingPage.customViews')}
+              description={t('landingPage.customViewsDesc')}
             />
             <FeatureCard
               icon={Activity}
-              title="Real-time Updates"
-              description="Changes reflect immediately in your visualization."
+              title={t('landingPage.realTimeUpdates')}
+              description={t('landingPage.realTimeUpdatesDesc')}
             />
           </div>
           
@@ -419,8 +395,8 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
           {dbPath && dbInfo && (
             <div className="md:hidden p-4 border-t border-gray-200 mt-auto">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Database Status:</span>
-                <StatusIndicator status={dbInfo.exists} />
+                <span className="text-sm text-gray-500">{t('landingPage.databaseStatus')}:</span>
+                <StatusIndicator status={dbInfo.exists} t={t} />
               </div>
             </div>
           )}
@@ -448,18 +424,18 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                       className="w-full flex items-center justify-between p-3 bg-gray-50 text-gray-800 hover:bg-gray-100 transition-colors border border-gray-200"
                     >
                       <span className="flex items-center">
-                        <div className="bg-gray-200 p-2 mr-3">
+                        <div className="bg-gray-200 p-2 mr-3 rtl:mr-0 rtl:ml-3">
                           <Clock size={20} className="text-gray-700" />
                         </div>
                         <div className="text-left">
-                          <span className="font-medium block text-sm">Use Recent Database</span>
+                          <span className="font-medium block text-sm">{t('landingPage.useRecentDatabase')}</span>
                           <span className="text-xs text-gray-500 truncate block max-w-[200px]">{recentDbPath}</span>
                         </div>
                       </span>
-                      <ChevronRight size={16} className="text-gray-500" />
+                      {isRTL ? <ChevronLeft size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
                     </motion.button>
                   )}
-                  
+
                   <motion.button
                     whileHover={{ x: 5 }}
                     whileTap={{ scale: 0.98 }}
@@ -467,17 +443,17 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                     className="w-full flex items-center justify-between p-3 bg-gray-50 text-gray-800 hover:bg-gray-100 transition-colors border border-gray-200"
                   >
                     <span className="flex items-center">
-                      <div className="bg-gray-200 p-2 mr-3">
+                      <div className="bg-gray-200 p-2 mr-3 rtl:mr-0 rtl:ml-3">
                         <Database size={20} className="text-gray-700" />
                       </div>
                       <div className="text-left">
-                        <span className="font-medium block text-sm">Use Existing Database</span>
-                        <span className="text-xs text-gray-500">Connect to a database file (.db)</span>
+                        <span className="font-medium block text-sm">{t('landingPage.useExistingDatabase')}</span>
+                        <span className="text-xs text-gray-500">{t('landingPage.connectToDatabase')}</span>
                       </div>
                     </span>
-                    <ChevronRight size={16} className="text-gray-500" />
+                    {isRTL ? <ChevronLeft size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
                   </motion.button>
-                  
+
                   <motion.button
                     whileHover={{ x: 5 }}
                     whileTap={{ scale: 0.98 }}
@@ -485,15 +461,15 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                     className="w-full flex items-center justify-between p-3 bg-gray-50 text-gray-800 hover:bg-gray-100 transition-colors border border-gray-200"
                   >
                     <span className="flex items-center">
-                      <div className="bg-gray-200 p-2 mr-3">
+                      <div className="bg-gray-200 p-2 mr-3 rtl:mr-0 rtl:ml-3">
                         <FolderPlus size={20} className="text-gray-700" />
                       </div>
                       <div className="text-left">
-                        <span className="font-medium block text-sm">Create New Database</span>
-                        <span className="text-xs text-gray-500">Start with a fresh database</span>
+                        <span className="font-medium block text-sm">{t('landingPage.createNewDatabase')}</span>
+                        <span className="text-xs text-gray-500">{t('landingPage.startFreshDatabase')}</span>
                       </div>
                     </span>
-                    <ChevronRight size={16} className="text-gray-500" />
+                    {isRTL ? <ChevronLeft size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
                   </motion.button>
                 </div>
               </motion.div>
@@ -509,10 +485,10 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                 className="bg-white shadow-md border border-gray-200 p-6 w-full max-w-lg"
               >
                 <div className="flex items-center mb-4">
-                  <div className="bg-gray-800 p-2 mr-3">
+                  <div className="bg-gray-800 p-2 mr-3 rtl:mr-0 rtl:ml-3">
                     <Database size={18} className="text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800">Use Existing Database</h3>
+                  <h3 className="text-xl font-bold text-gray-800">{t('landingPage.useExistingDatabase')}</h3>
                 </div>
                 
                 <ExistingDatabaseSection
@@ -525,8 +501,8 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   onClick={() => setStep("initial")}
                   className="mt-4 w-full p-2.5 bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors flex items-center justify-center border border-gray-200"
                 >
-                  <ArrowLeft size={16} className="mr-2" />
-                  <span className="font-medium">Back to Options</span>
+                  {isRTL ? <ArrowRight size={16} className="ml-2" /> : <ArrowLeft size={16} className="mr-2" />}
+                  <span className="font-medium">{t('landingPage.backToOptions')}</span>
                 </motion.button>
               </motion.div>
             )}
@@ -541,10 +517,10 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                 className="bg-white shadow-md border border-gray-200 p-6 w-full max-w-lg"
               >
                 <div className="flex items-center mb-4">
-                  <div className="bg-gray-800 p-2 mr-3">
+                  <div className="bg-gray-800 p-2 mr-3 rtl:mr-0 rtl:ml-3">
                     <FolderPlus size={18} className="text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800">Create New Database</h3>
+                  <h3 className="text-xl font-bold text-gray-800">{t('landingPage.createNewDatabase')}</h3>
                 </div>
                 
                 <NewDatabaseSection onCreateNewDB={handleCreateNewDB} />
@@ -555,8 +531,8 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   onClick={() => setStep("initial")}
                   className="mt-4 w-full p-2.5 bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors flex items-center justify-center border border-gray-200"
                 >
-                  <ArrowLeft size={16} className="mr-2" />
-                  <span className="font-medium">Back to Options</span>
+                  {isRTL ? <ArrowRight size={16} className="ml-2" /> : <ArrowLeft size={16} className="mr-2" />}
+                  <span className="font-medium">{t('landingPage.backToOptions')}</span>
                 </motion.button>
               </motion.div>
             )}
@@ -571,16 +547,15 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                 className="bg-white shadow-md border border-gray-200 p-6 w-full max-w-lg"
               >
                 <div className="flex items-center mb-4">
-                  <div className="bg-gray-800 p-2 mr-3">
+                  <div className="bg-gray-800 p-2 mr-3 rtl:mr-0 rtl:ml-3">
                     <Upload size={18} className="text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800">Upload Your First File</h3>
+                  <h3 className="text-xl font-bold text-gray-800">{t('landingPage.uploadFirstFile')}</h3>
                 </div>
                 
                 <div className="bg-green-50 border border-green-200 p-3 mb-4">
                   <p className="text-green-800 text-sm">
-                    <span className="font-bold">Success!</span> Your database has been created successfully. 
-                    Now you need to upload your first data file.
+                    <span className="font-bold">{t('common.success')}!</span> {t('landingPage.dbCreatedSuccess')}
                   </p>
                 </div>
                 
@@ -591,8 +566,8 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   className="w-full flex items-center justify-center p-3 bg-gray-800 text-white hover:bg-gray-700 transition-colors"
                   style={{ backgroundColor: THEME.buttonColor }}
                 >
-                  <Upload size={18} className="mr-2" />
-                  <span className="font-medium">Upload File Now</span>
+                  <Upload size={18} className="mr-2 rtl:mr-0 rtl:ml-2" />
+                  <span className="font-medium">{t('landingPage.uploadFileNow')}</span>
                 </motion.button>
                 
                 <motion.button
@@ -601,8 +576,8 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   onClick={() => setStep("initial")}
                   className="mt-4 w-full p-2.5 bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors flex items-center justify-center border border-gray-200"
                 >
-                  <ArrowLeft size={16} className="mr-2" />
-                  <span className="font-medium">Back to Options</span>
+                  {isRTL ? <ArrowRight size={16} className="ml-2" /> : <ArrowLeft size={16} className="mr-2" />}
+                  <span className="font-medium">{t('landingPage.backToOptions')}</span>
                 </motion.button>
               </motion.div>
             )}
@@ -617,20 +592,20 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                 className="bg-white shadow-md border border-gray-200 p-6 w-full max-w-lg"
               >
                 <div className="flex items-center mb-4">
-                  <div className="bg-gray-800 p-2 mr-3">
+                  <div className="bg-gray-800 p-2 mr-3 rtl:mr-0 rtl:ml-3">
                     <Database size={18} className="text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800">Your Database is Ready</h3>
+                  <h3 className="text-xl font-bold text-gray-800">{t('landingPage.dbReady')}</h3>
                 </div>
                 
                 <div className="bg-gray-50 border border-gray-200 p-4 mb-4">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-medium text-gray-700 text-sm">Database Path</span>
+                    <span className="font-medium text-gray-700 text-sm">{t('landingPage.databasePath')}</span>
                     <span className="text-xs text-gray-500 truncate max-w-[250px]">{dbInfo?.path}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-gray-700 text-sm">Status</span>
-                    <StatusIndicator status={dbInfo?.exists} />
+                    <span className="font-medium text-gray-700 text-sm">{t('landingPage.status')}</span>
+                    <StatusIndicator status={dbInfo?.exists} t={t} />
                   </div>
                 </div>
                 
@@ -643,12 +618,12 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                     style={{ backgroundColor: THEME.buttonColor }}
                   >
                     <span className="flex items-center">
-                      <List size={18} className="mr-2" />
-                      <span className="font-medium">View Current Tables</span>
+                      <List size={18} className="mr-2 rtl:mr-0 rtl:ml-2" />
+                      <span className="font-medium">{t('landingPage.viewCurrentTables')}</span>
                     </span>
-                    <ChevronRight size={16} />
+                    {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                   </motion.button>
-                  
+
                   <motion.button
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
@@ -656,10 +631,10 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                     className="w-full flex items-center justify-between p-3 bg-gray-50 text-gray-800 hover:bg-gray-100 transition-colors border border-gray-200"
                   >
                     <span className="flex items-center">
-                      <Upload size={18} className="mr-2 text-gray-600" />
-                      <span className="font-medium">Upload New File</span>
+                      <Upload size={18} className="mr-2 rtl:mr-0 rtl:ml-2 text-gray-600" />
+                      <span className="font-medium">{t('landingPage.uploadNewFile')}</span>
                     </span>
-                    <ChevronRight size={16} className="text-gray-500" />
+                    {isRTL ? <ChevronLeft size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
                   </motion.button>
                   
                   <motion.button
@@ -668,8 +643,8 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                     onClick={() => setStep("initial")}
                     className="w-full p-2.5 bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors flex items-center justify-center border border-gray-200"
                   >
-                    <ArrowLeft size={16} className="mr-2" />
-                    <span className="font-medium">Back to Options</span>
+                    <ArrowLeft size={16} className="mr-2 rtl:mr-0 rtl:ml-2" />
+                    <span className="font-medium">{t('landingPage.backToOptions')}</span>
                   </motion.button>
                 </div>
               </motion.div>

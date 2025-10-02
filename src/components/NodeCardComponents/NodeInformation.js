@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, User, BookOpen, Briefcase, Heart, Calendar, BadgeInfo, Award, Building } from 'lucide-react';
+import { ArrowLeft, ArrowRight, User, BookOpen, Briefcase, Heart, Calendar, BadgeInfo, Award, Building } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import DOMPurify from 'dompurify';
 import '../../styles/fonts.css';
@@ -16,11 +17,13 @@ const DEFAULT_THEME = {
 };
 
 const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
   const [activeTab, setActiveTab] = useState('personal'); // 'personal', 'role', or 'personal_info'
   const [formattedPersonalInfo, setFormattedPersonalInfo] = useState('');
   const [formattedRoleInfo, setFormattedRoleInfo] = useState('');
   const contentRef = useRef(null);
-  
+
   const personalInfoLanguage = getLanguage(node.personal_information || '');
   const roleInfoLanguage = getLanguage(node.role_information || '');
 
@@ -47,7 +50,7 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const textWithLinks = text.replace(
       urlRegex,
-      '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-gray-800 hover:underline inline-flex items-center"><span>$1</span><svg class="w-3 h-3 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>'
+      '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-gray-800 hover:underline inline-flex items-center"><span>$1</span><svg class="w-3 h-3 ml-1 rtl:ml-0 rtl:mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>'
     );
     
     // Enhanced formatting for key information
@@ -101,29 +104,29 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
 
   // Personal details in a structured format
   const personalDetails = [
-    { 
+    {
       icon: <Calendar className="text-gray-600" size={16} />,
-      label: "BIRTH DATE", 
-      value: node.birth_date ? `${new Date(node.birth_date).toLocaleDateString()} (Age: ${age})` : 'Not available' 
+      label: t('nodeInfo.birthDate'),
+      value: node.birth_date ? `${new Date(node.birth_date).toLocaleDateString()} (${t('nodeInfo.age')}: ${age})` : t('nodeInfo.notAvailable')
     },
-    { 
+    {
       icon: <BadgeInfo className="text-gray-600" size={16} />,
-      label: "PERSON ID", 
-      value: node.person_id || 'Not specified' 
+      label: t('nodeInfo.personId'),
+      value: node.person_id || t('nodeInfo.notSpecified')
     },
-    { 
+    {
       icon: <Award className="text-gray-600" size={16} />,
-      label: "RANK", 
-      value: node.rank || 'Not specified' 
+      label: t('nodeInfo.rank'),
+      value: node.rank || t('nodeInfo.notSpecified')
     },
-    { 
+    {
       icon: <Building className="text-gray-600" size={16} />,
-      label: "ORGANIZATION ID", 
-      value: node.organization_id || 'Not specified' 
+      label: t('nodeInfo.organizationId'),
+      value: node.organization_id || t('nodeInfo.notSpecified')
     },
-    { 
+    {
       icon: <Heart className="text-gray-600" size={16} />,
-      label: "STATUS", 
+      label: t('nodeInfo.status'),
       value: (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusDisplay.className}`}>
           {statusDisplay.text}
@@ -136,18 +139,18 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
   const tabs = [
     {
       id: 'personal',
-      label: 'Personal Details',
-      icon: <User size={16} className="mr-1" />
+      label: t('nodeInfo.personalDetails'),
+      icon: <User size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />
     },
     {
       id: 'role',
-      label: 'Role Information',
-      icon: <Briefcase size={16} className="mr-1" />
+      label: t('nodeInfo.roleInformation'),
+      icon: <Briefcase size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />
     },
     {
       id: 'personal_info',
-      label: 'Personal Information',
-      icon: <BookOpen size={16} className="mr-1" />
+      label: t('nodeInfo.personalInformation'),
+      icon: <BookOpen size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />
     }
   ];
 
@@ -159,24 +162,24 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
           onClick={onBack}
           className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
         >
-          <ArrowLeft size={18} className="mr-2" />
-          <span>Back to Main Info</span>
+          {isRTL ? <ArrowRight size={18} className="ml-2" /> : <ArrowLeft size={18} className="mr-2" />}
+          <span>{t('nodeInfo.backToMainInfo')}</span>
         </button>
       </div>
 
       {/* Profile header - simplified */}
       <div className="px-4 py-3 border-b border-gray-100">
         <h2 className="text-base font-medium text-gray-900 flex items-center">
-          <span>{node.name || 'Unknown Name'}</span>
+          <span>{node.name || t('nodeInfo.unknownName')}</span>
           {node.is_dead && (
-            <span className="ml-2 text-gray-400 text-xs">
-              (Status: {node.is_dead})
+            <span className="ml-2 rtl:ml-0 rtl:mr-2 text-gray-400 text-xs">
+              ({t('nodeInfo.status')}: {node.is_dead})
             </span>
           )}
         </h2>
         <div className="flex items-center mt-1 text-gray-500 text-sm">
-          <Briefcase size={14} className="mr-1" />
-          <span>{node.role || 'Role not specified'}</span>
+          <Briefcase size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+          <span>{node.role || t('nodeInfo.roleNotSpecified')}</span>
           {node.department && (
             <>
               <span className="mx-2 text-gray-300">•</span>
@@ -224,7 +227,7 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
               {personalDetails.map((item, index) => (
                 <div 
                   key={index} 
-                  className="p-3 bg-gray-50 rounded-md flex items-center space-x-3"
+                  className="p-3 bg-gray-50 rounded-md flex items-center gap-3"
                 >
                   <div className="flex-shrink-0">
                     {item.icon}
@@ -248,43 +251,43 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
             <div className="p-3 bg-gray-50 rounded-md">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-medium text-sm text-gray-800">{node.role || 'Role not specified'}</h3>
-                  <p className="text-gray-500 text-xs">{node.department || 'Department not specified'}</p>
+                  <h3 className="font-medium text-sm text-gray-800">{node.role || t('nodeInfo.roleNotSpecified')}</h3>
+                  <p className="text-gray-500 text-xs">{node.department || t('nodeInfo.departmentNotSpecified')}</p>
                 </div>
                 {node.rank && (
                   <div className="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-medium">
-                    Rank: {node.rank}
+                    {t('nodeInfo.rank')}: {node.rank}
                   </div>
                 )}
               </div>
             </div>
-            
+
             {/* Organization information - new section */}
             <div className="p-3 bg-gray-50 rounded-md">
-              <h3 className="text-xs font-medium text-gray-500 mb-1">ORGANIZATION</h3>
-              <div className="flex flex-col space-y-2">
+              <h3 className="text-xs font-medium text-gray-500 mb-1">{t('nodeInfo.organization')}</h3>
+              <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
-                    <Building className="text-gray-600 mr-2" size={14} />
-                    <span className="text-sm text-gray-700">Organization Name:</span>
+                    <Building className="text-gray-600 mr-2 rtl:mr-0 rtl:ml-2" size={14} />
+                    <span className="text-sm text-gray-700">{t('nodeInfo.organizationName')}:</span>
                   </div>
-                  <span className="text-sm font-medium text-gray-800">{node.organization_name || 'Not specified'}</span>
+                  <span className="text-sm font-medium text-gray-800">{node.organization_name || t('nodeInfo.notSpecified')}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
-                    <BadgeInfo className="text-gray-600 mr-2" size={14} />
-                    <span className="text-sm text-gray-700">Organization ID:</span>
+                    <BadgeInfo className="text-gray-600 mr-2 rtl:mr-0 rtl:ml-2" size={14} />
+                    <span className="text-sm text-gray-700">{t('nodeInfo.organizationId')}:</span>
                   </div>
-                  <span className="text-sm font-medium text-gray-800">{node.organization_id || 'Not specified'}</span>
+                  <span className="text-sm font-medium text-gray-800">{node.organization_id || t('nodeInfo.notSpecified')}</span>
                 </div>
               </div>
             </div>
-            
+
             {/* Hierarchical structure */}
             <div className="p-3 bg-gray-50 rounded-md">
-              <h3 className="text-xs font-medium text-gray-500 mb-1">HIERARCHICAL STRUCTURE</h3>
+              <h3 className="text-xs font-medium text-gray-500 mb-1">{t('nodeInfo.hierarchicalStructure')}</h3>
               <div className="p-2 bg-white rounded border border-gray-100 text-gray-700 font-mono text-xs break-all overflow-y-auto max-h-24 custom-scrollbar">
-                {node.hierarchical_structure || 'Not available'}
+                {node.hierarchical_structure || t('nodeInfo.notAvailable')}
               </div>
             </div>
             
@@ -292,16 +295,16 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
             {formattedRoleInfo ? (
               <div className="p-3 bg-gray-50 rounded-md">
                 <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
-                  <Briefcase size={14} className="mr-1" />
-                  ROLE INFORMATION
+                  <Briefcase size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+                  {t('nodeInfo.roleInformationUpper')}
                 </h3>
-                <div 
+                <div
                   className={`${getFontClass(roleInfoLanguage)} overflow-y-auto max-h-60 rounded-md bg-white p-3 border border-gray-100 custom-scrollbar`}
                   dir={getTextDirection(roleInfoLanguage)}
                   ref={contentRef}
                 >
-                  <div 
-                    dangerouslySetInnerHTML={{ __html: formattedRoleInfo }} 
+                  <div
+                    dangerouslySetInnerHTML={{ __html: formattedRoleInfo }}
                     className="prose max-w-none text-gray-700 text-sm leading-relaxed"
                   />
                 </div>
@@ -309,7 +312,7 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
             ) : (
               <div className="text-center py-8 px-4 text-gray-500 bg-gray-50 rounded-md">
                 <Briefcase size={24} className="mx-auto mb-2 text-gray-300" />
-                <p className="text-sm">No role information available for this profile.</p>
+                <p className="text-sm">{t('nodeInfo.noRoleInformation')}</p>
               </div>
             )}
           </div>
@@ -324,15 +327,15 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
             {formattedPersonalInfo ? (
               <div>
                 <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
-                  <User size={14} className="mr-1" />
-                  PERSONAL INFORMATION
+                  <User size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+                  {t('nodeInfo.personalInformationUpper')}
                 </h3>
-                <div 
+                <div
                   className={`${getFontClass(personalInfoLanguage)} overflow-y-auto max-h-60 rounded-md bg-white p-3 border border-gray-100 custom-scrollbar`}
                   dir={getTextDirection(personalInfoLanguage)}
                 >
-                  <div 
-                    dangerouslySetInnerHTML={{ __html: formattedPersonalInfo }} 
+                  <div
+                    dangerouslySetInnerHTML={{ __html: formattedPersonalInfo }}
                     className="prose max-w-none text-gray-700 text-sm leading-relaxed"
                   />
                 </div>
@@ -340,7 +343,7 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
             ) : (
               <div className="text-center py-6 text-gray-500">
                 <User size={24} className="mx-auto mb-2 text-gray-300" />
-                <p className="text-sm">No personal information available.</p>
+                <p className="text-sm">{t('nodeInfo.noPersonalInformation')}</p>
               </div>
             )}
           </div>
