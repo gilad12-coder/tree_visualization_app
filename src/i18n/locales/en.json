@@ -448,7 +448,11 @@
   "chartOperations": {
     "chartCentered": "Chart centered successfully",
     "parsingIssues": "Parsing encountered issues. The log has been downloaded for your review.",
+    "parsingIssuesDownloaded": "Parsing encountered issues. The error log has been downloaded for your review.",
+    "parsingIssuesExist": "Parsing issues detected. The error log was previously downloaded.",
     "errorDownloadLog": "An error occurred. The error log has been downloaded for your review.",
+    "errorDownloadedLog": "An error occurred. The error log has been downloaded for your review.",
+    "errorExists": "An error occurred. The error log was previously downloaded.",
     "failedToFetchOrgData": "Failed to fetch organization data. Please try again.",
     "excelDownloadSuccess": "Excel file downloaded successfully",
     "excelDownloadFailed": "Failed to export as Excel. Please try again.",

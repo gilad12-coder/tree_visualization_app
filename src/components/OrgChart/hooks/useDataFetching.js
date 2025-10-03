@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -6,8 +6,8 @@ import { useTranslation } from 'react-i18next';
 const API_BASE_URL = "http://localhost:5001";
 
 const useDataFetching = (
-  dbPath, 
-  selectedTableId, 
+  dbPath,
+  selectedTableId,
   selectedFolderId,
   setIsLoading,
   setError,
@@ -18,6 +18,7 @@ const useDataFetching = (
   setOrgModePosition
 ) => {
   const { t } = useTranslation();
+  const downloadedLogsRef = useRef(new Set());
 
   const fetchData = useCallback(async () => {
     if (!dbPath || !selectedTableId) return;
@@ -37,14 +38,23 @@ const useDataFetching = (
       setFolderStructure(folderResponse.data);
 
       if (orgDataResponse.data.log) {
-        const blob = new Blob([JSON.stringify(orgDataResponse.data.log, null, 2)], { type: 'application/json' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'parsing_log.json';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.warning(t('chartOperations.parsingIssues'));
+        const logKey = `warning_${selectedTableId}`;
+
+        if (!downloadedLogsRef.current.has(logKey)) {
+          // First time seeing errors for this table - download the log
+          const blob = new Blob([JSON.stringify(orgDataResponse.data.log, null, 2)], { type: 'application/json' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `parsing_log_table_${selectedTableId}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          downloadedLogsRef.current.add(logKey);
+          toast.warning(t('chartOperations.parsingIssuesDownloaded'));
+        } else {
+          // Already downloaded for this table - just show a toast
+          toast.warning(t('chartOperations.parsingIssuesExist'));
+        }
       }
 
       setOrgData(orgDataResponse.data.org_chart);
@@ -58,14 +68,23 @@ const useDataFetching = (
       setFilteredOrgData(null);
 
       if (error.response?.data?.log) {
-        const blob = new Blob([JSON.stringify(error.response.data.log, null, 2)], { type: 'application/json' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'error_log.json';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.error(t('chartOperations.errorDownloadLog'));
+        const logKey = `error_${selectedTableId}`;
+
+        if (!downloadedLogsRef.current.has(logKey)) {
+          // First time seeing errors for this table - download the log
+          const blob = new Blob([JSON.stringify(error.response.data.log, null, 2)], { type: 'application/json' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `error_log_table_${selectedTableId}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          downloadedLogsRef.current.add(logKey);
+          toast.error(t('chartOperations.errorDownloadedLog'));
+        } else {
+          // Already downloaded for this table - just show a toast
+          toast.error(t('chartOperations.errorExists'));
+        }
       }
     } finally {
       setIsLoading(false);

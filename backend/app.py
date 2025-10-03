@@ -15,7 +15,7 @@ from flask_cors import CORS
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, inspect, or_, and_
 
-from models import (
+from backend.models import (
     Folder,
     Table,
     DataEntry,
@@ -27,7 +27,7 @@ from models import (
     check_db_schema,
     is_valid_sqlite_db,
 )
-from utils import (
+from backend.utils import (
     process_excel_data,
     insert_data_entries,
     get_org_chart,
@@ -36,7 +36,7 @@ from utils import (
     export_excel_data,
     generate_hierarchical_structure,
 )
-from report_service import OrganizationReportService
+from backend.report_service import OrganizationReportService
 
 def resource_path(relative_path: str) -> str:
     """

@@ -44,6 +44,11 @@ def parse_org_data(df):
     nodes = {}
     roots = []
     log = {
+        "metadata": {
+            "total_rows_processed": len(df),
+            "timestamp": datetime.now().isoformat(),
+            "data_source": "organization_chart_parser"
+        },
         "errors": {
             "invalid_structure": [],
             "missing_structure": [],
@@ -60,7 +65,20 @@ def parse_org_data(df):
         },
         "summary": {
             "total_errors": 0,
-            "error_types": []
+            "error_types": [],
+            "total_nodes_created": 0,
+            "total_roots_found": 0,
+            "max_tree_depth": 0
+        },
+        "error_descriptions": {
+            "invalid_structure": "Hierarchical structure format is invalid (must start with '/')",
+            "missing_structure": "Hierarchical structure field is missing or empty",
+            "invalid_date": "Birth date or upload date is in an invalid format",
+            "disconnected_nodes": "Node's parent does not exist in the tree",
+            "excluded_nodes": "Node belongs to a different root tree and was excluded",
+            "disconnected_and_excluded": "Node is both disconnected from its parent and excluded from the main tree",
+            "missing_root": "No root node (level 1) was found in the data",
+            "duplicated_nodes": "Multiple nodes share the same hierarchical structure path"
         }
     }
     disconnected_nodes = {}
@@ -232,10 +250,32 @@ def parse_org_data(df):
 
     # Prepare the result
     result = nodes[main_root] if main_root else None
-    
+
+    # Calculate tree statistics
+    def calculate_max_depth(node, current_depth=1):
+        if not node or 'children' not in node:
+            return current_depth
+        if not node['children']:
+            return current_depth
+        return max(calculate_max_depth(child, current_depth + 1) for child in node['children'])
+
+    # Update summary statistics
+    log["summary"]["total_nodes_created"] = len(nodes)
+    log["summary"]["total_roots_found"] = len(roots)
+    if result:
+        log["summary"]["max_tree_depth"] = calculate_max_depth(result)
+
     # Remove empty error categories
     log["errors"] = {k: v for k, v in log["errors"].items() if v}
-    
+
+    # Add quick stats for better visibility
+    if log["summary"]["total_errors"] > 0:
+        log["quick_stats"] = {
+            "success_rate": f"{((log['summary']['total_nodes_created'] - log['summary']['total_errors']) / log['metadata']['total_rows_processed'] * 100):.2f}%",
+            "nodes_with_errors": log["summary"]["total_errors"],
+            "nodes_successfully_processed": log["summary"]["total_nodes_created"] - log["summary"]["total_errors"]
+        }
+
     # Return the parsing log only if there were errors
     if log["summary"]["total_errors"] > 0:
         return result, log
