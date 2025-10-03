@@ -1,53 +1,58 @@
 # -*- mode: python ; coding: utf-8 -*-
+"""
+PyInstaller spec file for Tree Visualization App
+This builds a standalone executable with embedded React frontend
+"""
 
 import os
 import sys
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_dynamic_libs
 
-block_cipher = None
-
-# Add the project root and backend folder to the Python path
+# Get the project root directory
 project_root = os.path.abspath('.')
-backend_folder = os.path.abspath('backend')
-sys.path.append(project_root)
-sys.path.append(backend_folder)
 
-# Path to the entry point script
-main_path = os.path.join('backend', 'run.py')  # Use the run.py from backend folder
+# Verify main.py exists
+if not os.path.exists('main.py'):
+    print("ERROR: main.py not found!")
+    sys.exit(1)
 
-# Verify the run.py file exists
-if not os.path.exists(main_path):
-    print(f"WARNING: Entry point {main_path} not found!")
-    print("Make sure the run.py file exists in the backend directory.")
-
-# Verify React build directory exists and contains the necessary files
+# Verify React build directory exists
 build_dir = os.path.join(project_root, 'build')
 if not os.path.exists(build_dir):
-    print(f"WARNING: React build directory not found at {build_dir}")
-    print("The application may not run correctly. Make sure to build the React frontend first.")
-else:
-    index_html = os.path.join(build_dir, 'index.html')
-    if not os.path.exists(index_html):
-        print(f"WARNING: index.html not found in {build_dir}")
-        print("The React application may not have been built correctly.")
+    print("\n" + "="*80)
+    print("WARNING: React build directory not found!")
+    print("You MUST run 'npm run build' before building the executable.")
+    print("The build/ directory must exist and contain the compiled React app.")
+    print("="*80 + "\n")
+    sys.exit(1)
 
-# Ensure all frontend files are explicitly included
-print(f"Adding React build files from: {build_dir}")
-frontend_files = []
-if os.path.exists(build_dir):
-    # Walk through the build directory and add all files
-    for root, dirs, files in os.walk(build_dir):
-        for file in files:
-            file_path = os.path.join(root, file)
-            rel_path = os.path.relpath(file_path, project_root)
-            target_path = os.path.dirname(rel_path)
-            frontend_files.append((file_path, target_path))
-    print(f"Added {len(frontend_files)} frontend files")
+# Verify critical React files exist
+required_files = ['index.html', 'static']
+for file in required_files:
+    if not os.path.exists(os.path.join(build_dir, file)):
+        print(f"ERROR: Required file/folder '{file}' not found in build/")
+        print("Please run 'npm run build' to create the React build.")
+        sys.exit(1)
 
-# Collect backend data files
-backend_data = collect_data_files('backend')
+print(f"✓ Found React build directory: {build_dir}")
+print(f"✓ Entry point: main.py")
 
-# Collect public files (like favicons, etc.)
+# Collect all React build files recursively
+build_files = []
+for root, dirs, files in os.walk(build_dir):
+    for file in files:
+        file_path = os.path.join(root, file)
+        # Calculate relative path from build directory
+        rel_path = os.path.relpath(root, build_dir)
+        if rel_path == '.':
+            dest_path = 'build'
+        else:
+            dest_path = os.path.join('build', rel_path)
+        build_files.append((file_path, dest_path))
+
+print(f"✓ Collected {len(build_files)} React build files")
+
+# Collect public assets (favicons, icons, etc.)
 public_dir = os.path.join(project_root, 'public')
 public_files = []
 if os.path.exists(public_dir):
@@ -55,92 +60,121 @@ if os.path.exists(public_dir):
         file_path = os.path.join(public_dir, file)
         if os.path.isfile(file_path):
             public_files.append((file_path, 'public'))
+    print(f"✓ Collected {len(public_files)} public assets")
 
-# Additional data files
+# Additional documentation files
 additional_data = []
 if os.path.exists('README.md'):
     additional_data.append(('README.md', '.'))
 
-# Create a small browser helper script
-with open(os.path.join(project_root, 'browser_helper.py'), 'w') as f:
-    f.write("""
-import time
-import webbrowser
-time.sleep(2)  # Give the server more time to start up
-webbrowser.open_new('http://localhost:5001/')
-""")
-additional_data.append((os.path.join(project_root, 'browser_helper.py'), '.'))
+# Collect backend modules and data files
+backend_modules = collect_submodules('backend')
 
-# Collect all dynamic libraries that might be needed
-dylibs = collect_dynamic_libs('ctypes')
+# Collect backend fonts directory if it exists
+backend_fonts = []
+backend_fonts_dir = os.path.join(project_root, 'backend', 'fonts')
+if os.path.exists(backend_fonts_dir):
+    for root, dirs, files in os.walk(backend_fonts_dir):
+        for file in files:
+            file_path = os.path.join(root, file)
+            rel_path = os.path.relpath(root, project_root)
+            backend_fonts.append((file_path, rel_path))
+    if backend_fonts:
+        print(f"✓ Collected {len(backend_fonts)} backend font files")
 
+# Collect Flask dependencies
+flask_data = collect_data_files('flask')
+werkzeug_data = collect_data_files('werkzeug')
+
+# Hidden imports (packages that PyInstaller might miss)
+hidden_imports = [
+    # Backend modules - explicitly include models
+    'backend',
+    'backend.models',
+    'backend.app',
+    'backend.utils',
+    'backend.report_service',
+    # SQLAlchemy
+    'sqlalchemy.ext.baked',
+    # Pandas internal modules
+    'pandas._libs.tslibs.timedeltas',
+    'pandas._libs.tslibs.np_datetime',
+    'pandas._libs.tslibs.nattype',
+    # Flask and dependencies
+    'flask',
+    'flask_cors',
+    'werkzeug',
+    'jinja2',
+    'click',
+    'itsdangerous',
+    'markupsafe',
+    # Standard library
+    'sqlite3',
+    'json',
+    'threading',
+    'webbrowser',
+    'time',
+]
+
+# Add all discovered backend modules to hidden imports
+hidden_imports.extend(backend_modules)
+
+print(f"✓ Added {len(hidden_imports)} hidden imports")
+
+# Verify runtime hook exists
+runtime_hook_path = os.path.join(project_root, 'pyi_rth_backend.py')
+if not os.path.exists(runtime_hook_path):
+    print(f"ERROR: Runtime hook not found: {runtime_hook_path}")
+    sys.exit(1)
+print(f"✓ Found runtime hook: pyi_rth_backend.py")
+
+# Analysis
 a = Analysis(
-    [main_path],
-    pathex=[project_root, backend_folder],
-    binaries=dylibs,  # Add dylibs here
-    datas=backend_data + frontend_files + public_files + additional_data,
-    hiddenimports=[
-        # Core application modules
-        'main',  # Import main.py as a module
-        
-        # Backend modules
-        'backend.models', 'backend.utils', 'backend.report_service', 
-        
-        # Core dependencies
-        'webbrowser', 'flask', 'flask_cors', 'pandas', 'sqlalchemy', 'sqlite3', 
-        'openpyxl', 'networkx', 'fpdf', 'reportlab',
-        
-        # Explicitly include problematic packages
-        'ctypes', '_ctypes',
-        
-        # Fix package names that caused "hidden import not found" errors
-        'dateutil', 'python-dateutil', 'PIL', 'PIL.Image',  
-        
-        # Supporting modules
-        'threading', 'datetime', 'json',
-        
-        # Ensure all backend modules are included
-        'backend'
-    ] + collect_submodules('backend') + collect_submodules('ctypes'),
+    ['main.py'],
+    pathex=[project_root, os.path.join(project_root, 'backend')],
+    binaries=[],
+    datas=build_files + public_files + additional_data + backend_fonts + flask_data + werkzeug_data,
+    hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=[os.path.join(project_root, 'pyi_rth_backend.py')],
     excludes=[
-        'matplotlib',  # Exclude matplotlib entirely
-        'pyi_rth_mplconfig',  # Exclude the matplotlib runtime hook
-        'PyQt5',  # Often used with matplotlib
-        'qt5',
-        'tkinter'  # Not needed if not using GUI
+        'matplotlib',
+        'numpy.distutils',
+        'tkinter',
+        'PyQt5',
+        'pytest',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
+    cipher=None,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+# PYZ (Python zip archive)
+pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
-# Change the output directory to avoid the circular reference
+# EXE
 exe = EXE(
     pyz,
     a.scripts,
-    [],  # Important: Don't include a.binaries, a.zipfiles, a.datas here
-    exclude_binaries=True,  # This is important to avoid the circular reference
+    [],
+    exclude_binaries=True,
     name='TreeVisualizationApp',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Show console for debugging; change to False for production
+    console=True,  # Show console for debugging
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='public/favicon.ico' if os.path.exists('public/favicon.ico') else None,
+    icon=os.path.join(project_root, 'public', 'favicon.ico') if os.path.exists(os.path.join(project_root, 'public', 'favicon.ico')) else None,
 )
 
-# Create a directory with all the binaries 
+# COLLECT (bundle everything together)
 coll = COLLECT(
     exe,
     a.binaries,
@@ -149,5 +183,11 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='TreeVisualizationApp'
+    name='TreeVisualizationApp',
 )
+
+print("\n" + "="*80)
+print("PyInstaller spec file configured successfully!")
+print("Run: pyinstaller app.spec")
+print("Output will be in: dist/TreeVisualizationApp/")
+print("="*80 + "\n")

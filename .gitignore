@@ -11,6 +11,11 @@
 # production
 /build
 
+# PyInstaller build artifacts
+/dist
+build/app/
+*.spec.bak
+
 # misc
 .DS_Store
 .env.local
@@ -21,13 +26,28 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Python
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Databases and data files
 *.db
+*.sqlite
 *.csv
 
+# IDE
 *.xml
-
 *.iml
+.qodo/
+.idea/
+.vscode/
 
-*.pyc
-.qodo
-.idea/.gitignore
+# OS
+.DS_Store
+Thumbs.db

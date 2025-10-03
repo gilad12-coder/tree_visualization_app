@@ -38,7 +38,7 @@ const convertToUTCDate = (date) =>
 const formatDateForAPI = (date) => date.toISOString().split("T")[0];
 
 const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [selectedFile, setSelectedFile] = useState(null);
   const [folderName, setFolderName] = useState("");
   const [uploadDate, setUploadDate] = useState(null);

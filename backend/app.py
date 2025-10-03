@@ -69,7 +69,32 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, static_folder='build', static_url_path='')
+def get_build_folder():
+    """
+    Get the correct path to the build folder.
+    Works both in development and when frozen by PyInstaller.
+    """
+    if getattr(sys, 'frozen', False):
+        # Running in PyInstaller bundle
+        base_path = sys._MEIPASS
+        build_path = os.path.join(base_path, 'build')
+        logger.info(f"Running as frozen app. Build folder: {build_path}")
+    else:
+        # Running in development
+        # Go up one directory from backend/ to reach project root
+        backend_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(backend_dir)
+        build_path = os.path.join(project_root, 'build')
+        logger.info(f"Running in development. Build folder: {build_path}")
+
+    if not os.path.exists(build_path):
+        logger.error(f"Build folder not found at: {build_path}")
+    else:
+        logger.info(f"Build folder exists with {len(os.listdir(build_path))} items")
+
+    return build_path
+
+app = Flask(__name__, static_folder=get_build_folder(), static_url_path='')
 CORS(app)
 
 @app.errorhandler(Exception)
