@@ -1,5 +1,5 @@
 import pandas as pd
-from models import Table, DataEntry, get_session
+from backend.models import Table, DataEntry, get_session
 import io
 import logging
 from datetime import datetime
