@@ -226,14 +226,12 @@ const TreeNode = ({
     e.preventDefault();
     e.stopPropagation();
 
-    // Call the context menu handler if provided (for add/edit/delete operations)
+    // Always prioritize context menu if provided
     if (onContextMenu) {
       onContextMenu(e, node);
-    } else if (node?.hierarchical_structure && onHighlight) {
-      // Fallback to highlight if no context menu handler
-      onHighlight(node.hierarchical_structure);
     }
-  }, [node, onHighlight, onContextMenu]);
+    // Never fallback to highlight - right-click is exclusively for context menu
+  }, [node, onContextMenu]);
   
   const handleMouseDown = useCallback((e) => {
     if (e.button !== 0 || !node) return;
