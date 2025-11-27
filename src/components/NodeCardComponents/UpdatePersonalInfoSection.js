@@ -25,6 +25,7 @@ import PopupInfoModal from '../HelperComponents/PopupInfoModal';
 import '../../styles/datepicker.css';
 import '../../styles/fonts.css';
 import '../../styles/scrollbar.css';
+import '../../styles/radio.css';
 import DatePickerWrapper from '../HelperComponents/DatePickerWrapper';
 
 const API_BASE_URL = "http://localhost:5001";

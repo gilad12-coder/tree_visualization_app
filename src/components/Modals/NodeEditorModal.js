@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, User, Briefcase, Home } from 'react-feather';
+import { X, Save, User, Briefcase, Heart, ArrowLeft } from 'react-feather';
 import { useTranslation } from 'react-i18next';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
+import '../../styles/radio.css';
 
 const THEME = {
   primary: '#1F2937',
@@ -21,7 +22,8 @@ const NodeEditorModal = ({
   mode = 'add',
   parentNode = null
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
 
   const [formData, setFormData] = useState({
     name: '',
@@ -38,6 +40,7 @@ const NodeEditorModal = ({
   });
 
   const [errors, setErrors] = useState({});
+  const [currentTab, setCurrentTab] = useState('personal'); // 'personal', 'role', 'status'
 
   useEffect(() => {
     if (mode === 'edit' && nodeData) {
@@ -77,6 +80,11 @@ const NodeEditorModal = ({
     }
   };
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    handleChange(name, value);
+  };
+
   const validate = () => {
     const newErrors = {};
 
@@ -105,6 +113,258 @@ const NodeEditorModal = ({
 
   if (!isOpen) return null;
 
+  const tabs = [
+    {
+      id: 'personal',
+      label: t('updatePersonalInfo.personalDetails'),
+      icon: <User size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />
+    },
+    {
+      id: 'role',
+      label: t('updatePersonalInfo.roleInformation'),
+      icon: <Briefcase size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />
+    },
+    {
+      id: 'status',
+      label: t('updatePersonalInfo.status'),
+      icon: <Heart size={16} className="mr-1 rtl:mr-0 rtl:ml-1" />
+    }
+  ];
+
+  // Render form fields for personal information
+  const renderPersonalInfoFields = () => (
+    <div className="space-y-3">
+      <div className="p-3 bg-gray-50 rounded-md">
+        <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
+          <User size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+          {t('updatePersonalInfo.personalDetailsUpper')}
+        </h3>
+        <div className="space-y-3">
+          {/* Name field */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="name" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.fullName')} *
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name || ''}
+              onChange={handleInputChange}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.name))}`}
+              dir={getTextDirection(getLanguage(formData.name))}
+            />
+            {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
+          </div>
+
+          {/* Person ID field */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="person_id" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.personId')}
+            </label>
+            <input
+              type="text"
+              id="person_id"
+              name="person_id"
+              value={formData.person_id || ''}
+              onChange={handleInputChange}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Birth date field */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="birth_date" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.birthDate')}
+            </label>
+            <input
+              type="date"
+              id="birth_date"
+              name="birth_date"
+              value={formData.birth_date || ''}
+              onChange={handleInputChange}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Personal information */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="personal_information" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.additionalPersonalInfo')}
+            </label>
+            <textarea
+              id="personal_information"
+              name="personal_information"
+              value={formData.personal_information || ''}
+              onChange={handleInputChange}
+              rows={4}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.personal_information))}`}
+              dir={getTextDirection(getLanguage(formData.personal_information))}
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render form fields for role information
+  const renderRoleInfoFields = () => (
+    <div className="space-y-3">
+      <div className="p-3 bg-gray-50 rounded-md">
+        <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
+          <Briefcase size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+          {t('updatePersonalInfo.roleAndPosition')}
+        </h3>
+        <div className="space-y-3">
+          {/* Role field */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="role" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.positionRole')} *
+            </label>
+            <input
+              type="text"
+              id="role"
+              name="role"
+              value={formData.role || ''}
+              onChange={handleInputChange}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role))}`}
+              dir={getTextDirection(getLanguage(formData.role))}
+            />
+            {errors.role && <p className="text-xs text-red-600 mt-1">{errors.role}</p>}
+          </div>
+
+          {/* Department field */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="department" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.department')}
+            </label>
+            <input
+              type="text"
+              id="department"
+              name="department"
+              value={formData.department || ''}
+              onChange={handleInputChange}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.department))}`}
+              dir={getTextDirection(getLanguage(formData.department))}
+            />
+          </div>
+
+          {/* Rank field */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="rank" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.rank')}
+            </label>
+            <input
+              type="text"
+              id="rank"
+              name="rank"
+              value={formData.rank || ''}
+              onChange={handleInputChange}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.rank))}`}
+              dir={getTextDirection(getLanguage(formData.rank))}
+            />
+          </div>
+
+          {/* Organization ID field */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="organization_id" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.organizationId')}
+            </label>
+            <input
+              type="text"
+              id="organization_id"
+              name="organization_id"
+              value={formData.organization_id || ''}
+              onChange={handleInputChange}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_id))}`}
+              dir={getTextDirection(getLanguage(formData.organization_id))}
+            />
+          </div>
+
+          {/* Organization Name field */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="organization_name" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.organizationName')}
+            </label>
+            <input
+              type="text"
+              id="organization_name"
+              name="organization_name"
+              value={formData.organization_name || ''}
+              onChange={handleInputChange}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_name))}`}
+              dir={getTextDirection(getLanguage(formData.organization_name))}
+            />
+          </div>
+
+          {/* Role information */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="role_information" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.additionalRoleInfo')}
+            </label>
+            <textarea
+              id="role_information"
+              name="role_information"
+              value={formData.role_information || ''}
+              onChange={handleInputChange}
+              rows={4}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role_information))}`}
+              dir={getTextDirection(getLanguage(formData.role_information))}
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render status fields
+  const renderStatusFields = () => (
+    <div className="space-y-3">
+      <div className="p-3 bg-gray-50 rounded-md">
+        <h3 className="text-xs font-medium text-gray-500 mb-2 flex items-center">
+          <Heart size={14} className="mr-1 rtl:mr-0 rtl:ml-1" />
+          {t('updatePersonalInfo.statusInformation')}
+        </h3>
+        <div className="space-y-3">
+          {/* Status field - Radio buttons */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label className="block text-xs font-medium text-gray-500 mb-2">
+              {t('updatePersonalInfo.currentStatus')}
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="is_dead"
+                  value="alive"
+                  checked={formData.is_dead === 'alive'}
+                  onChange={handleInputChange}
+                  className="mr-2 rtl:mr-0 rtl:ml-2"
+                />
+                <span className="text-sm text-gray-700">
+                  {t('updatePersonalInfo.alive', 'Alive')}
+                </span>
+              </label>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="is_dead"
+                  value="dead"
+                  checked={formData.is_dead === 'dead'}
+                  onChange={handleInputChange}
+                  className="mr-2 rtl:mr-0 rtl:ml-2"
+                />
+                <span className="text-sm text-gray-700">
+                  {t('updatePersonalInfo.deceased', 'Deceased')}
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -121,7 +381,7 @@ const NodeEditorModal = ({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full overflow-hidden flex flex-col"
+            className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
             style={{ maxHeight: "calc(100vh - 40px)" }}
           >
@@ -141,234 +401,29 @@ const NodeEditorModal = ({
               </button>
             </div>
 
+            {/* Tab Navigation */}
+            <div className="flex border-b border-gray-200 bg-gray-50">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setCurrentTab(tab.id)}
+                  className={`flex-1 px-4 py-3 text-xs font-medium flex items-center justify-center transition-colors ${
+                    currentTab === tab.id
+                      ? 'bg-white border-b-2 border-gray-800 text-gray-900'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
             {/* Content */}
-            <div className="flex-grow overflow-y-auto p-6" style={{ maxHeight: "calc(100vh - 180px)" }}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                {/* Left Column - Personal & Role */}
-                <div className="space-y-4">
-                  {/* Personal Section */}
-                  <div className="p-4 bg-gray-50 rounded-md">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                      <User size={16} className="mr-2" />
-                      {t('nodeEditor.personalInformation', 'Personal Information')}
-                    </h3>
-                    <div className="space-y-3">
-                      {/* Name */}
-                      <div>
-                        <label htmlFor="name" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.name', 'Full Name')} <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          id="name"
-                          value={formData.name}
-                          onChange={(e) => handleChange('name', e.target.value)}
-                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent ${getFontClass(getLanguage(formData.name))}`}
-                          dir={getTextDirection(getLanguage(formData.name))}
-                          placeholder={t('nodeEditor.namePlaceholder', 'e.g., John Doe')}
-                        />
-                        {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
-                      </div>
-
-                      {/* Person ID */}
-                      <div>
-                        <label htmlFor="person_id" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.personId', 'Person ID')}
-                        </label>
-                        <input
-                          type="text"
-                          id="person_id"
-                          value={formData.person_id}
-                          onChange={(e) => handleChange('person_id', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
-                          placeholder={t('nodeEditor.personIdPlaceholder', 'e.g., 12345')}
-                        />
-                      </div>
-
-                      {/* Birth Date */}
-                      <div>
-                        <label htmlFor="birth_date" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.birthDate', 'Birth Date')}
-                        </label>
-                        <input
-                          type="date"
-                          id="birth_date"
-                          value={formData.birth_date}
-                          onChange={(e) => handleChange('birth_date', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
-                        />
-                      </div>
-
-                      {/* Status - Radio Buttons */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-2">
-                          {t('nodeEditor.status', 'Status')}
-                        </label>
-                        <div className="flex gap-4">
-                          <label className="flex items-center cursor-pointer">
-                            <input
-                              type="radio"
-                              name="is_dead"
-                              value="alive"
-                              checked={formData.is_dead === 'alive'}
-                              onChange={(e) => handleChange('is_dead', e.target.value)}
-                              className="mr-2"
-                            />
-                            <span className="text-sm text-gray-700">
-                              {t('nodeEditor.alive', 'Alive')}
-                            </span>
-                          </label>
-                          <label className="flex items-center cursor-pointer">
-                            <input
-                              type="radio"
-                              name="is_dead"
-                              value="dead"
-                              checked={formData.is_dead === 'dead'}
-                              onChange={(e) => handleChange('is_dead', e.target.value)}
-                              className="mr-2"
-                            />
-                            <span className="text-sm text-gray-700">
-                              {t('nodeEditor.deceased', 'Deceased')}
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-
-                      {/* Personal Information */}
-                      <div>
-                        <label htmlFor="personal_information" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.additionalInfo', 'Additional Notes')}
-                        </label>
-                        <textarea
-                          id="personal_information"
-                          value={formData.personal_information}
-                          onChange={(e) => handleChange('personal_information', e.target.value)}
-                          rows={3}
-                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent ${getFontClass(getLanguage(formData.personal_information))}`}
-                          dir={getTextDirection(getLanguage(formData.personal_information))}
-                          placeholder={t('nodeEditor.personalInfoPlaceholder', 'Additional personal notes...')}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Role Section */}
-                  <div className="p-4 bg-gray-50 rounded-md">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                      <Briefcase size={16} className="mr-2" />
-                      {t('nodeEditor.roleInformation', 'Role & Position')}
-                    </h3>
-                    <div className="space-y-3">
-                      {/* Role */}
-                      <div>
-                        <label htmlFor="role" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.role', 'Role/Position')} <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          id="role"
-                          value={formData.role}
-                          onChange={(e) => handleChange('role', e.target.value)}
-                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent ${getFontClass(getLanguage(formData.role))}`}
-                          dir={getTextDirection(getLanguage(formData.role))}
-                          placeholder={t('nodeEditor.rolePlaceholder', 'e.g., Manager')}
-                        />
-                        {errors.role && <p className="text-xs text-red-600 mt-1">{errors.role}</p>}
-                      </div>
-
-                      {/* Department */}
-                      <div>
-                        <label htmlFor="department" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.department', 'Department')}
-                        </label>
-                        <input
-                          type="text"
-                          id="department"
-                          value={formData.department}
-                          onChange={(e) => handleChange('department', e.target.value)}
-                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent ${getFontClass(getLanguage(formData.department))}`}
-                          dir={getTextDirection(getLanguage(formData.department))}
-                          placeholder={t('nodeEditor.departmentPlaceholder', 'e.g., Engineering')}
-                        />
-                      </div>
-
-                      {/* Rank */}
-                      <div>
-                        <label htmlFor="rank" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.rank', 'Rank')}
-                        </label>
-                        <input
-                          type="text"
-                          id="rank"
-                          value={formData.rank}
-                          onChange={(e) => handleChange('rank', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
-                          placeholder={t('nodeEditor.rankPlaceholder', 'e.g., Senior')}
-                        />
-                      </div>
-
-                      {/* Role Information */}
-                      <div>
-                        <label htmlFor="role_information" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.roleDetails', 'Role Details')}
-                        </label>
-                        <textarea
-                          id="role_information"
-                          value={formData.role_information}
-                          onChange={(e) => handleChange('role_information', e.target.value)}
-                          rows={3}
-                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent ${getFontClass(getLanguage(formData.role_information))}`}
-                          dir={getTextDirection(getLanguage(formData.role_information))}
-                          placeholder={t('nodeEditor.roleInfoPlaceholder', 'Additional role details...')}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column - Organization */}
-                <div className="space-y-4">
-                  <div className="p-4 bg-gray-50 rounded-md">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                      <Home size={16} className="mr-2" />
-                      {t('nodeEditor.organizationInformation', 'Organization')}
-                    </h3>
-                    <div className="space-y-3">
-                      {/* Organization ID */}
-                      <div>
-                        <label htmlFor="organization_id" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.organizationId', 'Organization ID')}
-                        </label>
-                        <input
-                          type="text"
-                          id="organization_id"
-                          value={formData.organization_id}
-                          onChange={(e) => handleChange('organization_id', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
-                          placeholder={t('nodeEditor.organizationIdPlaceholder', 'e.g., ORG-001')}
-                        />
-                      </div>
-
-                      {/* Organization Name */}
-                      <div>
-                        <label htmlFor="organization_name" className="block text-xs font-medium text-gray-600 mb-1">
-                          {t('nodeEditor.organizationName', 'Organization Name')}
-                        </label>
-                        <input
-                          type="text"
-                          id="organization_name"
-                          value={formData.organization_name}
-                          onChange={(e) => handleChange('organization_name', e.target.value)}
-                          className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent ${getFontClass(getLanguage(formData.organization_name))}`}
-                          dir={getTextDirection(getLanguage(formData.organization_name))}
-                          placeholder={t('nodeEditor.organizationNamePlaceholder', 'e.g., Acme Corp')}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="flex-grow overflow-y-auto p-4 custom-scrollbar" style={{ maxHeight: "calc(100vh - 220px)" }}>
+              {currentTab === 'personal' && renderPersonalInfoFields()}
+              {currentTab === 'role' && renderRoleInfoFields()}
+              {currentTab === 'status' && renderStatusFields()}
             </div>
 
             {/* Footer */}
