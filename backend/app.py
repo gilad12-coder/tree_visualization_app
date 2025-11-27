@@ -2339,3 +2339,7 @@ def delete_node(table_id: int) -> Any:
     except Exception as e:
         logger.error(f"Error deleting node: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    # Start the Flask server when running app.py directly
+    app.run(host='0.0.0.0', port=5001, debug=True, threaded=True)
