@@ -15,28 +15,54 @@ from flask_cors import CORS
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, inspect, or_, and_
 
-from backend.models import (
-    Folder,
-    Table,
-    DataEntry,
-    get_session,
-    dispose_db,
-    create_new_db,
-    init_db,
-    set_db_path,
-    check_db_schema,
-    is_valid_sqlite_db,
-)
-from backend.utils import (
-    process_excel_data,
-    insert_data_entries,
-    get_org_chart,
-    get_department_structure,
-    get_age_distribution,
-    export_excel_data,
-    generate_hierarchical_structure,
-)
-from backend.report_service import OrganizationReportService
+try:
+    # Try absolute import first (for when running from project root)
+    from backend.models import (
+        Folder,
+        Table,
+        DataEntry,
+        get_session,
+        dispose_db,
+        create_new_db,
+        init_db,
+        set_db_path,
+        check_db_schema,
+        is_valid_sqlite_db,
+    )
+    from backend.utils import (
+        process_excel_data,
+        insert_data_entries,
+        get_org_chart,
+        get_department_structure,
+        get_age_distribution,
+        export_excel_data,
+        generate_hierarchical_structure,
+    )
+    from backend.report_service import OrganizationReportService
+except ModuleNotFoundError:
+    # Fallback to relative imports (for when running from backend directory)
+    from models import (
+        Folder,
+        Table,
+        DataEntry,
+        get_session,
+        dispose_db,
+        create_new_db,
+        init_db,
+        set_db_path,
+        check_db_schema,
+        is_valid_sqlite_db,
+    )
+    from utils import (
+        process_excel_data,
+        insert_data_entries,
+        get_org_chart,
+        get_department_structure,
+        get_age_distribution,
+        export_excel_data,
+        generate_hierarchical_structure,
+    )
+    from report_service import OrganizationReportService
 
 def resource_path(relative_path: str) -> str:
     """
