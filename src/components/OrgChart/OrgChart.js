@@ -794,8 +794,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
               ) : (
                 <TreeNode
                   key={`tree-${swapKey}`}
-                  node={isHierarchyMode ? 
-                        (hierarchyModeData || filteredOrgData) : 
+                  node={isHierarchyMode ?
+                        (hierarchyModeData || filteredOrgData) :
                         filteredOrgData}
                   onNodeClick={handleNodeClickWrapper}
                   expandAll={expandAll}
@@ -830,6 +830,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
                   onSwapNodes={handleSwapNodesWithRerender}
                   onCancelSwap={handleCancelSwap}
                   swapKey={swapKey}
+                  onContextMenu={handleContextMenu}
                 />
               )}
             </div>

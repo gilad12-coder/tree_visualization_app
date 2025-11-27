@@ -7,13 +7,13 @@ const DEFAULT_NODE_COLOR = '#F5F7FA';
 
 const expandedNodesMap = new Map();
 
-const TreeNode = ({ 
-  node, 
-  onNodeClick, 
-  depth = 0, 
-  expandAll, 
-  collapseAll, 
-  folderId, 
+const TreeNode = ({
+  node,
+  onNodeClick,
+  depth = 0,
+  expandAll,
+  collapseAll,
+  folderId,
   tableId,
   highlightedNodes,
   onHighlight,
@@ -36,7 +36,8 @@ const TreeNode = ({
   onSelectForSwap = null,
   onSwapNodes = null,
   onCancelSwap = null,
-  swapKey = 0
+  swapKey = 0,
+  onContextMenu
 }) => {
   const nodeKey = node?.hierarchical_structure || `${depth}-${parentNodeId}-${node?.name}`;
   const [isExpanded, setIsExpanded] = useState(() => {
@@ -224,11 +225,15 @@ const TreeNode = ({
   const handleRightClick = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (node?.hierarchical_structure) {
+
+    // Call the context menu handler if provided (for add/edit/delete operations)
+    if (onContextMenu) {
+      onContextMenu(e, node);
+    } else if (node?.hierarchical_structure && onHighlight) {
+      // Fallback to highlight if no context menu handler
       onHighlight(node.hierarchical_structure);
     }
-  }, [node, onHighlight]);
+  }, [node, onHighlight, onContextMenu]);
   
   const handleMouseDown = useCallback((e) => {
     if (e.button !== 0 || !node) return;
@@ -660,10 +665,10 @@ const TreeNode = ({
                       </>
                     )}
                     {!isSingleChild && <div className="w-1 bg-gray-400 h-8 mb-4" />}
-                    <TreeNode 
-                      node={child} 
-                      onNodeClick={onNodeClick} 
-                      depth={depth + 1} 
+                    <TreeNode
+                      node={child}
+                      onNodeClick={onNodeClick}
+                      depth={depth + 1}
                       expandAll={expandAll}
                       collapseAll={collapseAll}
                       folderId={folderId}
@@ -689,6 +694,8 @@ const TreeNode = ({
                       onSelectForSwap={onSelectForSwap}
                       onSwapNodes={onSwapNodes}
                       onCancelSwap={onCancelSwap}
+                      swapKey={swapKey}
+                      onContextMenu={onContextMenu}
                     />
                   </div>
                 );
