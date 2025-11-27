@@ -466,20 +466,39 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
           {t('updatePersonalInfo.statusInformation')}
         </h3>
         <div className="space-y-3">
-          {/* Status field */}
+          {/* Status field - Radio buttons */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
-            <label htmlFor="is_dead" className="block text-xs font-medium text-gray-500 mb-1">
+            <label className="block text-xs font-medium text-gray-500 mb-2">
               {t('updatePersonalInfo.currentStatus')}
             </label>
-            <input
-              type="text"
-              id="is_dead"
-              name="is_dead"
-              value={formData.is_dead || ''}
-              onChange={handleInputChange}
-              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.is_dead))}`}
-              dir={getTextDirection(getLanguage(formData.is_dead))}
-            />
+            <div className="flex gap-4">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="is_dead"
+                  value="alive"
+                  checked={formData.is_dead === 'alive'}
+                  onChange={handleInputChange}
+                  className="mr-2 rtl:mr-0 rtl:ml-2"
+                />
+                <span className="text-sm text-gray-700">
+                  {t('updatePersonalInfo.alive', 'Alive')}
+                </span>
+              </label>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="is_dead"
+                  value="dead"
+                  checked={formData.is_dead === 'dead'}
+                  onChange={handleInputChange}
+                  className="mr-2 rtl:mr-0 rtl:ml-2"
+                />
+                <span className="text-sm text-gray-700">
+                  {t('updatePersonalInfo.deceased', 'Deceased')}
+                </span>
+              </label>
+            </div>
           </div>
 
           {/* Hierarchical structure (readonly) */}
