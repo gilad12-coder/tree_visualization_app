@@ -203,7 +203,29 @@
     "databasePath": "Database Path",
     "status": "Status",
     "viewCurrentTables": "View Current Tables",
-    "uploadNewFile": "Upload New File"
+    "uploadNewFile": "Upload New File",
+    "createNewTree": "Create New Tree"
+  },
+  "treeBuilder": {
+    "createNewTree": "Create New Tree",
+    "treeName": "Tree Name",
+    "treeNameRequired": "Tree name is required",
+    "createTree": "Create Tree",
+    "nodeName": "Node Name",
+    "addChild": "Add Child",
+    "folderName": "Folder Name",
+    "folderNameRequired": "Folder name is required",
+    "folderNamePlaceholder": "Enter folder name...",
+    "role": "Role",
+    "department": "Department",
+    "rank": "Rank",
+    "personId": "Person ID",
+    "birthDate": "Birth Date",
+    "personalInformation": "Personal Information",
+    "organizationId": "Organization ID",
+    "organizationName": "Organization Name",
+    "roleInformation": "Role Information",
+    "isDead": "Is Dead"
   },
   "fileUpload": {
     "title": "Upload File",
@@ -472,5 +494,51 @@
     "swapCancelled": "Swap operation cancelled",
     "nodesSwapped": "Nodes swapped successfully",
     "nodeMoved": "Node moved {{direction}}"
+  },
+  "nodeEditor": {
+    "addNode": "Add Node",
+    "editNode": "Edit Node",
+    "saveChanges": "Save Changes",
+    "cancel": "Cancel",
+    "name": "Name",
+    "role": "Role",
+    "department": "Department",
+    "organizationName": "Organization Name",
+    "personId": "Person ID",
+    "organizationId": "Organization ID",
+    "rank": "Rank",
+    "birthDate": "Birth Date",
+    "personalInformation": "Personal Information",
+    "roleInformation": "Role Information",
+    "isDead": "Deceased",
+    "namePlaceholder": "Enter full name",
+    "rolePlaceholder": "e.g., Software Engineer",
+    "departmentPlaceholder": "e.g., Engineering",
+    "organizationNamePlaceholder": "e.g., Tech Division",
+    "personIdPlaceholder": "e.g., EMP001",
+    "organizationIdPlaceholder": "e.g., ORG001",
+    "rankPlaceholder": "e.g., Senior",
+    "personalInformationPlaceholder": "Additional personal details...",
+    "roleInformationPlaceholder": "Role-specific details...",
+    "errors": {
+      "nameRequired": "Name is required",
+      "roleRequired": "Role is required"
+    }
+  },
+  "contextMenu": {
+    "addChild": "Add Child Node",
+    "addSibling": "Add Sibling Node",
+    "edit": "Edit Node",
+    "delete": "Delete Node"
+  },
+  "nodeOperations": {
+    "nodeAddedSuccess": "Node added successfully",
+    "nodeUpdatedSuccess": "Node updated successfully",
+    "nodeDeletedSuccess": "Node deleted successfully",
+    "nodeAddedError": "Failed to add node. Please try again.",
+    "nodeUpdatedError": "Failed to update node. Please try again.",
+    "nodeDeletedError": "Failed to delete node. Please try again.",
+    "confirmDelete": "Are you sure you want to delete this node and all its children?",
+    "deleteWarning": "This action cannot be undone."
   }
 }

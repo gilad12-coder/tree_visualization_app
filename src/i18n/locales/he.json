@@ -203,7 +203,29 @@
     "databasePath": "נתיב מסד נתונים",
     "status": "סטטוס",
     "viewCurrentTables": "צפה בטבלאות נוכחיות",
-    "uploadNewFile": "העלה קובץ חדש"
+    "uploadNewFile": "העלה קובץ חדש",
+    "createNewTree": "צור עץ חדש"
+  },
+  "treeBuilder": {
+    "createNewTree": "צור עץ חדש",
+    "treeName": "שם העץ",
+    "treeNameRequired": "שם העץ נדרש",
+    "createTree": "צור עץ",
+    "nodeName": "שם צומת",
+    "addChild": "הוסף ילד",
+    "folderName": "שם תיקייה",
+    "folderNameRequired": "שם תיקייה נדרש",
+    "folderNamePlaceholder": "הזן שם תיקייה...",
+    "role": "תפקיד",
+    "department": "מחלקה",
+    "rank": "דרגה",
+    "personId": "תעודת זהות",
+    "birthDate": "תאריך לידה",
+    "personalInformation": "מידע אישי",
+    "organizationId": "מזהה ארגון",
+    "organizationName": "שם ארגון",
+    "roleInformation": "מידע על התפקיד",
+    "isDead": "האם נפטר"
   },
   "fileUpload": {
     "title": "העלה קובץ",
@@ -472,5 +494,51 @@
     "swapCancelled": "פעולת ההחלפה בוטלה",
     "nodesSwapped": "הצמתים הוחלפו בהצלחה",
     "nodeMoved": "הצומת הועבר {{direction}}"
+  },
+  "nodeEditor": {
+    "addNode": "הוסף צומת",
+    "editNode": "ערוך צומת",
+    "saveChanges": "שמור שינויים",
+    "cancel": "ביטול",
+    "name": "שם",
+    "role": "תפקיד",
+    "department": "מחלקה",
+    "organizationName": "שם ארגון",
+    "personId": "מזהה אישי",
+    "organizationId": "מזהה ארגון",
+    "rank": "דרגה",
+    "birthDate": "תאריך לידה",
+    "personalInformation": "מידע אישי",
+    "roleInformation": "מידע על התפקיד",
+    "isDead": "נפטר",
+    "namePlaceholder": "הזן שם מלא",
+    "rolePlaceholder": "לדוגמה, מהנדס תוכנה",
+    "departmentPlaceholder": "לדוגמה, הנדסה",
+    "organizationNamePlaceholder": "לדוגמה, חטיבת הטכנולוגיה",
+    "personIdPlaceholder": "לדוגמה, EMP001",
+    "organizationIdPlaceholder": "לדוגמה, ORG001",
+    "rankPlaceholder": "לדוגמה, בכיר",
+    "personalInformationPlaceholder": "פרטים אישיים נוספים...",
+    "roleInformationPlaceholder": "פרטים ספציפיים לתפקיד...",
+    "errors": {
+      "nameRequired": "שם הוא שדה חובה",
+      "roleRequired": "תפקיד הוא שדה חובה"
+    }
+  },
+  "contextMenu": {
+    "addChild": "הוסף צומת בן",
+    "addSibling": "הוסף צומת אח",
+    "edit": "ערוך צומת",
+    "delete": "מחק צומת"
+  },
+  "nodeOperations": {
+    "nodeAddedSuccess": "הצומת נוסף בהצלחה",
+    "nodeUpdatedSuccess": "הצומת עודכן בהצלחה",
+    "nodeDeletedSuccess": "הצומת נמחק בהצלחה",
+    "nodeAddedError": "נכשלה הוספת הצומת. אנא נסה שוב.",
+    "nodeUpdatedError": "נכשל עדכון הצומת. אנא נסה שוב.",
+    "nodeDeletedError": "נכשלה מחיקת הצומת. אנא נסה שוב.",
+    "confirmDelete": "האם אתה בטוח שברצונך למחוק צומת זה ואת כל ילדיו?",
+    "deleteWarning": "לא ניתן לבטל פעולה זו."
   }
 }

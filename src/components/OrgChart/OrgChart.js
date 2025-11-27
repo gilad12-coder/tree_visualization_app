@@ -15,6 +15,9 @@ import SettingsModal from "../ToolsComponents/SettingsModal.js";
 import SearchBar from '../HelperComponents/SearchBar.js';
 import NavigationBar from "../HelperComponents/NavigationBar.js";
 import OrgNode from '../Nodes/OrgNode';
+import NodeEditorModal from '../Modals/NodeEditorModal';
+import NodeContextMenu from '../Modals/NodeContextMenu';
+import { addNode, updateNode, deleteNode } from '../../Utilities/api';
 
 import {
   useDataFetching,
@@ -36,6 +39,17 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+
+  // Node editor state
+  const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
+  const [nodeEditorMode, setNodeEditorMode] = useState('add'); // 'add' or 'edit'
+  const [selectedNodeForEdit, setSelectedNodeForEdit] = useState(null);
+  const [parentNodeForAdd, setParentNodeForAdd] = useState(null);
+
+  // Context menu state
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState(null);
+  const [contextMenuNode, setContextMenuNode] = useState(null);
 
   const {
     expandAll,
@@ -246,6 +260,115 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
 
   const getParentNode = (hierarchicalStructure) => {
     return getParentNodeFn(hierarchicalStructure, filteredOrgData);
+  };
+
+  // Node CRUD handlers
+  const handleContextMenu = (e, node) => {
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setContextMenuNode(node);
+    setContextMenuOpen(true);
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenuOpen(false);
+    setContextMenuPosition(null);
+    setContextMenuNode(null);
+  };
+
+  const handleAddChild = () => {
+    setNodeEditorMode('add');
+    setParentNodeForAdd(contextMenuNode);
+    setSelectedNodeForEdit(null);
+    setIsNodeEditorOpen(true);
+    handleCloseContextMenu();
+  };
+
+  const handleAddSibling = () => {
+    // Find parent of current node by parsing hierarchical structure
+    const parentStructure = contextMenuNode.hierarchical_structure.split('/').slice(0, -1).join('/') || '/';
+    const parentNode = parentStructure === '/' ? null : findNodeByStructure(filteredOrgData, parentStructure);
+
+    setNodeEditorMode('add');
+    setParentNodeForAdd(parentNode || contextMenuNode);
+    setSelectedNodeForEdit(null);
+    setIsNodeEditorOpen(true);
+    handleCloseContextMenu();
+  };
+
+  const handleEditNode = () => {
+    setNodeEditorMode('edit');
+    setSelectedNodeForEdit(contextMenuNode);
+    setParentNodeForAdd(null);
+    setIsNodeEditorOpen(true);
+    handleCloseContextMenu();
+  };
+
+  const handleDeleteNode = async () => {
+    if (!contextMenuNode) return;
+
+    // Show confirmation dialog
+    if (window.confirm(t('nodeOperations.confirmDelete') + '\n' + t('nodeOperations.deleteWarning'))) {
+      try {
+        await deleteNode(selectedTableId, contextMenuNode.hierarchical_structure);
+        toast.success(t('nodeOperations.nodeDeletedSuccess'));
+        await fetchData(); // Refresh the tree
+        handleCloseContextMenu();
+      } catch (error) {
+        console.error('Error deleting node:', error);
+        toast.error(t('nodeOperations.nodeDeletedError'));
+      }
+    } else {
+      handleCloseContextMenu();
+    }
+  };
+
+  const handleSaveNode = async (nodeData) => {
+    try {
+      if (nodeEditorMode === 'add') {
+        // Adding a new node
+        const parentStructure = parentNodeForAdd?.hierarchical_structure || null;
+        await addNode(selectedTableId, parentStructure, nodeData);
+        toast.success(t('nodeOperations.nodeAddedSuccess'));
+      } else {
+        // Editing existing node
+        await updateNode(selectedTableId, selectedNodeForEdit.hierarchical_structure, nodeData);
+        toast.success(t('nodeOperations.nodeUpdatedSuccess'));
+      }
+
+      // Refresh the tree data
+      await fetchData();
+      setIsNodeEditorOpen(false);
+      setSelectedNodeForEdit(null);
+      setParentNodeForAdd(null);
+    } catch (error) {
+      console.error('Error saving node:', error);
+      if (nodeEditorMode === 'add') {
+        toast.error(t('nodeOperations.nodeAddedError'));
+      } else {
+        toast.error(t('nodeOperations.nodeUpdatedError'));
+      }
+    }
+  };
+
+  const handleCloseNodeEditor = () => {
+    setIsNodeEditorOpen(false);
+    setSelectedNodeForEdit(null);
+    setParentNodeForAdd(null);
+  };
+
+  // Helper function to find node by hierarchical structure
+  const findNodeByStructure = (node, structure) => {
+    if (!node) return null;
+    if (node.hierarchical_structure === structure) return node;
+
+    if (node.children && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        const found = findNodeByStructure(child, structure);
+        if (found) return found;
+      }
+    }
+
+    return null;
   };
 
   // Calculate duplicate person IDs
@@ -666,6 +789,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
                   onNodeRendered={handleNodeRendered}
                   onNodeUnrendered={handleNodeUnrendered}
                   settings={settings}
+                  onContextMenu={handleContextMenu}
                 />
               ) : (
                 <TreeNode
@@ -766,7 +890,28 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onUpload={handleFileUpload}
           dbPath={dbPath}
         />
-  
+
+        <NodeEditorModal
+          isOpen={isNodeEditorOpen}
+          onClose={handleCloseNodeEditor}
+          onSave={handleSaveNode}
+          nodeData={selectedNodeForEdit}
+          mode={nodeEditorMode}
+          parentNode={parentNodeForAdd}
+        />
+
+        <NodeContextMenu
+          isOpen={contextMenuOpen}
+          position={contextMenuPosition}
+          onClose={handleCloseContextMenu}
+          onAddChild={handleAddChild}
+          onAddSibling={handleAddSibling}
+          onEdit={handleEditNode}
+          onDelete={handleDeleteNode}
+          node={contextMenuNode}
+          canDelete={contextMenuNode?.hierarchical_structure !== '/1'}
+        />
+
 
       </motion.div>
     </>

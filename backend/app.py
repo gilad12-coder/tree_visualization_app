@@ -1005,6 +1005,120 @@ def compare_span_of_control(data1: List[DataEntry], data2: List[DataEntry]) -> D
             if manager:
                 manager_counts[manager] = manager_counts.get(manager, 0) + 1
         return sum(manager_counts.values()) / len(manager_counts) if manager_counts else 0
+
+    span1 = get_avg_span(data1)
+    span2 = get_avg_span(data2)
+
+    return {
+        "before": span1,
+        "after": span2,
+        "change": span2 - span1
+    }
+
+def get_hierarchical_path(nodes, node_id):
+    """
+    Generate hierarchical path for a node based on parent-child relationships.
+
+    Args:
+        nodes: Dictionary of node objects
+        node_id: ID of the node to generate path for
+
+    Returns:
+        str: Hierarchical path (e.g., '/CEO/Manager/Employee')
+    """
+    if node_id not in nodes:
+        raise ValueError(f"Node ID '{node_id}' not found in nodes dictionary")
+
+    path_components = []
+    curr_id = node_id
+    visited = set()  # Prevent infinite loops
+
+    while curr_id and curr_id not in visited:
+        visited.add(curr_id)
+
+        # Check if the current node is the root and if its name is 'Root'
+        if curr_id == 'root' and nodes.get(curr_id, {}).get('name') == 'Root':
+            break  # Stop if it's the placeholder root
+
+        if curr_id not in nodes:
+            break  # Node not found, stop traversal
+
+        path_components.insert(0, nodes[curr_id].get('name', str(curr_id)))
+
+        parent_found = False
+        for p_id, p_data in nodes.items():
+            if curr_id in p_data.get('children', []):
+                curr_id = p_id
+                parent_found = True
+                break
+        if not parent_found:
+            curr_id = None
+
+    return '/' + '/'.join(path_components)
+
+@app.route("/create-tree", methods=["POST"])
+def create_tree():
+    """
+    Create a new tree from data sent from the frontend.
+    """
+    data = request.json
+    tree_name = data.get("treeName")
+    nodes = data.get("nodes")
+    folder_name = data.get("folderName")
+    db_path = request.args.get("db_path")
+
+    if not all([tree_name, nodes, folder_name, db_path]):
+        return jsonify({"error": "Missing required parameters"}), 400
+
+    set_db_path(db_path)
+    init_db()
+
+    with session_scope() as session:
+        try:
+            folder = session.query(Folder).filter_by(name=folder_name).first()
+            if not folder:
+                folder = Folder(name=folder_name)
+                session.add(folder)
+                session.flush()
+
+            table = Table(name=tree_name, folder_id=folder.id, upload_date=datetime.now())
+            session.add(table)
+            session.flush()
+
+            for node_id, node_data in nodes.items():
+                if node_id == 'root':  # Skip the root placeholder
+                    continue
+
+                hierarchical_structure = get_hierarchical_path(nodes, node_id)
+
+                entry = DataEntry(
+                    table_id=table.id,
+                    name=node_data["name"],
+                    hierarchical_structure=hierarchical_structure,
+                    role=node_data.get("role", ""),
+                    department=node_data.get("department", ""),
+                    rank=node_data.get("rank", ""),
+                    person_id=node_data.get("person_id", node_id), # Use node_id as a fallback
+                    organization_id=node_data.get("organization_id", ""),
+                    personal_information=node_data.get("personal_information", ""),
+                    role_information=node_data.get("role_information", ""),
+                    is_dead=node_data.get("is_dead", False),
+                    organization_name=node_data.get("organization_name", "")
+                )
+                session.add(entry)
+            
+            session.commit()
+            return jsonify({"message": "Tree created successfully", "table_id": table.id, "folder_id": folder.id}), 200
+
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error creating tree: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+        for entry in data:
+            manager = '/'.join(entry.hierarchical_structure.split('/')[:-1])
+            if manager:
+                manager_counts[manager] = manager_counts.get(manager, 0) + 1
+        return sum(manager_counts.values()) / len(manager_counts) if manager_counts else 0
     
     span1 = get_avg_span(data1)
     span2 = get_avg_span(data2)
@@ -2001,3 +2115,201 @@ def backend_status():
 def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": time.time()}
+
+@app.route("/add_node/<int:table_id>", methods=["POST"])
+def add_node(table_id: int) -> Any:
+    """
+    Add a new node to the organizational tree.
+
+    Parameters:
+        table_id (int): The ID of the table to add the node to.
+
+    Returns:
+        JSON response with the created node data.
+    """
+    try:
+        data = request.json
+        parent_structure = data.get('parent_structure')
+        node_data = data.get('node_data')
+
+        if not node_data:
+            return jsonify({"error": "Node data is required"}), 400
+
+        with session_scope() as session:
+            # Verify table exists
+            table = session.query(Table).filter_by(id=table_id).first()
+            if not table:
+                return jsonify({"error": f"Table with id {table_id} not found"}), 404
+
+            # Generate hierarchical structure for the new node
+            if parent_structure:
+                new_hierarchy = generate_hierarchical_structure(session, table_id, parent_structure)
+            else:
+                # If no parent, this is a root node
+                new_hierarchy = "/1"
+
+            # Create the new data entry
+            entry = DataEntry(
+                table_id=table_id,
+                hierarchical_structure=new_hierarchy,
+                name=node_data.get("name", ""),
+                role=node_data.get("role", ""),
+                department=node_data.get("department", ""),
+                rank=node_data.get("rank", ""),
+                person_id=node_data.get("person_id", f"auto-{datetime.now().timestamp()}"),
+                birth_date=datetime.strptime(node_data["birth_date"], '%Y-%m-%d').date() if node_data.get("birth_date") else None,
+                organization_id=node_data.get("organization_id", ""),
+                organization_name=node_data.get("organization_name", ""),
+                personal_information=node_data.get("personal_information", ""),
+                role_information=node_data.get("role_information", ""),
+                is_dead=node_data.get("is_dead", False),
+                upload_date=datetime.now().date()
+            )
+
+            session.add(entry)
+            session.commit()
+            session.refresh(entry)
+
+            logger.info(f"Node added successfully with structure: {new_hierarchy}")
+
+            return jsonify({
+                "message": "Node added successfully",
+                "node": {
+                    "hierarchical_structure": entry.hierarchical_structure,
+                    "name": entry.name,
+                    "role": entry.role,
+                    "department": entry.department,
+                    "rank": entry.rank,
+                    "person_id": entry.person_id,
+                    "birth_date": entry.birth_date.isoformat() if entry.birth_date else None,
+                    "organization_id": entry.organization_id,
+                    "organization_name": entry.organization_name,
+                    "personal_information": entry.personal_information,
+                    "role_information": entry.role_information,
+                    "is_dead": entry.is_dead
+                }
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Error adding node: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/update_node/<int:table_id>", methods=["PUT"])
+def update_node(table_id: int) -> Any:
+    """
+    Update an existing node in the organizational tree.
+
+    Parameters:
+        table_id (int): The ID of the table containing the node.
+
+    Returns:
+        JSON response with the updated node data.
+    """
+    try:
+        data = request.json
+        hierarchical_structure = data.get('hierarchical_structure')
+        node_data = data.get('node_data')
+
+        if not hierarchical_structure or not node_data:
+            return jsonify({"error": "Hierarchical structure and node data are required"}), 400
+
+        with session_scope() as session:
+            # Find the node to update
+            entry = session.query(DataEntry).filter_by(
+                table_id=table_id,
+                hierarchical_structure=hierarchical_structure
+            ).first()
+
+            if not entry:
+                return jsonify({"error": f"Node with structure {hierarchical_structure} not found"}), 404
+
+            # Update the fields
+            entry.name = node_data.get("name", entry.name)
+            entry.role = node_data.get("role", entry.role)
+            entry.department = node_data.get("department", entry.department)
+            entry.rank = node_data.get("rank", entry.rank)
+            entry.person_id = node_data.get("person_id", entry.person_id)
+            entry.organization_id = node_data.get("organization_id", entry.organization_id)
+            entry.organization_name = node_data.get("organization_name", entry.organization_name)
+            entry.personal_information = node_data.get("personal_information", entry.personal_information)
+            entry.role_information = node_data.get("role_information", entry.role_information)
+            entry.is_dead = node_data.get("is_dead", entry.is_dead)
+
+            if node_data.get("birth_date"):
+                entry.birth_date = datetime.strptime(node_data["birth_date"], '%Y-%m-%d').date()
+
+            session.commit()
+            session.refresh(entry)
+
+            logger.info(f"Node updated successfully: {hierarchical_structure}")
+
+            return jsonify({
+                "message": "Node updated successfully",
+                "node": {
+                    "hierarchical_structure": entry.hierarchical_structure,
+                    "name": entry.name,
+                    "role": entry.role,
+                    "department": entry.department,
+                    "rank": entry.rank,
+                    "person_id": entry.person_id,
+                    "birth_date": entry.birth_date.isoformat() if entry.birth_date else None,
+                    "organization_id": entry.organization_id,
+                    "organization_name": entry.organization_name,
+                    "personal_information": entry.personal_information,
+                    "role_information": entry.role_information,
+                    "is_dead": entry.is_dead
+                }
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Error updating node: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/delete_node/<int:table_id>", methods=["DELETE"])
+def delete_node(table_id: int) -> Any:
+    """
+    Delete a node and all its descendants from the organizational tree.
+
+    Parameters:
+        table_id (int): The ID of the table containing the node.
+
+    Returns:
+        JSON response indicating success or failure.
+    """
+    try:
+        hierarchical_structure = request.args.get('hierarchical_structure')
+
+        if not hierarchical_structure:
+            return jsonify({"error": "Hierarchical structure is required"}), 400
+
+        with session_scope() as session:
+            # Find the node and all its descendants
+            # Descendants have hierarchical_structure that starts with the parent's structure
+            entries_to_delete = session.query(DataEntry).filter(
+                DataEntry.table_id == table_id,
+                or_(
+                    DataEntry.hierarchical_structure == hierarchical_structure,
+                    DataEntry.hierarchical_structure.like(f"{hierarchical_structure}/%")
+                )
+            ).all()
+
+            if not entries_to_delete:
+                return jsonify({"error": f"Node with structure {hierarchical_structure} not found"}), 404
+
+            deleted_count = len(entries_to_delete)
+
+            for entry in entries_to_delete:
+                session.delete(entry)
+
+            session.commit()
+
+            logger.info(f"Deleted {deleted_count} node(s) starting from: {hierarchical_structure}")
+
+            return jsonify({
+                "message": f"Successfully deleted {deleted_count} node(s)",
+                "deleted_count": deleted_count
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Error deleting node: {str(e)}")
+        return jsonify({"error": str(e)}), 500

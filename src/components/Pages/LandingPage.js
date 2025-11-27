@@ -14,7 +14,8 @@ import {
   Grid,
   FileText,
   Layout,
-  Activity
+  Activity,
+  GitMerge
 } from "react-feather";
 import axios from "axios";
 import { useTranslation } from 'react-i18next';
@@ -24,7 +25,9 @@ import {
   ExistingDatabaseSection,
   NewDatabaseSection,
 } from "../DatabaseSelectionComponents";
+import TreeBuilder from './TreeBuilder';
 import { getFontClass } from '../../Utilities/languageUtils';
+import { createTree } from '../../Utilities/api';
 
 const API_BASE_URL = "http://localhost:5001";
 
@@ -77,6 +80,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
   const [dbInfo, setDbInfo] = useState(null);
   const [folderStructure, setFolderStructure] = useState([]);
+  const [showTreeBuilder, setShowTreeBuilder] = useState(false);
 
   useEffect(() => {
     const storedRecentDbPath = localStorage.getItem("recentDbPath");
@@ -208,6 +212,20 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
     }
   };
 
+  const handleCreateNewTree = () => {
+    setShowTreeBuilder(true);
+  };
+
+  const handleTreeCreated = async (treeName, nodes, folderName) => {
+    try {
+      const response = await createTree(treeName, nodes, folderName, dbPath);
+      const { table_id, folder_id } = response.data;
+      onDatabaseReady(dbPath, table_id, folder_id);
+    } catch (error) {
+      console.error("Error creating tree:", error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
@@ -241,6 +259,10 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
         </motion.div>
       </div>
     );
+  }
+
+  if (showTreeBuilder) {
+    return <TreeBuilder onTreeCreated={handleTreeCreated} />;
   }
 
   return (
@@ -633,6 +655,18 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                     <span className="flex items-center">
                       <Upload size={18} className="mr-2 rtl:mr-0 rtl:ml-2 text-gray-600" />
                       <span className="font-medium">{t('landingPage.uploadNewFile')}</span>
+                    </span>
+                    {isRTL ? <ChevronLeft size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleCreateNewTree}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 text-gray-800 hover:bg-gray-100 transition-colors border border-gray-200"
+                  >
+                    <span className="flex items-center">
+                      <GitMerge size={18} className="mr-2 rtl:mr-0 rtl:ml-2 text-gray-600" />
+                      <span className="font-medium">{t('landingPage.createNewTree')}</span>
                     </span>
                     {isRTL ? <ChevronLeft size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
                   </motion.button>

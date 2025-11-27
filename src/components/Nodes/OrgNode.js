@@ -9,24 +9,25 @@ import {
   UserPlus, 
 } from 'react-feather';
 
-const OrgNode = ({ 
-  node, 
-  onNodeClick, 
+const OrgNode = ({
+  node,
+  onNodeClick,
   onFilterByOrg,
-  depth = 0, 
-  expandAll, 
+  depth = 0,
+  expandAll,
   collapseAll,
-  folderId, 
+  folderId,
   tableId,
   searchTerm,
   onNodePosition,
   onNodeRendered,
   onNodeUnrendered,
-  settings = {}
+  settings = {},
+  onContextMenu
 }) => {
   const [isExpanded, setIsExpanded] = useState(() => true);
   const [isHovered, setIsHovered] = useState(false);
-  
+
   const nodeRef = useRef(null);
   const isRendered = useRef(false);
   
@@ -95,6 +96,14 @@ const OrgNode = ({
       onFilterByOrg(node.name);
     }
   }, [node, onFilterByOrg]);
+
+  const handleContextMenu = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onContextMenu && !node.isOrgNode) {
+      onContextMenu(e, node);
+    }
+  }, [node, onContextMenu]);
 
   const ActionButton = useCallback(({ icon: Icon, onClick, tooltip, className = "" }) => (
     <motion.div
@@ -176,7 +185,8 @@ const OrgNode = ({
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
         onClick={handleNodeClick}
-        style={{ 
+        onContextMenu={handleContextMenu}
+        style={{
           backgroundColor: 'white',
           borderLeft: `5px solid ${orgColor}`,
         }}
@@ -294,11 +304,11 @@ const OrgNode = ({
                     {!isSingleChild && <div className="w-1 bg-gray-300 h-8 mb-4" />}
                     
                     {/* Recursive child OrgNode */}
-                    <OrgNode 
-                      node={child} 
+                    <OrgNode
+                      node={child}
                       onNodeClick={onNodeClick}
-                      onFilterByOrg={onFilterByOrg} 
-                      depth={depth + 1} 
+                      onFilterByOrg={onFilterByOrg}
+                      depth={depth + 1}
                       expandAll={expandAll}
                       collapseAll={collapseAll}
                       folderId={folderId}
@@ -308,6 +318,7 @@ const OrgNode = ({
                       onNodeRendered={onNodeRendered}
                       onNodeUnrendered={onNodeUnrendered}
                       settings={settings}
+                      onContextMenu={onContextMenu}
                     />
                   </div>
                 );
