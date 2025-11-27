@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, User, Briefcase, Heart, ArrowLeft } from 'react-feather';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import '../../styles/radio.css';
 
