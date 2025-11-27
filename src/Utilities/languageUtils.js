@@ -1,9 +1,12 @@
 // src/utils/languageUtils.js
 
 export const getLanguage = (text) => {
+  // Handle undefined, null, or empty strings
+  if (!text || typeof text !== 'string') return 'default';
+
   const hebrewChars = /[\u0590-\u05FF\uFB1D-\uFB4F]/;
   const arabicChars = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
-  
+
   if (hebrewChars.test(text)) return 'hebrew';
   if (arabicChars.test(text)) return 'arabic';
   return 'default';

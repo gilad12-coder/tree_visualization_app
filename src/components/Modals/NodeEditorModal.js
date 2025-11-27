@@ -84,22 +84,39 @@ const NodeEditorModal = ({
   const validate = () => {
     const newErrors = {};
 
+    console.log('Validating form data:', formData);
+
     if (!formData.name || !formData.name.trim()) {
       newErrors.name = t('nodeEditor.nameRequired', 'Name is required');
+      console.log('Validation error: name is required');
     }
 
     if (!formData.role || !formData.role.trim()) {
       newErrors.role = t('nodeEditor.roleRequired', 'Role is required');
+      console.log('Validation error: role is required');
     }
 
     setErrors(newErrors);
+    console.log('Validation complete. Errors:', newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    console.log('NodeEditorModal - handleSubmit called');
+    console.log('Form data:', formData);
+    console.log('Mode:', mode);
+
     if (validate()) {
-      onSave(formData);
-      onClose();
+      console.log('Validation passed, calling onSave...');
+      try {
+        await onSave(formData);
+        console.log('onSave completed successfully');
+        onClose();
+      } catch (error) {
+        console.error('Error saving node:', error);
+      }
+    } else {
+      console.log('Validation failed, errors:', errors);
     }
   };
 
