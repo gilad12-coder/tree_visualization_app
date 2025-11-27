@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, ArrowRight, User, Edit, GitBranch, ArrowLeft, FileText } from 'lucide-react';
+import { X, ArrowRight, User, Edit, ArrowLeft, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import CVTimelineSection from '../NodeCardComponents/CVTimelineSection';
 import UpdatePersonalInfoSection from '../NodeCardComponents/UpdatePersonalInfoSection.js';
-import UpdateHierarchicalInfoSection from '../NodeCardComponents/UpdateHierarchicalInfoSection.js';
 import NodeInformation from '../NodeCardComponents/NodeInformation.js';
 import '../../styles/fonts.css';
 import '../../styles/scrollbar.css';
@@ -161,14 +160,6 @@ const EnhancedNodeCard = ({
                       <span>{t('nodeCard.updatePersonalInfo')}</span>
                       <User size={18} />
                     </button>
-
-                    <button
-                      onClick={() => setActiveScreen('updateHierarchical')}
-                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    >
-                      <span>{t('nodeCard.updateHierarchicalInfo')}</span>
-                      <GitBranch size={18} />
-                    </button>
                   </div>
                 </div>
               )}
@@ -196,22 +187,7 @@ const EnhancedNodeCard = ({
                   />
                 </div>
               )}
-              
-              {activeScreen === 'updateHierarchical' && (
-                <div>
-                  <UpdateHierarchicalInfoSection
-                    node={node}
-                    onBack={() => setActiveScreen('updateMenu')}
-                    folderId={folderId}
-                    tableId={tableId}
-                    folderStructure={folderStructure}
-                    onUpdateComplete={onUpdateComplete}
-                    getParentNode={getParentNode}
-                    theme={THEME}
-                  />
-                </div>
-              )}
-              
+
               {activeScreen === 'cv' && (
                 <div>
                   <CVTimelineSection

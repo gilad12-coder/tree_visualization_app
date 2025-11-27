@@ -295,14 +295,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     handleCloseContextMenu();
   };
 
-  const handleEditNode = () => {
-    setNodeEditorMode('edit');
-    setSelectedNodeForEdit(contextMenuNode);
-    setParentNodeForAdd(null);
-    setIsNodeEditorOpen(true);
-    handleCloseContextMenu();
-  };
-
   const handleDeleteNode = async () => {
     if (!contextMenuNode) return;
 
@@ -907,7 +899,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onClose={handleCloseContextMenu}
           onAddChild={handleAddChild}
           onAddSibling={handleAddSibling}
-          onEdit={handleEditNode}
           onDelete={handleDeleteNode}
           node={contextMenuNode}
           canDelete={contextMenuNode?.hierarchical_structure !== '/1'}
