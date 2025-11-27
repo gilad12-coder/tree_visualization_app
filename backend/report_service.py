@@ -3,7 +3,10 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from fpdf import FPDF
 import logging
-from backend.models import DataEntry, Table, get_session
+try:
+    from backend.models import DataEntry, Table, get_session
+except ModuleNotFoundError:
+    from models import DataEntry, Table, get_session
 
 logger = logging.getLogger(__name__)
 
