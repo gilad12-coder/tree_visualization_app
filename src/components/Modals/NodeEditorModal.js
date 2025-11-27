@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, User, Briefcase, Building, Calendar, Info, Hash } from 'react-feather';
+import { X, Save, User, Briefcase, Home, Calendar, Info, Hash } from 'react-feather';
 import { useTranslation } from 'react-i18next';
 
 const NodeEditorModal = ({
@@ -194,7 +194,7 @@ const NodeEditorModal = ({
               {/* Department */}
               <div>
                 <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <Building size={16} className="mr-2" />
+                  <Home size={16} className="mr-2" />
                   {t('nodeEditor.department', 'Department')}
                 </label>
                 <input
@@ -209,7 +209,7 @@ const NodeEditorModal = ({
               {/* Organization Name */}
               <div>
                 <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <Building size={16} className="mr-2" />
+                  <Home size={16} className="mr-2" />
                   {t('nodeEditor.organizationName', 'Organization Name')}
                 </label>
                 <input
