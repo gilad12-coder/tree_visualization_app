@@ -141,22 +141,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     });
   };
 
-  const handleLanguageChange = (language) => {
-    setLocalSettings({
-      ...localSettings,
-      language: language
-    });
-  };
-
   // Reset functions for each tab
-  const resetLanguageSettings = () => {
-    setLocalSettings({
-      ...localSettings,
-      language: DEFAULT_LANGUAGE
-    });
-    toast.info(t('settings.languageSettingsReset') || "Language settings reset to defaults");
-  };
-
   const resetDisplaySettings = () => {
     setLocalSettings({
       ...localSettings,

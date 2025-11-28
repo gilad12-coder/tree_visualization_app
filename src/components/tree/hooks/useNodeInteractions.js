@@ -108,70 +108,57 @@ const useNodeInteractions = (
 
   const handleSwapNodes = useCallback((parentId, node1Id, node2Id) => {
     console.log(`Swapping nodes: Parent=${parentId}, Node1=${node1Id}, Node2=${node2Id}`);
-    
+
+    // Validate inputs
     if (!parentId || !node1Id || !node2Id) {
       console.error('Missing required IDs for node swapping');
       return;
     }
-    
+
+    // Prevent swapping a node with itself
+    if (node1Id === node2Id) {
+      console.warn('Cannot swap a node with itself');
+      return;
+    }
+
     setNodeOrder(prevOrder => {
       const currentOrder = prevOrder[parentId] || [];
       const index1 = currentOrder.indexOf(node1Id);
       const index2 = currentOrder.indexOf(node2Id);
+
+      // If either node is not in the order array, add them
       const newOrder = [...currentOrder];
+      if (index1 === -1) {
+        newOrder.push(node1Id);
+      }
+      if (index2 === -1) {
+        newOrder.push(node2Id);
+      }
 
-      if (index1 === -1) newOrder.push(node1Id);
-      if (index2 === -1) newOrder.push(node2Id);
+      // Get updated indices after potential additions
+      const finalIndex1 = newOrder.indexOf(node1Id);
+      const finalIndex2 = newOrder.indexOf(node2Id);
 
-      const updatedIndex1 = newOrder.indexOf(node1Id);
-      const updatedIndex2 = newOrder.indexOf(node2Id);
-      [newOrder[updatedIndex1], newOrder[updatedIndex2]] = [newOrder[updatedIndex2], newOrder[updatedIndex1]];
+      // Perform the swap using destructuring
+      [newOrder[finalIndex1], newOrder[finalIndex2]] = [newOrder[finalIndex2], newOrder[finalIndex1]];
 
-      setSelectedSwapNode(null);
       return { ...prevOrder, [parentId]: newOrder };
     });
-    
-    // Show feedback to the user
+
+    // Clear selection and show feedback
+    setSelectedSwapNode(null);
     toast.success(t('chartOperations.nodesSwapped'));
   }, [t]);
 
   const handleSwapNodesWithRerender = useCallback((parentId, node1Id, node2Id) => {
     console.log(`Swapping nodes with rerender: Parent=${parentId}, Node1=${node1Id}, Node2=${node2Id}`);
-    
-    // First handle the data structure update
+
+    // Perform the swap
     handleSwapNodes(parentId, node1Id, node2Id);
-    
-    // Force a complete re-render by updating the swap key
+
+    // Force a re-render by updating the swap key
+    // React will automatically handle DOM updates - no manual manipulation needed
     setSwapKey(prev => prev + 1);
-    
-    // Update the DOM to reflect the changes after a short delay
-    setTimeout(() => {
-      console.log('Updating DOM connections after swap');
-      // Try to find the parent node in the DOM
-      const parentElement = document.getElementById(`node-${parentId}`);
-      if (parentElement) {
-        console.log(`Found parent element for node ${parentId}`);
-        
-        // Find all child nodes to verify they're in the correct order
-        const childElements = parentElement.querySelectorAll('[id^="node-"]');
-        if (childElements.length > 0) {
-          console.log('Child nodes found:', childElements.length);
-          
-          // Force a repaint of all connection lines
-          const connections = document.querySelectorAll('.node-connection, .bg-gray-400');
-          connections.forEach(conn => {
-            conn.style.opacity = '0.99';
-            setTimeout(() => {
-              conn.style.opacity = '1';
-            }, 10);
-          });
-        } else {
-          console.warn('No child elements found for parent node');
-        }
-      } else {
-        console.warn(`Could not find parent element node-${parentId}`);
-      }
-    }, 100);
   }, [handleSwapNodes]);
 
   const handleReorderNodes = useCallback((parentId, nodeId, direction) => {
