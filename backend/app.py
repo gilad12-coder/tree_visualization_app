@@ -2288,10 +2288,11 @@ def get_org_structure_data(table_id: int) -> jsonify:
 def generate_org_report_pdf(table_id: int):
     """
     Generates a PDF report for the organization structure of a specific table.
-    
+
     Parameters:
         table_id (int): The ID of the table to generate a report for.
-        
+        language (str): The language for the report ('en' or 'he'). Default: 'en'.
+
     Returns:
         Response: A PDF file as an attachment.
     """
@@ -2300,15 +2301,18 @@ def generate_org_report_pdf(table_id: int):
         db_path = request.args.get('db_path')
         if db_path:
             set_db_path(db_path)
-        
+
+        # Get the language parameter (default to English)
+        language = request.args.get('language', 'en')
+
         # Use a session_scope to ensure proper session management
         with session_scope() as session:
             # Initialize the report service with the table_id
             # The session is already set up by set_db_path and session_scope
             report_service = OrganizationReportService(table_id)
-            
-            # Generate the PDF report
-            pdf_bytes = report_service.generate_pdf_report()
+
+            # Generate the PDF report with the specified language
+            pdf_bytes = report_service.generate_pdf_report(language=language)
             
             # Create a response with the PDF
             from io import BytesIO

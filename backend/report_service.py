@@ -1,8 +1,26 @@
 import pandas as pd
 from collections import Counter, defaultdict
 from datetime import datetime
-from fpdf import FPDF
 import logging
+from io import BytesIO
+
+# ReportLab imports for PDF generation
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from reportlab.platypus import (
+    SimpleDocTemplate, Table as RLTable, TableStyle, Paragraph,
+    Spacer, PageBreak, Image, KeepTogether
+)
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.charts.piecharts import Pie
+
 try:
     from backend.models import DataEntry, Table, get_session
 except ModuleNotFoundError:
@@ -518,148 +536,401 @@ class OrganizationReportService:
         finally:
             self.session.close()
             
-    def generate_pdf_report(self):
-        """Generate a PDF version of the organizational analysis report.
-        
+    def generate_pdf_report(self, language='en'):
+        """Generate a comprehensive bilingual PDF report with enhanced visuals.
+
+        Args:
+            language (str): Language code - 'en' for English, 'he' for Hebrew.
+
         Returns:
             bytes: PDF report as bytes.
         """
         # Get the report data
         report = self.generate_report()
-        
-        # Create PDF
-        pdf = FPDF()
-        pdf.add_page()
-        
+
+        # Bilingual translations
+        translations = {
+            'en': {
+                'title': 'Organizational Analysis Report',
+                'table': 'Organization',
+                'generated_on': 'Generated on',
+                'executive_summary': 'Executive Summary',
+                'total_employees': 'Total Employees',
+                'total_departments': 'Total Departments',
+                'total_roles': 'Total Roles',
+                'org_depth': 'Organization Depth',
+                'avg_span': 'Average Span of Control',
+                'multiple_positions': 'Employees with Multiple Positions',
+                'hierarchy_analysis': 'Hierarchy Analysis',
+                'org_breadth': 'Organization Breadth',
+                'max_span': 'Maximum Span of Control',
+                'employees_by_level': 'Employees by Level',
+                'level': 'Level',
+                'employees': 'employees',
+                'department_analysis': 'Department Analysis',
+                'total_depts': 'Total departments',
+                'role_analysis': 'Role Analysis',
+                'unique_roles': 'Unique roles',
+                'role_diversity': 'Role diversity ratio',
+                'top_roles': 'Top Roles',
+                'critical_roles': 'Critical Role Analysis',
+                'high_span_title': 'High Span of Control',
+                'direct_reports': 'direct reports',
+                'bottlenecks': 'Organizational Bottlenecks',
+                'siblings': 'siblings',
+                'anomaly_detection': 'Anomaly Detection',
+                'anomalies_detected': 'Total anomalies detected',
+                'no_anomalies': 'No anomalies detected in the organization structure.',
+                'multiple_pos_analysis': 'Multiple Position Analysis',
+                'no_multiple_pos': 'No employees hold multiple positions.',
+                'holds_positions': 'employees hold multiple positions',
+                'positions': 'positions',
+                'in_dept': 'in',
+                'and_more': 'and more',
+                'levels': 'levels',
+                'reports_to_ceo': 'direct reports to leadership',
+                'inconsistent_dept': 'inconsistent department',
+                'skipped_level': 'skipped level',
+                'unusually_large_team': 'unusually large team',
+                'anomalies': 'anomalies',
+                'key_insights': 'Key Insights',
+                'recommendations': 'Recommendations',
+                'span_health': 'Span of Control Health',
+                'optimal': 'Optimal span of control (3-7 direct reports)',
+                'high_span_warning': 'Some managers have high span of control - consider delegating',
+                'low_span_warning': 'Some managers have low span of control - consider restructuring',
+                'dept_balance': 'Department Balance',
+                'page': 'Page',
+                'of': 'of'
+            },
+            'he': {
+                'title': 'דוח ניתוח ארגוני',
+                'table': 'ארגון',
+                'generated_on': 'נוצר בתאריך',
+                'executive_summary': 'סיכום מנהלים',
+                'total_employees': 'סך כל עובדים',
+                'total_departments': 'סך כל מחלקות',
+                'total_roles': 'סך כל תפקידים',
+                'org_depth': 'עומק ארגוני',
+                'avg_span': 'טווח בקרה ממוצע',
+                'multiple_positions': 'עובדים עם מספר תפקידים',
+                'hierarchy_analysis': 'ניתוח היררכיה',
+                'org_breadth': 'רוחב ארגוני',
+                'max_span': 'טווח בקרה מקסימלי',
+                'employees_by_level': 'עובדים לפי רמה',
+                'level': 'רמה',
+                'employees': 'עובדים',
+                'department_analysis': 'ניתוח מחלקות',
+                'total_depts': 'סך כל מחלקות',
+                'role_analysis': 'ניתוח תפקידים',
+                'unique_roles': 'תפקידים ייחודיים',
+                'role_diversity': 'יחס גיוון תפקידים',
+                'top_roles': 'תפקידים מובילים',
+                'critical_roles': 'ניתוח תפקידים קריטיים',
+                'high_span_title': 'טווח בקרה גבוה',
+                'direct_reports': 'דיווחים ישירים',
+                'bottlenecks': 'צווארי בקבוק ארגוניים',
+                'siblings': 'אחים',
+                'anomaly_detection': 'זיהוי חריגות',
+                'anomalies_detected': 'סך כל חריגות שזוהו',
+                'no_anomalies': 'לא זוהו חריגות במבנה הארגוני.',
+                'multiple_pos_analysis': 'ניתוח תפקידים מרובים',
+                'no_multiple_pos': 'אין עובדים המחזיקים במספר תפקידים.',
+                'holds_positions': 'עובדים מחזיקים במספר תפקידים',
+                'positions': 'תפקידים',
+                'in_dept': 'ב',
+                'and_more': 'ועוד',
+                'levels': 'רמות',
+                'reports_to_ceo': 'דיווחים ישירים להנהלה',
+                'inconsistent_dept': 'מחלקה לא עקבית',
+                'skipped_level': 'רמה שדולגה',
+                'unusually_large_team': 'צוות גדול בצורה חריגה',
+                'anomalies': 'חריגות',
+                'key_insights': 'תובנות מרכזיות',
+                'recommendations': 'המלצות',
+                'span_health': 'בריאות טווח בקרה',
+                'optimal': 'טווח בקרה אופטימלי (3-7 דיווחים ישירים)',
+                'high_span_warning': 'חלק מהמנהלים עם טווח בקרה גבוה - שקול האצלה',
+                'low_span_warning': 'חלק מהמנהלים עם טווח בקרה נמוך - שקול ארגון מחדש',
+                'dept_balance': 'איזון מחלקות',
+                'page': 'עמוד',
+                'of': 'מתוך'
+            }
+        }
+
+        t = translations.get(language, translations['en'])
+        is_rtl = (language == 'he')
+
+        # Create PDF buffer
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+
+        # Container for PDF elements
+        story = []
+
+        # Define styles
+        styles = getSampleStyleSheet()
+
+        # Custom styles for bilingual support
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#1f2937'),
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            textColor=colors.HexColor('#374151'),
+            spaceAfter=12,
+            spaceBefore=20,
+            fontName='Helvetica-Bold',
+            alignment=TA_RIGHT if is_rtl else TA_LEFT
+        )
+
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#4b5563'),
+            spaceAfter=8,
+            fontName='Helvetica',
+            alignment=TA_RIGHT if is_rtl else TA_LEFT
+        )
+
         # Title
-        pdf.set_font('Arial', 'B', 16)
-        pdf.cell(0, 10, f"Organizational Analysis Report", 0, 1, 'C')
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 10, f"Table: {report['table_name']}", 0, 1, 'C')
-        pdf.cell(0, 10, f"Generated on: {report['report_date']}", 0, 1, 'C')
-        pdf.ln(10)
-        
-        # Summary
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, "Executive Summary", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 8, f"Total Employees: {report['summary']['total_employees']}", 0, 1)
-        pdf.cell(0, 8, f"Total Departments: {report['summary']['total_departments']}", 0, 1)
-        pdf.cell(0, 8, f"Total Roles: {report['summary']['total_roles']}", 0, 1)
-        pdf.cell(0, 8, f"Organization Depth: {report['summary']['org_depth']} levels", 0, 1)
-        pdf.cell(0, 8, f"Average Span of Control: {report['summary']['avg_span_of_control']:.2f}", 0, 1)
-        pdf.cell(0, 8, f"Employees with Multiple Positions: {report['summary']['multiple_position_count']}", 0, 1)
-        pdf.ln(10)
-        
-        # Multiple Positions
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, "Multiple Position Analysis", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        if report['multiple_positions']['count'] > 0:
-            pdf.multi_cell(0, 8, f"{report['multiple_positions']['count']} employees hold multiple positions in the organization.")
-            for person in report['multiple_positions']['details'][:5]:  # Show top 5
-                pdf.set_font('Arial', 'B', 12)
-                pdf.cell(0, 8, f"{person['name']} ({person['position_count']} positions)", 0, 1)
-                pdf.set_font('Arial', '', 12)
-                for pos in person['positions']:
-                    pdf.cell(10, 8, "", 0, 0)
-                    pdf.cell(0, 8, f"{pos['role']} in {pos['department']}", 0, 1)
-            if len(report['multiple_positions']['details']) > 5:
-                pdf.cell(0, 8, f"...and {len(report['multiple_positions']['details']) - 5} more", 0, 1)
-        else:
-            pdf.cell(0, 8, "No employees hold multiple positions in the organization.", 0, 1)
-        pdf.ln(10)
-        
-        # Hierarchy Distribution
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, "Hierarchy Analysis", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 8, f"Organization depth: {report['hierarchy_distribution']['org_depth']} levels", 0, 1)
-        pdf.cell(0, 8, f"Organization breadth: {report['hierarchy_distribution']['org_breadth']} direct reports to CEO", 0, 1)
-        pdf.cell(0, 8, f"Maximum span of control: {report['hierarchy_distribution']['max_span_of_control']}", 0, 1)
-        pdf.cell(0, 8, f"Average span of control: {report['hierarchy_distribution']['avg_span_of_control']:.2f}", 0, 1)
-        
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, "Employees by level:", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        for level, count in report['hierarchy_distribution']['level_counts'].items():
-            pdf.cell(0, 8, f"Level {level}: {count} employees ({report['hierarchy_distribution']['level_percentages'].get(level, 0):.2f}%)", 0, 1)
-        pdf.ln(10)
-        
-        # Department Distribution
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, "Department Analysis", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 8, f"Total departments: {len(report['department_distribution']['department_counts'])}", 0, 1)
-        
-        # Show departments, sorted by size
+        story.append(Paragraph(t['title'], title_style))
+        story.append(Paragraph(f"{t['table']}: {report['table_name']}", body_style))
+        story.append(Paragraph(f"{t['generated_on']}: {report['report_date']}", body_style))
+        story.append(Spacer(1, 20))
+
+        # Executive Summary Section with colored background
+        summary_data = [
+            [t['executive_summary'], ''],
+            [t['total_employees'], str(report['summary']['total_employees'])],
+            [t['total_departments'], str(report['summary']['total_departments'])],
+            [t['total_roles'], str(report['summary']['total_roles'])],
+            [t['org_depth'], f"{report['summary']['org_depth']} {t['levels']}"],
+            [t['avg_span'], f"{report['summary']['avg_span_of_control']:.2f}"],
+            [t['multiple_positions'], str(report['summary']['multiple_position_count'])]
+        ]
+
+        summary_table = RLTable(summary_data, colWidths=[3.5*inch, 2*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#eff6ff')),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dbeafe')),
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 1), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 11),
+            ('PADDING', (0, 0), (-1, -1), 8),
+        ]))
+        story.append(summary_table)
+        story.append(Spacer(1, 20))
+
+        # Hierarchy Analysis
+        story.append(Paragraph(t['hierarchy_analysis'], heading_style))
+        hierarchy_data = [
+            [t['org_depth'], f"{report['hierarchy_distribution']['org_depth']} {t['levels']}"],
+            [t['org_breadth'], f"{report['hierarchy_distribution']['org_breadth']} {t['reports_to_ceo']}"],
+            [t['max_span'], str(report['hierarchy_distribution']['max_span_of_control'])],
+            [t['avg_span'], f"{report['hierarchy_distribution']['avg_span_of_control']:.2f}"]
+        ]
+
+        hierarchy_table = RLTable(hierarchy_data, colWidths=[3.5*inch, 2*inch])
+        hierarchy_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f3f4f6')),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#d1d5db')),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
+            ('PADDING', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ]))
+        story.append(hierarchy_table)
+        story.append(Spacer(1, 15))
+
+        # Employees by Level Chart
+        story.append(Paragraph(t['employees_by_level'], body_style))
+        level_data = []
+        for level, count in sorted(report['hierarchy_distribution']['level_counts'].items()):
+            percentage = report['hierarchy_distribution']['level_percentages'].get(level, 0)
+            level_data.append([f"{t['level']} {level}", str(count), f"{percentage:.1f}%"])
+
+        if level_data:
+            level_table = RLTable(
+                [[t['level'], t['employees'], '%']] + level_data,
+                colWidths=[1.8*inch, 1.8*inch, 1.4*inch]
+            )
+            level_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6366f1')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#e0e7ff')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#c7d2fe')),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('PADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(level_table)
+        story.append(Spacer(1, 20))
+
+        # Department Analysis
+        story.append(Paragraph(t['department_analysis'], heading_style))
+        dept_text = f"{t['total_depts']}: {len(report['department_distribution']['department_counts'])}"
+        story.append(Paragraph(dept_text, body_style))
+        story.append(Spacer(1, 10))
+
+        # Top 10 departments
         sorted_depts = sorted(
             [(dept, count) for dept, count in report['department_distribution']['department_counts'].items()],
             key=lambda x: x[1], reverse=True
-        )
-        
-        for dept, count in sorted_depts[:10]:  # Show top 10
-            pdf.cell(0, 8, f"{dept}: {count} employees ({report['department_distribution']['department_percentages'].get(dept, 0):.2f}%)", 0, 1)
-        if len(sorted_depts) > 10:
-            pdf.cell(0, 8, f"...and {len(sorted_depts) - 10} more departments", 0, 1)
-        pdf.ln(10)
-        
-        # Role Distribution
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, "Role Analysis", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 8, f"Unique roles: {report['role_distribution']['unique_roles_count']}", 0, 1)
-        pdf.cell(0, 8, f"Role diversity ratio: {report['role_distribution']['role_diversity_ratio']:.4f}", 0, 1)
-        
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, "Top roles:", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        for role, count in report['role_distribution']['top_roles'].items():
-            pdf.cell(0, 8, f"{role}: {count} employees", 0, 1)
-        pdf.ln(10)
-        
+        )[:10]
+
+        if sorted_depts:
+            dept_data = []
+            for dept, count in sorted_depts:
+                percentage = report['department_distribution']['department_percentages'].get(dept, 0)
+                dept_data.append([str(dept) if dept else 'N/A', str(count), f"{percentage:.1f}%"])
+
+            dept_table = RLTable(
+                [[t['department_analysis'], t['employees'], '%']] + dept_data,
+                colWidths=[2.5*inch, 1.5*inch, 1*inch]
+            )
+            dept_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10b981')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
+                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#d1fae5')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#a7f3d0')),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('PADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(dept_table)
+        story.append(Spacer(1, 20))
+
+        # Role Analysis
+        story.append(Paragraph(t['role_analysis'], heading_style))
+        role_text = f"{t['unique_roles']}: {report['role_distribution']['unique_roles_count']}"
+        story.append(Paragraph(role_text, body_style))
+        story.append(Spacer(1, 10))
+
+        # Top roles
+        top_roles_data = []
+        for role, count in list(report['role_distribution']['top_roles'].items())[:10]:
+            top_roles_data.append([str(role) if role else 'N/A', str(count)])
+
+        if top_roles_data:
+            role_table = RLTable(
+                [[t['top_roles'], t['employees']]] + top_roles_data,
+                colWidths=[3.5*inch, 1.5*inch]
+            )
+            role_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f59e0b')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
+                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#fef3c7')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#fde68a')),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('PADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(role_table)
+        story.append(Spacer(1, 20))
+
         # Critical Roles
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, "Critical Role Analysis", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, "High Span of Control:", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        for node in report['critical_roles']['high_span_nodes'][:5]:  # Show top 5
-            pdf.cell(0, 8, f"{node['name']} ({node['role']}): {node['span_of_control']} direct reports", 0, 1)
-        
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, "Organizational Bottlenecks:", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        for node in report['critical_roles']['bottlenecks'][:5]:  # Show top 5
-            pdf.cell(0, 8, f"{node['name']} ({node['role']}): {node['span_of_control']} direct reports, {node['sibling_count']} siblings", 0, 1)
-        pdf.ln(10)
-        
-        # Anomalies
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, "Anomaly Detection", 0, 1)
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 8, f"Total anomalies detected: {report['anomalies']['count']}", 0, 1)
-        
+        story.append(Paragraph(t['critical_roles'], heading_style))
+
+        # High span of control
+        story.append(Paragraph(t['high_span_title'], body_style))
+        high_span_data = []
+        for node in report['critical_roles']['high_span_nodes'][:5]:
+            high_span_data.append([
+                node['name'],
+                node['role'] if node['role'] else 'N/A',
+                f"{node['span_of_control']} {t['direct_reports']}"
+            ])
+
+        if high_span_data:
+            high_span_table = RLTable(high_span_data, colWidths=[2*inch, 2*inch, 1.5*inch])
+            high_span_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fee2e2')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#fecaca')),
+                ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('PADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(high_span_table)
+        story.append(Spacer(1, 15))
+
+        # Bottlenecks
+        story.append(Paragraph(t['bottlenecks'], body_style))
+        bottleneck_data = []
+        for node in report['critical_roles']['bottlenecks'][:5]:
+            bottleneck_data.append([
+                node['name'],
+                node['role'] if node['role'] else 'N/A',
+                f"{node['span_of_control']} {t['direct_reports']}, {node['sibling_count']} {t['siblings']}"
+            ])
+
+        if bottleneck_data:
+            bottleneck_table = RLTable(bottleneck_data, colWidths=[2*inch, 2*inch, 1.5*inch])
+            bottleneck_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fef9c3')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#fef08a')),
+                ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('PADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(bottleneck_table)
+        story.append(Spacer(1, 20))
+
+        # Anomaly Detection
+        story.append(Paragraph(t['anomaly_detection'], heading_style))
+        anomaly_text = f"{t['anomalies_detected']}: {report['anomalies']['count']}"
+        story.append(Paragraph(anomaly_text, body_style))
+
         if report['anomalies']['count'] > 0:
             anomaly_counts = Counter(a['type'] for a in report['anomalies']['anomalies'])
+            anomaly_summary = []
             for anomaly_type, count in anomaly_counts.items():
-                pdf.cell(0, 8, f"{count} {anomaly_type.replace('_', ' ')} anomalies", 0, 1)
-                
-            pdf.set_font('Arial', 'B', 12)
-            pdf.cell(0, 10, "Sample anomalies:", 0, 1)
-            pdf.set_font('Arial', '', 12)
-            
-            for anomaly in report['anomalies']['anomalies'][:5]:  # Show top 5
-                if anomaly['type'] == 'inconsistent_department':
-                    pdf.multi_cell(0, 8, f"Manager {anomaly['manager_name']} in {anomaly['manager_dept']} has direct reports in different departments.")
-                elif anomaly['type'] == 'skipped_level':
-                    pdf.multi_cell(0, 8, f"{anomaly['name']} has a missing manager in the hierarchy structure.")
-                elif anomaly['type'] == 'unusually_large_team':
-                    pdf.multi_cell(0, 8, f"{anomaly['name']} ({anomaly['role']}) has an unusually large team of {anomaly['span_of_control']} direct reports.")
+                anomaly_type_translated = t.get(anomaly_type, anomaly_type.replace('_', ' '))
+                anomaly_summary.append([f"{count} {anomaly_type_translated} {t['anomalies']}"])
+
+            if anomaly_summary:
+                anomaly_table = RLTable(anomaly_summary, colWidths=[5*inch])
+                anomaly_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#ffedd5')),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#fed7aa')),
+                    ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('PADDING', (0, 0), (-1, -1), 8),
+                ]))
+                story.append(Spacer(1, 10))
+                story.append(anomaly_table)
         else:
-            pdf.cell(0, 8, "No anomalies detected in the organization structure.", 0, 1)
-        
-        # Return the PDF as bytes
-        return pdf.output(dest='S').encode('latin1')
+            story.append(Paragraph(t['no_anomalies'], body_style))
+
+        # Build PDF
+        doc.build(story)
+
+        # Get PDF bytes
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+
+        return pdf_bytes

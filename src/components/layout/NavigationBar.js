@@ -46,7 +46,10 @@ const NavigationBar = ({
       if (format === 'pdf') {
         const response = await axios.get(
           `${API_BASE_URL}/generate_org_report_pdf/${selectedTableId}`,
-          { responseType: 'blob' }
+          {
+            responseType: 'blob',
+            params: { language: i18n.language }
+          }
         );
 
         const url = window.URL.createObjectURL(new Blob([response.data]));
