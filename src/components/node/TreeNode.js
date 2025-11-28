@@ -197,24 +197,27 @@ const TreeNode = ({
   }, []);
 
   const handleLeftClick = useCallback((e) => {
+    // Handle swap mode - if any node is selected for swap, don't allow expanding/collapsing
     if (selectedSwapNode && canSwapWith) {
       onSwapNodes(
-        parentNodeId, 
-        selectedSwapNode.hierarchical_structure, 
+        parentNodeId,
+        selectedSwapNode.hierarchical_structure,
         node.hierarchical_structure
       );
       setShowSwapSuccess(true);
       return;
     } else if (!isSelectedForSwap && selectedSwapNode) {
       onCancelSwap?.();
+      return;
     }
-    
-    if (node && hasChildren && e.button === 0) {
+
+    // Only allow expanding/collapsing when NOT in swap mode
+    if (node && hasChildren && e.button === 0 && !selectedSwapNode) {
       setIsExpanded(prev => !prev);
     }
   }, [
-    node, 
-    hasChildren, 
+    node,
+    hasChildren,
     selectedSwapNode,
     canSwapWith,
     isSelectedForSwap,
@@ -279,10 +282,11 @@ const TreeNode = ({
   const handleToggleExpand = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (hasChildren) {
+    // Don't allow expanding/collapsing when in swap mode
+    if (hasChildren && !selectedSwapNode) {
       setIsExpanded(prev => !prev);
     }
-  }, [hasChildren]);
+  }, [hasChildren, selectedSwapNode]);
 
   const cancelSwap = useCallback((e) => {
     e.stopPropagation();
