@@ -201,6 +201,10 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     () => centerOnRoot(isOrganizationMode, isHierarchyMode, organizationModeData, hierarchyModeData, filteredOrgData)
   );
 
+  // Folder-first upload workflow state
+  const [tableSelectionMode, setTableSelectionMode] = useState('view'); // 'view' or 'upload'
+  const [selectedFolderForUpload, setSelectedFolderForUpload] = useState(null);
+
   const handleHighlight = (hierarchicalNodeStructure) => {
     highlightHandler(hierarchicalNodeStructure, highlightedNodes, setHighlightedNodes);
   };
@@ -415,9 +419,10 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     setOrgModePosition(null);
     await fetchData();
     setIsUploadOpen(false);
+    setSelectedFolderForUpload(null);
     // No automatic centering - only user invoked
   };
-  
+
   const handleTableSelection = async (tableId, folderId) => {
     setSelectedTableId(tableId);
     setSelectedFolderId(folderId);
@@ -427,6 +432,18 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     await fetchData();
     setIsTableSelectionOpen(false);
     // No automatic centering - only user invoked
+  };
+
+  const handleOpenUploadFlow = () => {
+    setTableSelectionMode('upload');
+    setSelectedFolderForUpload(null);
+    setIsTableSelectionOpen(true);
+  };
+
+  const handleFolderSelectedForUpload = (folderId) => {
+    setSelectedFolderForUpload(folderId);
+    setIsTableSelectionOpen(false);
+    setIsUploadOpen(true);
   };
 
   useEffect(() => {
@@ -684,8 +701,11 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         className="flex flex-col justify-center items-center h-screen"
       >
         <p className="text-xl mb-4">No data available. Please upload a file or select a table.</p>
-        <Button onClick={() => setIsUploadOpen(true)} icon={Upload} className="mb-4">Upload File</Button>
-        <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>Select Table</Button>
+        <Button onClick={handleOpenUploadFlow} icon={Upload} className="mb-4">Upload File</Button>
+        <Button onClick={() => {
+          setTableSelectionMode('view');
+          setIsTableSelectionOpen(true);
+        }} icon={List}>Select Table</Button>
       </motion.div>
     );
   }
@@ -761,10 +781,13 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onHierarchyMode={handleHierarchyMode}
           onOrganizationMode={handleOrganizationMode}
           onToggleVacancies={handleToggleVacancies}
-          onChangeTable={() => setIsTableSelectionOpen(true)}
+          onChangeTable={() => {
+            setTableSelectionMode('view');
+            setIsTableSelectionOpen(true);
+          }}
           onExpandAll={handleExpandAll}
           onCollapseAll={handleCollapseAll}
-          onUpload={() => setIsUploadOpen(true)}
+          onUpload={handleOpenUploadFlow}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenHelp={() => {}}
           onSearch={toggleSearchBar}
@@ -951,20 +974,30 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   
         <TableSelectionModal
           isOpen={isTableSelectionOpen}
-          onClose={handleCloseTableSelection}
-          onSelectTable={handleTableSelection}
+          onClose={() => {
+            handleCloseTableSelection();
+            setTableSelectionMode('view');
+            setSelectedFolderForUpload(null);
+          }}
+          onSelectTable={tableSelectionMode === 'view' ? handleTableSelection : undefined}
+          onSelectFolder={tableSelectionMode === 'upload' ? handleFolderSelectedForUpload : undefined}
+          mode={tableSelectionMode}
           folderStructure={folderStructure}
           currentFolderId={selectedFolderId}
           currentTableId={selectedTableId}
           dbPath={dbPath}
           onRefresh={fetchFolderStructure}
         />
-  
+
         <FileUploadModal
           isOpen={isUploadOpen}
-          onClose={() => setIsUploadOpen(false)}
+          onClose={() => {
+            setIsUploadOpen(false);
+            setSelectedFolderForUpload(null);
+          }}
           onUpload={handleFileUpload}
           dbPath={dbPath}
+          preselectedFolderId={selectedFolderForUpload}
         />
 
         <NodeEditorModal

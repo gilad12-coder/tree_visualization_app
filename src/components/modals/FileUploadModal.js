@@ -1,14 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   Upload,
-  Folder,
   File,
-  Plus,
   HelpCircle,
-  ChevronDown,
-  Search,
   FileText,
   Edit3,
 } from "react-feather";
