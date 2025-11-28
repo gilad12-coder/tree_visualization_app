@@ -263,7 +263,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   };
 
   // Node CRUD handlers
-  const handleContextMenu = useCallback((e, node) => {
+  const handleContextMenu = (e, node) => {
     // If clicking the same node again, toggle the menu
     const isSameNode = contextMenuOpen &&
                        contextMenuNode &&
@@ -288,7 +288,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       setContextMenuNode(node);
       setContextMenuOpen(true);
     }
-  }, [contextMenuOpen, contextMenuNode]);
+  };
 
   const handleCloseContextMenu = () => {
     setContextMenuOpen(false);
