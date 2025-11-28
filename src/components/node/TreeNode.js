@@ -497,7 +497,7 @@ const TreeNode = ({
             ? 'pointer' 
             : (isSelectedForSwap ? 'not-allowed' : 'pointer')
         }}
-        className={`rounded-xl shadow-sm p-4 w-72 relative overflow-hidden group
+        className={`rounded-xl shadow-sm p-4 w-72 relative overflow-visible group
           ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}
           ${isDead ? 'opacity-70 grayscale' : ''}
           ${isStatusUnknown ? 'border-2 border-dashed' : ''}
@@ -637,7 +637,12 @@ const TreeNode = ({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-50"
+              className="absolute z-50"
+              style={{
+                bottom: '-14px',
+                left: '50%',
+                transform: 'translateX(-50%)'
+              }}
               onClick={handlePlusButtonClick}
             >
               <div className="w-7 h-7 rounded-full bg-white hover:bg-gray-50 border-2 border-gray-800 shadow-lg cursor-pointer transition-colors duration-200 flex items-center justify-center">
