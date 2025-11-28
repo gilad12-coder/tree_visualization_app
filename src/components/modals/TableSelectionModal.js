@@ -244,7 +244,7 @@ const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate,
   );
 };
 
-const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath }) => {
+const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath, onRefresh }) => {
   const { t } = useTranslation();
   const [step, setStep] = useState('folder');
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -382,7 +382,11 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
       setEditItem(null);
       setEditName('');
       setEditDate(null);
-      window.location.reload();
+
+      // Refresh folder structure without reloading the page
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (error) {
       console.error('Failed to update:', error);
       toast.error(t('tableSelection.updateFailed'));
@@ -407,6 +411,11 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
           params: { db_path: dbPath }
         });
         toast.success(t('tableSelection.folderDeleted'));
+        // If we deleted the current folder, go back to folder selection
+        if (deleteConfirm.item.id === selectedFolder) {
+          setSelectedFolder(null);
+          setStep('folder');
+        }
       } else if (deleteConfirm.type === 'table') {
         await axios.delete(`${API_BASE_URL}/table/${deleteConfirm.item.id}`, {
           params: { db_path: dbPath }
@@ -415,7 +424,11 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
       }
 
       setDeleteConfirm(null);
-      window.location.reload();
+
+      // Refresh folder structure without reloading the page
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (error) {
       console.error('Failed to delete:', error);
       toast.error(t('tableSelection.deleteFailed'));

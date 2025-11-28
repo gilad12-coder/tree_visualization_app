@@ -81,10 +81,11 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     fetchOrgStructureData,
     handleExportExcel,
     handleHighlight: highlightHandler,
+    fetchFolderStructure,
     API_BASE_URL
   } = useDataFetching(
-    dbPath, 
-    selectedTableId, 
+    dbPath,
+    selectedTableId,
     selectedFolderId,
     setIsLoading,
     setError,
@@ -956,6 +957,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           currentFolderId={selectedFolderId}
           currentTableId={selectedTableId}
           dbPath={dbPath}
+          onRefresh={fetchFolderStructure}
         />
   
         <FileUploadModal

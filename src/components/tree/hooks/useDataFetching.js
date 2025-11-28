@@ -141,11 +141,26 @@ const useDataFetching = (
     }
   }, [selectedTableId]);
 
+  const fetchFolderStructure = useCallback(async () => {
+    if (!dbPath) return;
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/folder_structure`, {
+        params: { db_path: dbPath }
+      });
+      setFolderStructure(response.data);
+    } catch (error) {
+      console.error("Error fetching folder structure:", error);
+      setFolderStructure([]);
+    }
+  }, [dbPath, setFolderStructure]);
+
   return {
     fetchData,
     fetchOrgStructureData,
     handleExportExcel,
     handleHighlight,
+    fetchFolderStructure,
     API_BASE_URL
   };
 };

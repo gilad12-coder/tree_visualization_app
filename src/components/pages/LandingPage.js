@@ -667,6 +667,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
         onSelectTable={handleTableSelection}
         folderStructure={folderStructure}
         dbPath={dbPath}
+        onRefresh={() => fetchFolderStructure(dbPath)}
       />
     </div>
   );
