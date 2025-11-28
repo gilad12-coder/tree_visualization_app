@@ -133,79 +133,102 @@ const useUIState = (
       autoClose: false
     });
 
-    // Wait for DOM to update and ensure all elements are fully rendered
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // Force layout reflow to ensure all elements are rendered
-        void viewport.offsetHeight;
+    // Add a longer delay to ensure all elements are rendered
+    setTimeout(() => {
+      // Force layout reflow to ensure all elements are rendered
+      void viewport.offsetHeight;
 
-        // Get viewport dimensions (what user actually sees)
-        const viewportRect = viewport.getBoundingClientRect();
-        const captureWidth = viewportRect.width;
-        const captureHeight = viewportRect.height;
+      // Get viewport dimensions (what user actually sees)
+      const viewportRect = viewport.getBoundingClientRect();
+      const captureWidth = viewportRect.width;
+      const captureHeight = viewportRect.height;
 
-        // Use high resolution (3x for crisp detail)
-        const scaleFactor = 3;
+      // Use high resolution (3x for crisp detail)
+      const scaleFactor = 3;
 
-        // Create high-resolution canvas
-        const canvas = document.createElement('canvas');
-        canvas.width = captureWidth * scaleFactor;
-        canvas.height = captureHeight * scaleFactor;
+      // Create high-resolution canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = captureWidth * scaleFactor;
+      canvas.height = captureHeight * scaleFactor;
 
-        // Capture the viewport element (not the transformed chartRef)
-        html2canvas(viewport, {
-          canvas: canvas,
-          scale: scaleFactor,
-          width: captureWidth,
-          height: captureHeight,
-          scrollX: 0,
-          scrollY: 0,
-          x: 0,
-          y: 0,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#f9fafb',
-          logging: false,
-          imageTimeout: 0,
-          removeContainer: true,
-          foreignObjectRendering: false,
-          windowWidth: captureWidth,
-          windowHeight: captureHeight
-        }).then((capturedCanvas) => {
-          // Restore original transition
-          element.style.transition = originalTransition;
-
-          // Convert to blob and download
-          capturedCanvas.toBlob((blob) => {
-            if (blob) {
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              const timestamp = new Date().toISOString().slice(0, 10);
-              link.href = url;
-              link.download = `org_chart_${timestamp}.png`;
-              link.click();
-              URL.revokeObjectURL(url);
-
-              // Close loading toast and show success
-              toast.dismiss(loadingToast);
-              toast.success(t('orgChart.imageDownloadSuccess', 'Image downloaded successfully'));
-            } else {
-              toast.dismiss(loadingToast);
-              toast.error(t('orgChart.imageExportError', 'Failed to create image'));
+      // Capture the viewport element (not the transformed chartRef)
+      html2canvas(viewport, {
+        canvas: canvas,
+        scale: scaleFactor,
+        width: captureWidth,
+        height: captureHeight,
+        scrollX: 0,
+        scrollY: 0,
+        x: 0,
+        y: 0,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#f9fafb',
+        logging: true,
+        imageTimeout: 15000,
+        removeContainer: true,
+        foreignObjectRendering: false,
+        windowWidth: captureWidth,
+        windowHeight: captureHeight,
+        onclone: (clonedDoc) => {
+          // Disable all animations and transitions in cloned document
+          const style = clonedDoc.createElement('style');
+          style.textContent = `
+            * {
+              animation: none !important;
+              transition: none !important;
+              opacity: 1 !important;
             }
-          }, 'image/png', 0.95); // 95% quality
-        }).catch((error) => {
-          console.error('Error capturing image:', error);
+          `;
+          clonedDoc.head.appendChild(style);
 
-          // Restore original transition
-          element.style.transition = originalTransition;
+          // Force all elements to be fully visible
+          const allElements = clonedDoc.querySelectorAll('*');
+          allElements.forEach((el) => {
+            const computed = window.getComputedStyle(el);
+            // Skip if element is intentionally hidden
+            if (computed.display === 'none' || computed.visibility === 'hidden') {
+              return;
+            }
+            // Force full opacity and remove transforms that might hide content
+            el.style.opacity = '1';
+            el.style.visibility = 'visible';
+          });
+        }
+      }).then((capturedCanvas) => {
+        // Restore original transition
+        element.style.transition = originalTransition;
 
-          // Show error
-          toast.dismiss(loadingToast);
-          toast.error(t('orgChart.imageExportError', 'Failed to export image'));
-        });
+        // Convert to blob and download
+        capturedCanvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const timestamp = new Date().toISOString().slice(0, 10);
+            link.href = url;
+            link.download = `org_chart_${timestamp}.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            // Close loading toast and show success
+            toast.dismiss(loadingToast);
+            toast.success(t('orgChart.imageDownloadSuccess', 'Image downloaded successfully'));
+          } else {
+            toast.dismiss(loadingToast);
+            toast.error(t('orgChart.imageExportError', 'Failed to create image'));
+          }
+        }, 'image/png', 0.95); // 95% quality
+      }).catch((error) => {
+        console.error('Error capturing image:', error);
+
+        // Restore original transition
+        element.style.transition = originalTransition;
+
+        // Show error
+        toast.dismiss(loadingToast);
+        toast.error(t('orgChart.imageExportError', 'Failed to export image'));
       });
-    });
+    }, 300); // 300ms delay to ensure all rendering is complete
   }, [t]);
 
   const handleKeyDown = useCallback((e, isUpdateModalOpen, isFilterOpen, selectedSwapNode, handleCancelSwap, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleClearFilter, handleHierarchyMode, handleOrganizationMode, handleToggleVacancies, toggleSearchBar, setIsTableSelectionOpen, setIsUploadOpen, setTransform) => {
