@@ -278,16 +278,16 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
 
           {/* Language Toggle Button */}
           <motion.button
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               const newLanguage = i18n.language === 'he' ? 'en' : 'he';
               i18n.changeLanguage(newLanguage);
             }}
-            className="bg-gray-800 h-10 w-10 flex items-center justify-center hover:bg-gray-700 transition-colors"
+            className="flex items-center justify-center hover:opacity-70 transition-opacity"
             title={i18n.language === 'he' ? 'Switch to English' : 'עבור לעברית'}
           >
-            <Globe size={20} className="text-white" />
+            <Globe size={24} className="text-gray-700" />
           </motion.button>
         </div>
       </div>
