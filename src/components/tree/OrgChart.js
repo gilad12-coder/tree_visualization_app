@@ -265,16 +265,15 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
 
   // Node CRUD handlers
   const handleContextMenu = (e, node) => {
-    // Use ref to check if clicking the same node again
-    const isSameNode = contextMenuOpen &&
-                       contextMenuNodeRef.current &&
+    // Check if clicking the same node that's currently open (using ref only)
+    const isSameNode = contextMenuNodeRef.current &&
                        node &&
                        contextMenuNodeRef.current.hierarchical_structure === node.hierarchical_structure;
 
     console.log('handleContextMenu called:', {
       isSameNode,
       contextMenuOpen,
-      currentNode: contextMenuNodeRef.current?.hierarchical_structure,
+      currentNodeRef: contextMenuNodeRef.current?.hierarchical_structure,
       clickedNode: node?.hierarchical_structure
     });
 
@@ -285,7 +284,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       setContextMenuNode(null);
       contextMenuNodeRef.current = null;
     } else {
-      console.log('Opening context menu');
+      console.log('Opening context menu (new node or reopening)');
       setContextMenuPosition({ x: e.clientX, y: e.clientY });
       setContextMenuNode(node);
       contextMenuNodeRef.current = node;
