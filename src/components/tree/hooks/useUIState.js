@@ -115,22 +115,18 @@ const useUIState = (
       return;
     }
 
-    // Step 1: Center the tree first
-    handleCenter();
+    // Capture immediately at current view - no centering, no zoom change
+    const element = chartRef.current;
 
-    // Step 2: Wait for centering animation to complete, then capture
-    setTimeout(() => {
-      const element = chartRef.current;
+    // Store original transition to restore later
+    const originalTransition = element.style.transition;
 
-      // Store original transition to restore later
-      const originalTransition = element.style.transition;
+    // Only disable transition to prevent animation during capture
+    // Keep the current transform (zoom level) as the user set it
+    element.style.transition = 'none';
 
-      // Only disable transition to prevent animation during capture
-      // Keep the current transform (zoom level) as the user set it
-      element.style.transition = 'none';
-
-      // Wait for DOM to update
-      requestAnimationFrame(() => {
+    // Wait for DOM to update
+    requestAnimationFrame(() => {
         // Get the actual content size with current zoom applied
         const rect = element.getBoundingClientRect();
 
@@ -198,9 +194,8 @@ const useUIState = (
           toast.dismiss(loadingToast);
           toast.error(t('orgChart.imageExportError', 'Failed to export image'));
         });
-      });
-    }, 500); // Wait 500ms for centering to complete
-  }, [handleCenter, t]);
+    });
+  }, [t]);
 
   const handleKeyDown = useCallback((e, isUpdateModalOpen, isFilterOpen, selectedSwapNode, handleCancelSwap, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleClearFilter, handleHierarchyMode, handleOrganizationMode, handleToggleVacancies, toggleSearchBar, setIsTableSelectionOpen, setIsUploadOpen, setTransform) => {
     // More detailed logging for debugging
