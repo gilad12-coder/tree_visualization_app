@@ -697,38 +697,51 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   // Render empty tree state with instructions
   if (isEmptyTree) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="flex flex-col justify-center items-center h-screen bg-gray-50"
-      >
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
-          <div className="mb-4">
-            <div className="w-16 h-16 mx-auto bg-gray-900 rounded-full flex items-center justify-center">
-              <span className="text-3xl text-white">+</span>
+      <>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="flex flex-col justify-center items-center h-screen bg-gray-50"
+        >
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+            <div className="mb-4">
+              <div className="w-16 h-16 mx-auto bg-gray-900 rounded-full flex items-center justify-center">
+                <span className="text-3xl text-white">+</span>
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('chartOperations.emptyTreeTitle')}</h2>
+            <p className="text-gray-600 mb-6">{t('chartOperations.emptyTreeMessage')}</p>
+            <div className="flex justify-center">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  console.log('Add First Node clicked!');
+                  setNodeEditorMode('add');
+                  setParentNodeForAdd(null); // Root level
+                  setSelectedNodeForEdit(null);
+                  setIsNodeEditorOpen(true);
+                  console.log('Modal should open, isNodeEditorOpen set to true');
+                }}
+                className="px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center gap-2"
+              >
+                <span className="text-lg">+</span>
+                <span>{t('chartOperations.addFirstNode')}</span>
+              </motion.button>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('chartOperations.emptyTreeTitle')}</h2>
-          <p className="text-gray-600 mb-6">{t('chartOperations.emptyTreeMessage')}</p>
-          <div className="flex justify-center">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setNodeEditorMode('add');
-                setParentNodeForAdd(null); // Root level
-                setSelectedNodeForEdit(null);
-                setIsNodeEditorOpen(true);
-              }}
-              className="px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center gap-2"
-            >
-              <span className="text-lg">+</span>
-              <span>{t('chartOperations.addFirstNode')}</span>
-            </motion.button>
-          </div>
-        </div>
-      </motion.div>
+        </motion.div>
+
+        <NodeEditorModal
+          isOpen={isNodeEditorOpen}
+          onClose={handleCloseNodeEditor}
+          onSave={handleSaveNode}
+          nodeData={selectedNodeForEdit}
+          mode={nodeEditorMode}
+          parentNode={parentNodeForAdd}
+        />
+      </>
     );
   }
 
