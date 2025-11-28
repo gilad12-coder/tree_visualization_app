@@ -42,20 +42,31 @@ const NodeContextMenu = ({
 
   if (!isOpen || !position) return null;
 
+  // Check if node is root by counting segments in hierarchical_structure
+  // Root nodes have only one segment (e.g., /1, /CEO, /Root)
+  // Non-root nodes have multiple segments (e.g., /1/2, /CEO/Manager)
+  const isRootNode = node?.hierarchical_structure
+    ? node.hierarchical_structure.split('/').filter(part => part).length === 1
+    : false;
+
   const menuItems = [
     {
       icon: UserPlus,
       label: t('contextMenu.addChild', 'Add Child Node'),
       action: onAddChild,
       hoverBg: 'hover:bg-gray-50'
-    },
-    {
+    }
+  ];
+
+  // Only show "Add Sibling" option if not root node
+  if (!isRootNode) {
+    menuItems.push({
       icon: GitBranch,
       label: t('contextMenu.addSibling', 'Add Sibling Node'),
       action: onAddSibling,
       hoverBg: 'hover:bg-gray-50'
-    }
-  ];
+    });
+  }
 
   if (canDelete) {
     menuItems.push({
