@@ -373,9 +373,19 @@ def get_org_chart(table_id):
     session = get_session()
     try:
         data_entries = session.query(DataEntry).filter_by(table_id=table_id).all()
+
+        # Handle empty table (no data entries yet)
+        if not data_entries:
+            logger.info(f"Empty tree for table ID {table_id}, returning empty structure")
+            empty_tree = {
+                "id": "root",
+                "children": []
+            }
+            return empty_tree, None
+
         df = pd.DataFrame([entry.__dict__ for entry in data_entries])
         df = df.drop('_sa_instance_state', axis=1, errors='ignore')
-        
+
         org_chart, log = parse_org_data(df)
         if log:
             logger.info(f"Org chart generated for table ID {table_id} with logs: {log}")

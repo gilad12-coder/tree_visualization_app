@@ -509,7 +509,10 @@
     "selectedForSwap": "נבחר \"{{nodeName}}\" להחלפה. לחץ על צומת אחר להחלפת מיקומים.",
     "swapCancelled": "פעולת ההחלפה בוטלה",
     "nodesSwapped": "הצמתים הוחלפו בהצלחה",
-    "nodeMoved": "הצומת הועבר {{direction}}"
+    "nodeMoved": "הצומת הועבר {{direction}}",
+    "emptyTreeTitle": "קנבס ריק",
+    "emptyTreeMessage": "העץ שלך מוכן לבנייה! לחץ על הכפתור למטה כדי להוסיף את הצומת הראשון שלך.",
+    "addFirstNode": "הוסף צומת ראשון"
   },
   "nodeEditor": {
     "addNode": "הוסף צומת",

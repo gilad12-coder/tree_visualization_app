@@ -509,7 +509,10 @@
     "selectedForSwap": "Selected \"{{nodeName}}\" for swapping. Click another node to swap positions.",
     "swapCancelled": "Swap operation cancelled",
     "nodesSwapped": "Nodes swapped successfully",
-    "nodeMoved": "Node moved {{direction}}"
+    "nodeMoved": "Node moved {{direction}}",
+    "emptyTreeTitle": "Empty Canvas",
+    "emptyTreeMessage": "Your tree is ready to build! Click the button below to add your first node.",
+    "addFirstNode": "Add First Node"
   },
   "nodeEditor": {
     "addNode": "Add Node",

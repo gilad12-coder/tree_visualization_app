@@ -379,8 +379,8 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                     </div>
 
                     {/* Info Message */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                      <p className="text-sm text-blue-800">
+                    <div className="bg-gray-900 border border-gray-800 rounded-md p-3">
+                      <p className="text-sm text-white">
                         {t('createTree.emptyCanvasInfo')}
                       </p>
                     </div>

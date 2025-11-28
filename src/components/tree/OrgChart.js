@@ -676,15 +676,53 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   // Render empty state
   if (!dbPath || !selectedTableId || !filteredOrgData) {
     return (
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
-        exit={{ opacity: 0 }} 
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         className="flex flex-col justify-center items-center h-screen"
       >
         <p className="text-xl mb-4">No data available. Please upload a file or select a table.</p>
         <Button onClick={() => setIsUploadOpen(true)} icon={Upload} className="mb-4">Upload File</Button>
         <Button onClick={() => setIsTableSelectionOpen(true)} icon={List}>Select Table</Button>
+      </motion.div>
+    );
+  }
+
+  // Check if tree is empty (root with no children)
+  const isEmptyTree = filteredOrgData &&
+                      filteredOrgData.id === 'root' &&
+                      (!filteredOrgData.children || filteredOrgData.children.length === 0);
+
+  // Render empty tree state with instructions
+  if (isEmptyTree) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="flex flex-col justify-center items-center h-screen bg-gray-50"
+      >
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+          <div className="mb-4">
+            <div className="w-16 h-16 mx-auto bg-gray-900 rounded-full flex items-center justify-center">
+              <span className="text-3xl text-white">+</span>
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('chartOperations.emptyTreeTitle')}</h2>
+          <p className="text-gray-600 mb-6">{t('chartOperations.emptyTreeMessage')}</p>
+          <Button
+            onClick={() => {
+              setNodeEditorMode('add');
+              setParentNodeForAdd(null); // Root level
+              setSelectedNodeForEdit(null);
+              setIsNodeEditorOpen(true);
+            }}
+            icon={Upload}
+          >
+            {t('chartOperations.addFirstNode')}
+          </Button>
+        </div>
       </motion.div>
     );
   }
