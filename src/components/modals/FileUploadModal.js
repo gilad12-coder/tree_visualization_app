@@ -51,8 +51,6 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [treeName, setTreeName] = useState("");
-  const [rootNodeName, setRootNodeName] = useState("");
-  const [rootNodeRole, setRootNodeRole] = useState("");
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -81,8 +79,6 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
       setIsDropdownOpen(false);
       setSearchTerm("");
       setTreeName("");
-      setRootNodeName("");
-      setRootNodeRole("");
     }
   }, [isOpen, fetchFolders]);
 
@@ -190,19 +186,11 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
       treeName &&
       ((folderSelectionType === "existing" && selectedFolderId) ||
         (folderSelectionType === "new" && folderName)) &&
-      uploadDate &&
-      rootNodeName &&
-      rootNodeRole
+      uploadDate
     ) {
-      // Create nodes structure with just root node
+      // Create empty tree structure with just the root node
       const nodes = {
-        root: { id: 'root', children: ['node-1'] },
-        'node-1': {
-          id: 'node-1',
-          name: rootNodeName,
-          role: rootNodeRole,
-          children: []
-        }
+        root: { id: 'root', children: [] }
       };
 
       try {
@@ -250,8 +238,6 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
 
   const isBuildDisabled =
     !treeName ||
-    !rootNodeName ||
-    !rootNodeRole ||
     !uploadDate ||
     (folderSelectionType === "new" && !folderName) ||
     (folderSelectionType === "existing" && !selectedFolderId);
@@ -392,40 +378,11 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                       </motion.div>
                     </div>
 
-                    {/* Root Node Name */}
-                    <div>
-                      <motion.div
-                        className="flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                        whileHover={{
-                          borderColor: "#9CA3AF"
-                        }}
-                      >
-                        <input
-                          type="text"
-                          value={rootNodeName}
-                          onChange={(e) => setRootNodeName(e.target.value)}
-                          placeholder={t('createTree.rootNamePlaceholder')}
-                          className="bg-transparent w-full outline-none text-sm"
-                        />
-                      </motion.div>
-                    </div>
-
-                    {/* Root Node Role */}
-                    <div>
-                      <motion.div
-                        className="flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                        whileHover={{
-                          borderColor: "#9CA3AF"
-                        }}
-                      >
-                        <input
-                          type="text"
-                          value={rootNodeRole}
-                          onChange={(e) => setRootNodeRole(e.target.value)}
-                          placeholder={t('createTree.rootRolePlaceholder')}
-                          className="bg-transparent w-full outline-none text-sm"
-                        />
-                      </motion.div>
+                    {/* Info Message */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                      <p className="text-sm text-blue-800">
+                        {t('createTree.emptyCanvasInfo')}
+                      </p>
                     </div>
                   </>
                 )}
