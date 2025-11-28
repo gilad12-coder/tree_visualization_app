@@ -3,15 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, Trash2, GitBranch } from 'react-feather';
 import { useTranslation } from 'react-i18next';
 
-const THEME = {
-  primary: '#1F2937',
-  primaryLight: '#374151',
-  buttonColor: '#1F2937',
-  buttonHover: '#111827',
-  bgGray: '#F9FAFB',
-  borderColor: '#E5E7EB'
-};
-
 const NodeContextMenu = ({
   isOpen,
   position,
