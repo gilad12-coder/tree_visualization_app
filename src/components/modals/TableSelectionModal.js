@@ -272,7 +272,9 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
 
   useEffect(() => {
     if (isOpen) {
-      if (isComparingMode && currentFolderId) {
+      // If we have a current folder (either in comparing mode or view mode with a selected table),
+      // automatically navigate to that folder's table list
+      if (currentFolderId && mode === 'view') {
         setSelectedFolder(currentFolderId);
         setStep('table');
       } else {
@@ -283,7 +285,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
       setSortByDate(false);
       setDateFilter({ start: null, end: null });
     }
-  }, [isOpen, isComparingMode, currentFolderId]);
+  }, [isOpen, currentFolderId, mode]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
