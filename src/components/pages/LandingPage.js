@@ -303,7 +303,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       className="shadow-sm p-4 w-48 bg-gray-50 border border-gray-200 flex items-center justify-center z-10"
       style={{ backgroundColor: "#F9FAFB" }}
     >
-      <span className={`text-lg font-bold text-gray-800 ${getFontClass('default')}`}>{t('landingPage.ceo')}</span>
+      <span className={`text-lg font-bold text-gray-800 ${getFontClass('default')}`}>CEO</span>
     </motion.div>
     
     {/* Vertical Connector from CEO - reduced height */}

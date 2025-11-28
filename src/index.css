@@ -12,6 +12,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Force Rubik font for all text when document is in Hebrew */
+html[lang="he"] body,
+html[lang="he"] body *,
+html[lang="he"] input,
+html[lang="he"] textarea,
+html[lang="he"] select,
+html[lang="he"] button {
+  font-family: 'Rubik', sans-serif !important;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;

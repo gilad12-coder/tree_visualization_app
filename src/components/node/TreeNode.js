@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users, Move, X, ExternalLink } from 'react-feather';
+import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users, Move, X, ExternalLink, Plus } from 'react-feather';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 
 const DEFAULT_NODE_COLOR = '#F5F7FA'; 
@@ -47,7 +47,8 @@ const TreeNode = ({
   const nodeRef = useRef(null);
   const isRendered = useRef(false);
   const [showSwapSuccess, setShowSwapSuccess] = useState(false);
-  
+  const [isHovered, setIsHovered] = useState(false);
+
   // Add a renderKey to force re-renders when node order changes
   const [renderKey, setRenderKey] = useState(0);
   
@@ -225,12 +226,17 @@ const TreeNode = ({
   const handleRightClick = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Right-click is now disabled - use the + button instead
+  }, []);
 
-    // Always prioritize context menu if provided
+  const handlePlusButtonClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Trigger context menu if provided
     if (onContextMenu) {
       onContextMenu(e, node);
     }
-    // Never fallback to highlight - right-click is exclusively for context menu
   }, [node, onContextMenu]);
   
   const handleMouseDown = useCallback((e) => {
@@ -504,7 +510,11 @@ const TreeNode = ({
         onMouseUp={handleMouseUp}
         onClick={handleLeftClick}
         onContextMenu={handleRightClick}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={(e) => {
+          setIsHovered(false);
+          handleMouseLeave(e);
+        }}
       >
         {(isSelectedForSwap || canSwapWith) && (
           <div className="absolute top-1/2 left-2 -translate-y-1/2 opacity-100 transition-opacity z-20">
@@ -618,6 +628,24 @@ const TreeNode = ({
             <span className="text-green-600">Click to swap positions</span>
           )}
         </div>
+
+        {/* Add Node Button - appears on hover at bottom center */}
+        <AnimatePresence>
+          {isHovered && !isSelectedForSwap && !canSwapWith && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.2 }}
+              className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-50"
+              onClick={handlePlusButtonClick}
+            >
+              <div className="p-1.5 rounded-full bg-gray-800 hover:bg-gray-900 shadow-lg cursor-pointer transition-colors duration-200">
+                <Plus size={16} className="text-white" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     );
     
