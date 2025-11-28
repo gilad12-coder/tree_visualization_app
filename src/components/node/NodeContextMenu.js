@@ -18,7 +18,10 @@ const NodeContextMenu = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      // Don't close if clicking the context menu trigger button
+      const isContextMenuTrigger = event.target.closest('[data-context-menu-trigger="true"]');
+
+      if (menuRef.current && !menuRef.current.contains(event.target) && !isContextMenuTrigger) {
         onClose();
       }
     };

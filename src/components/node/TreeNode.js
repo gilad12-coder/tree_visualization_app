@@ -644,8 +644,12 @@ const TreeNode = ({
                 zIndex: 50
               }}
               onClick={handlePlusButtonClick}
+              data-context-menu-trigger="true"
             >
-              <div className="w-7 h-7 rounded-full bg-white hover:bg-gray-50 border-2 border-gray-800 shadow-lg cursor-pointer transition-colors duration-200 flex items-center justify-center">
+              <div
+                className="w-7 h-7 rounded-full bg-white hover:bg-gray-50 border-2 border-gray-800 shadow-lg cursor-pointer transition-colors duration-200 flex items-center justify-center"
+                data-context-menu-trigger="true"
+              >
                 <MoreHorizontal size={16} className="text-gray-800" strokeWidth={3} />
               </div>
             </motion.div>
