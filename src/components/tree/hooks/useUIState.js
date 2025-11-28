@@ -124,81 +124,82 @@ const useUIState = (
       return;
     }
 
-    // Store original transition
-    const originalTransition = element.style.transition;
-    element.style.transition = 'none';
-
     // Show loading toast immediately
     const loadingToast = toast.info(t('orgChart.capturingImage', 'Capturing image...'), {
       autoClose: false
     });
 
-    // Add a longer delay to ensure all elements are rendered
+    // Add longer delay to ensure all Framer Motion animations complete
     setTimeout(() => {
-      // Force layout reflow to ensure all elements are rendered
+      // Force multiple layout reflows to ensure everything is painted
       void viewport.offsetHeight;
+      void element.offsetHeight;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Get viewport dimensions
+          const viewportRect = viewport.getBoundingClientRect();
+          const captureWidth = viewportRect.width;
+          const captureHeight = viewportRect.height;
 
-      // Get viewport dimensions (what user actually sees)
-      const viewportRect = viewport.getBoundingClientRect();
-      const captureWidth = viewportRect.width;
-      const captureHeight = viewportRect.height;
+          // Use high resolution (3x for crisp detail)
+          const scaleFactor = 3;
 
-      // Use high resolution (3x for crisp detail)
-      const scaleFactor = 3;
+          // Capture viewport using html2canvas with optimized settings
+          html2canvas(viewport, {
+            scale: scaleFactor,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#f9fafb',
+            logging: false,
+            imageTimeout: 15000,
+            removeContainer: true,
+            foreignObjectRendering: false,
+            ignoreElements: (element) => {
+              // Don't ignore any elements
+              return false;
+            },
+            onclone: (clonedDoc, clonedElement) => {
+              // Add CSS to force all content to be visible and disable all animations
+              const style = clonedDoc.createElement('style');
+              style.textContent = `
+                * {
+                  animation: none !important;
+                  animation-delay: 0s !important;
+                  animation-duration: 0s !important;
+                  transition: none !important;
+                  transition-delay: 0s !important;
+                  transition-duration: 0s !important;
+                  transform: none !important;
+                  opacity: 1 !important;
+                  visibility: visible !important;
+                }
+                [style*="opacity: 0"] {
+                  opacity: 1 !important;
+                }
+                [style*="display: none"],
+                [style*="visibility: hidden"] {
+                  /* Keep these hidden */
+                }
+              `;
+              clonedDoc.head.appendChild(style);
 
-      // Create high-resolution canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = captureWidth * scaleFactor;
-      canvas.height = captureHeight * scaleFactor;
+              // Force all motion.div elements to be visible
+              const allDivs = clonedDoc.querySelectorAll('div');
+              allDivs.forEach((div) => {
+                const computedStyle = window.getComputedStyle(div);
+                if (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden') {
+                  div.style.opacity = '1';
+                  div.style.visibility = 'visible';
+                  div.style.transform = 'none';
+                }
+              });
 
-      // Capture the viewport element (not the transformed chartRef)
-      html2canvas(viewport, {
-        canvas: canvas,
-        scale: scaleFactor,
-        width: captureWidth,
-        height: captureHeight,
-        scrollX: 0,
-        scrollY: 0,
-        x: 0,
-        y: 0,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#f9fafb',
-        logging: true,
-        imageTimeout: 15000,
-        removeContainer: true,
-        foreignObjectRendering: false,
-        windowWidth: captureWidth,
-        windowHeight: captureHeight,
-        onclone: (clonedDoc) => {
-          // Disable all animations and transitions in cloned document
-          const style = clonedDoc.createElement('style');
-          style.textContent = `
-            * {
-              animation: none !important;
-              transition: none !important;
-              opacity: 1 !important;
+              // Wait for fonts to load in cloned document
+              if (clonedDoc.fonts && clonedDoc.fonts.ready) {
+                return clonedDoc.fonts.ready;
+              }
             }
-          `;
-          clonedDoc.head.appendChild(style);
-
-          // Force all elements to be fully visible
-          const allElements = clonedDoc.querySelectorAll('*');
-          allElements.forEach((el) => {
-            const computed = window.getComputedStyle(el);
-            // Skip if element is intentionally hidden
-            if (computed.display === 'none' || computed.visibility === 'hidden') {
-              return;
-            }
-            // Force full opacity and remove transforms that might hide content
-            el.style.opacity = '1';
-            el.style.visibility = 'visible';
-          });
-        }
-      }).then((capturedCanvas) => {
-        // Restore original transition
-        element.style.transition = originalTransition;
-
+          }).then((capturedCanvas) => {
         // Convert to blob and download
         capturedCanvas.toBlob((blob) => {
           if (blob) {
@@ -220,15 +221,12 @@ const useUIState = (
         }, 'image/png', 0.95); // 95% quality
       }).catch((error) => {
         console.error('Error capturing image:', error);
-
-        // Restore original transition
-        element.style.transition = originalTransition;
-
-        // Show error
         toast.dismiss(loadingToast);
         toast.error(t('orgChart.imageExportError', 'Failed to export image'));
       });
-    }, 300); // 300ms delay to ensure all rendering is complete
+        });
+      });
+    }, 500); // Increased to 500ms for better rendering
   }, [t]);
 
   const handleKeyDown = useCallback((e, isUpdateModalOpen, isFilterOpen, selectedSwapNode, handleCancelSwap, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleClearFilter, handleHierarchyMode, handleOrganizationMode, handleToggleVacancies, toggleSearchBar, setIsTableSelectionOpen, setIsUploadOpen, setTransform) => {
