@@ -115,7 +115,7 @@ const useUIState = (
       return;
     }
 
-    // Get the viewport (parent container with overflow: hidden)
+    // Get the chartRef element (the transformed container)
     const element = chartRef.current;
     const viewport = element.parentElement;
 
@@ -132,9 +132,13 @@ const useUIState = (
     // Store original styles to restore later
     const originalOverflow = viewport.style.overflow;
     const originalTransition = element.style.transition;
+    const originalPosition = viewport.style.position;
+    const originalHeight = viewport.style.height;
 
-    // Temporarily remove overflow hidden to allow full content capture
+    // Temporarily allow overflow and set viewport to contain all content
     viewport.style.overflow = 'visible';
+    viewport.style.position = 'relative';
+    viewport.style.height = 'auto';
     element.style.transition = 'none';
 
     // Add longer delay to ensure all Framer Motion animations complete
@@ -147,8 +151,8 @@ const useUIState = (
           // Use high resolution (3x for crisp detail)
           const scaleFactor = 3;
 
-          // Capture viewport using html2canvas with optimized settings
-          html2canvas(viewport, {
+          // Capture the element directly (which contains all the tree content)
+          html2canvas(element, {
             scale: scaleFactor,
             useCORS: true,
             allowTaint: true,
@@ -205,6 +209,8 @@ const useUIState = (
           }).then((capturedCanvas) => {
         // Restore original styles
         viewport.style.overflow = originalOverflow;
+        viewport.style.position = originalPosition;
+        viewport.style.height = originalHeight;
         element.style.transition = originalTransition;
 
         // Convert to blob and download
@@ -231,6 +237,8 @@ const useUIState = (
 
         // Restore original styles
         viewport.style.overflow = originalOverflow;
+        viewport.style.position = originalPosition;
+        viewport.style.height = originalHeight;
         element.style.transition = originalTransition;
 
         toast.dismiss(loadingToast);
