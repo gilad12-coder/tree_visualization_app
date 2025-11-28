@@ -28,6 +28,18 @@ html[lang="he"] button {
   font-family: 'Rubik', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
+/* Make default text weight lighter (not bold) */
+body, p, span, div, li, td, th, label, input, textarea, select, button {
+  font-weight: 400;
+}
+
+/* Ensure lighter font rendering */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
