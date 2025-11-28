@@ -541,7 +541,17 @@
     "nodeMoved": "Node moved {{direction}}",
     "emptyTreeTitle": "Empty Canvas",
     "emptyTreeMessage": "Your tree is ready to build! Click the button below to add your first node.",
-    "addFirstNode": "Add First Node"
+    "addFirstNode": "Add First Node",
+    "step1Title": "Add Your First Node",
+    "step1Desc": "Start by creating the root node of your organization tree",
+    "step2Title": "Build Your Structure",
+    "step2Desc": "Add children and siblings to create your organizational hierarchy",
+    "step3Title": "Visualize & Manage",
+    "step3Desc": "View your tree, edit nodes, and export your data anytime",
+    "tipText": "Tip: Right-click any node later to add children or siblings",
+    "feature1": "Easy to Use",
+    "feature2": "Fast & Responsive",
+    "feature3": "Real-time Updates"
   },
   "nodeEditor": {
     "addNode": "Add Node",
