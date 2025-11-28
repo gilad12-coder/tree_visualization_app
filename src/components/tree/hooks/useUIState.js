@@ -129,6 +129,14 @@ const useUIState = (
       autoClose: false
     });
 
+    // Store original styles to restore later
+    const originalOverflow = viewport.style.overflow;
+    const originalTransition = element.style.transition;
+
+    // Temporarily remove overflow hidden to allow full content capture
+    viewport.style.overflow = 'visible';
+    element.style.transition = 'none';
+
     // Add longer delay to ensure all Framer Motion animations complete
     setTimeout(() => {
       // Force multiple layout reflows to ensure everything is painted
@@ -195,6 +203,10 @@ const useUIState = (
               }
             }
           }).then((capturedCanvas) => {
+        // Restore original styles
+        viewport.style.overflow = originalOverflow;
+        element.style.transition = originalTransition;
+
         // Convert to blob and download
         capturedCanvas.toBlob((blob) => {
           if (blob) {
@@ -216,6 +228,11 @@ const useUIState = (
         }, 'image/png', 0.95); // 95% quality
       }).catch((error) => {
         console.error('Error capturing image:', error);
+
+        // Restore original styles
+        viewport.style.overflow = originalOverflow;
+        element.style.transition = originalTransition;
+
         toast.dismiss(loadingToast);
         toast.error(t('orgChart.imageExportError', 'Failed to export image'));
       });
