@@ -122,21 +122,16 @@ const useUIState = (
     setTimeout(() => {
       const element = chartRef.current;
 
-      // Store original styles to restore later
-      const originalStyles = {
-        transform: element.style.transform,
-        transition: element.style.transition,
-        transformOrigin: element.style.transformOrigin
-      };
+      // Store original transition to restore later
+      const originalTransition = element.style.transition;
 
-      // Temporarily remove transform for accurate capture
+      // Only disable transition to prevent animation during capture
+      // Keep the current transform (zoom level) as the user set it
       element.style.transition = 'none';
-      element.style.transform = 'translate(0px, 0px) scale(1)';
-      element.style.transformOrigin = '0 0';
 
       // Wait for DOM to update
       requestAnimationFrame(() => {
-        // Get the actual content size
+        // Get the actual content size with current zoom applied
         const rect = element.getBoundingClientRect();
 
         // Use high resolution (3x for crisp detail)
@@ -171,8 +166,8 @@ const useUIState = (
           imageTimeout: 0,
           removeContainer: true
         }).then((capturedCanvas) => {
-          // Restore original styles
-          Object.assign(element.style, originalStyles);
+          // Restore original transition
+          element.style.transition = originalTransition;
 
           // Convert to blob and download
           capturedCanvas.toBlob((blob) => {
@@ -196,8 +191,8 @@ const useUIState = (
         }).catch((error) => {
           console.error('Error capturing image:', error);
 
-          // Restore original styles
-          Object.assign(element.style, originalStyles);
+          // Restore original transition
+          element.style.transition = originalTransition;
 
           // Show error
           toast.dismiss(loadingToast);
