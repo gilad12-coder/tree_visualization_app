@@ -545,6 +545,38 @@ class OrganizationReportService:
         Returns:
             bytes: PDF report as bytes.
         """
+        # Register Hebrew font support
+        import os
+        hebrew_font_registered = False
+
+        try:
+            # Try to register DejaVu Sans font for Hebrew support
+            from reportlab.pdfbase.ttfonts import TTFont
+            from reportlab.pdfbase import pdfmetrics
+
+            # Common font paths for different systems
+            font_paths = [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                'C:\\Windows\\Fonts\\Arial.ttf'
+            ]
+            for font_path in font_paths:
+                if os.path.exists(font_path):
+                    try:
+                        pdfmetrics.registerFont(TTFont('HebrewFont', font_path))
+                        hebrew_font_registered = True
+                        logger.info(f"Registered Hebrew font: {font_path}")
+                        break
+                    except Exception as e:
+                        logger.warning(f"Failed to register font {font_path}: {e}")
+                        continue
+
+            if not hebrew_font_registered:
+                logger.warning("No Hebrew-compatible font found, Hebrew text may not display correctly")
+        except Exception as e:
+            logger.error(f"Error registering Hebrew font: {e}")
+
         # Get the report data
         report = self.generate_report()
 
@@ -661,15 +693,37 @@ class OrganizationReportService:
         t = translations.get(language, translations['en'])
         is_rtl = (language == 'he')
 
+        # Determine font to use
+        if is_rtl and hebrew_font_registered:
+            base_font = 'HebrewFont'
+            bold_font = 'HebrewFont'
+        else:
+            base_font = 'Helvetica'
+            bold_font = 'Helvetica-Bold'
+
         # Create PDF buffer
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=80, bottomMargin=50)
 
         # Container for PDF elements
         story = []
 
         # Define styles
         styles = getSampleStyleSheet()
+
+        # Add logo at the top
+        try:
+            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src', 'assets', 'Be-net_icon.png')
+            if os.path.exists(logo_path):
+                from reportlab.platypus import Image as RLImage
+                logo = RLImage(logo_path, width=60, height=60)
+                logo.hAlign = 'LEFT' if is_rtl else 'RIGHT'
+                story.append(logo)
+                story.append(Spacer(1, 10))
+            else:
+                logger.warning(f"Logo not found at {logo_path}")
+        except Exception as e:
+            logger.warning(f"Could not add logo to PDF: {e}")
 
         # Custom styles for bilingual support
         title_style = ParagraphStyle(
@@ -679,7 +733,7 @@ class OrganizationReportService:
             textColor=colors.HexColor('#1f2937'),
             spaceAfter=30,
             alignment=TA_CENTER,
-            fontName='Helvetica-Bold'
+            fontName=bold_font
         )
 
         heading_style = ParagraphStyle(
@@ -689,7 +743,7 @@ class OrganizationReportService:
             textColor=colors.HexColor('#374151'),
             spaceAfter=12,
             spaceBefore=20,
-            fontName='Helvetica-Bold',
+            fontName=bold_font,
             alignment=TA_RIGHT if is_rtl else TA_LEFT
         )
 
@@ -699,7 +753,7 @@ class OrganizationReportService:
             fontSize=11,
             textColor=colors.HexColor('#4b5563'),
             spaceAfter=8,
-            fontName='Helvetica',
+            fontName=base_font,
             alignment=TA_RIGHT if is_rtl else TA_LEFT
         )
 
@@ -725,13 +779,13 @@ class OrganizationReportService:
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), bold_font),
             ('FONTSIZE', (0, 0), (-1, 0), 14),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#eff6ff')),
             ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dbeafe')),
-            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (1, 1), (1, -1), 'Helvetica'),
+            ('FONTNAME', (0, 1), (0, -1), bold_font),
+            ('FONTNAME', (1, 1), (1, -1), base_font),
             ('FONTSIZE', (0, 1), (-1, -1), 11),
             ('PADDING', (0, 0), (-1, -1), 8),
         ]))
@@ -751,7 +805,7 @@ class OrganizationReportService:
         hierarchy_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f3f4f6')),
             ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#d1d5db')),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (0, -1), bold_font),
             ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
             ('PADDING', (0, 0), (-1, -1), 8),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
@@ -775,7 +829,7 @@ class OrganizationReportService:
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6366f1')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), bold_font),
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#e0e7ff')),
                 ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#c7d2fe')),
@@ -812,7 +866,7 @@ class OrganizationReportService:
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
                 ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), bold_font),
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#d1fae5')),
                 ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#a7f3d0')),
@@ -843,7 +897,7 @@ class OrganizationReportService:
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'RIGHT' if is_rtl else 'LEFT'),
                 ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), bold_font),
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#fef3c7')),
                 ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#fde68a')),
