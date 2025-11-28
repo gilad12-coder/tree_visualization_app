@@ -502,7 +502,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
                 onClick={() => {
                   setEditMode(null);
                   setEditItem(null);
@@ -511,33 +511,50 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                 }}
               >
                 <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
+                  initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">
-                    {editMode === 'folder' ? t('tableSelection.editFolder') : t('tableSelection.editTable')}
-                  </h2>
+                  {/* Header */}
+                  <div className="flex justify-between items-center p-4 border-b border-gray-100">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {editMode === 'folder' ? t('tableSelection.editFolder') : t('tableSelection.editTable')}
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setEditMode(null);
+                        setEditItem(null);
+                        setEditName('');
+                        setEditDate(null);
+                      }}
+                      className="text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {/* Content */}
+                  <div className="p-6 space-y-4">
+                    <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
                         {t('tableSelection.name')}
                       </label>
                       <input
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+                        autoFocus
+                        className="w-full px-2 py-1.5 text-sm border-0 focus:outline-none focus:ring-0"
                         placeholder={editMode === 'folder' ? t('tableSelection.folderName') : t('tableSelection.tableName')}
                       />
                     </div>
 
                     {editMode === 'table' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
+                        <label className="block text-xs font-medium text-gray-500 mb-2">
                           {t('tableSelection.uploadDate')}
                         </label>
                         <DatePickerWrapper
@@ -547,13 +564,14 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                           placeholderText={t('tableSelection.selectDate')}
                           wrapperColor="bg-white"
                           wrapperOpacity=""
-                          containerClassName="border border-gray-300 rounded-md shadow-sm hover:border-gray-400 transition-colors"
+                          containerClassName="border-0"
                         />
                       </div>
                     )}
                   </div>
 
-                  <div className="flex justify-end gap-3 mt-6">
+                  {/* Footer */}
+                  <div className="flex justify-end gap-3 p-4 border-t border-gray-100 bg-gray-50">
                     <button
                       onClick={() => {
                         setEditMode(null);
@@ -561,14 +579,17 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                         setEditName('');
                         setEditDate(null);
                       }}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium transition-colors"
+                      className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-md text-sm font-medium transition-colors"
                     >
                       {t('common.cancel')}
                     </button>
                     <button
                       onClick={handleSaveEdit}
                       disabled={!editName.trim()}
-                      className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ backgroundColor: THEME.primary }}
+                      onMouseEnter={(e) => !editName.trim() ? null : e.target.style.backgroundColor = THEME.primaryLight}
+                      onMouseLeave={(e) => !editName.trim() ? null : e.target.style.backgroundColor = THEME.primary}
                     >
                       {t('common.save')}
                     </button>
@@ -585,48 +606,64 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
                 onClick={() => setDeleteConfirm(null)}
               >
                 <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
+                  initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                      <Trash2 size={24} className="text-red-600" />
+                  {/* Header */}
+                  <div className="flex justify-between items-center p-4 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                        <Trash2 size={20} className="text-red-600" />
+                      </div>
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        {deleteConfirm.type === 'folder' ? t('tableSelection.deleteFolder') : t('tableSelection.deleteTable')}
+                      </h2>
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900">
-                      {deleteConfirm.type === 'folder' ? t('tableSelection.deleteFolder') : t('tableSelection.deleteTable')}
-                    </h2>
-                  </div>
-
-                  <p className="text-gray-700 mb-2">
-                    {deleteConfirm.type === 'folder'
-                      ? t('tableSelection.deleteFolderWarning', { name: deleteConfirm.item.name })
-                      : t('tableSelection.deleteTableWarning', { name: deleteConfirm.item.name })
-                    }
-                  </p>
-
-                  {deleteConfirm.type === 'folder' && (
-                    <p className="text-red-600 font-medium text-sm mb-4">
-                      {t('tableSelection.deleteFolderTablesWarning')}
-                    </p>
-                  )}
-
-                  <div className="flex justify-end gap-3 mt-6">
                     <button
                       onClick={() => setDeleteConfirm(null)}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium transition-colors"
+                      className="text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-6">
+                    <p className="text-gray-700 text-sm leading-relaxed mb-3">
+                      {deleteConfirm.type === 'folder'
+                        ? t('tableSelection.deleteFolderWarning', { name: deleteConfirm.item.name })
+                        : t('tableSelection.deleteTableWarning', { name: deleteConfirm.item.name })
+                      }
+                    </p>
+
+                    {deleteConfirm.type === 'folder' && (
+                      <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                        <p className="text-red-700 font-medium text-xs">
+                          {t('tableSelection.deleteFolderTablesWarning')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex justify-end gap-3 p-4 border-t border-gray-100 bg-gray-50">
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-md text-sm font-medium transition-colors"
                     >
                       {t('common.cancel')}
                     </button>
                     <button
                       onClick={handleConfirmDelete}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors"
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium transition-colors"
                     >
                       {t('common.delete')}
                     </button>
