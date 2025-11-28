@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { X, Save, User, Briefcase, Heart } from 'react-feather';
 import { useTranslation } from 'react-i18next';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
@@ -391,11 +391,15 @@ const NodeEditorModal = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
           onClick={(e) => e.target === e.currentTarget && onClose()}
         >
-          <div
+          <motion.div
             className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden flex flex-col"
             style={{ maxHeight: "90vh" }}
             onClick={(e) => e.stopPropagation()}
@@ -470,8 +474,8 @@ const NodeEditorModal = ({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

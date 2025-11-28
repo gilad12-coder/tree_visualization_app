@@ -715,34 +715,119 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="flex flex-col justify-center items-center h-screen bg-gray-50"
+          className="flex flex-col justify-center items-center h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50"
         >
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
-            <div className="mb-4">
-              <div className="w-16 h-16 mx-auto bg-gray-900 rounded-full flex items-center justify-center">
-                <span className="text-3xl text-white">+</span>
+          <div className="max-w-2xl w-full mx-4">
+            {/* Main Card */}
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white rounded-xl shadow-2xl overflow-hidden"
+            >
+              {/* Header Section with Gradient */}
+              <div className="bg-gradient-to-r from-gray-800 to-gray-900 p-8 text-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                  className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center mb-4 shadow-lg"
+                >
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1F2937" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                </motion.div>
+                <h2 className="text-3xl font-bold text-white mb-2">{t('chartOperations.emptyTreeTitle')}</h2>
+                <p className="text-gray-300 text-lg">{t('chartOperations.emptyTreeMessage')}</p>
               </div>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('chartOperations.emptyTreeTitle')}</h2>
-            <p className="text-gray-600 mb-6">{t('chartOperations.emptyTreeMessage')}</p>
-            <div className="flex justify-center">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  console.log('Add First Node clicked!');
-                  setNodeEditorMode('add');
-                  setParentNodeForAdd(null); // Root level
-                  setSelectedNodeForEdit(null);
-                  setIsNodeEditorOpen(true);
-                  console.log('Modal should open, isNodeEditorOpen set to true');
-                }}
-                className="px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center gap-2"
-              >
-                <span className="text-lg">+</span>
-                <span>{t('chartOperations.addFirstNode')}</span>
-              </motion.button>
-            </div>
+
+              {/* Content Section */}
+              <div className="p-8">
+                {/* Steps Guide */}
+                <div className="mb-8 space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                      1
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-1">{t('chartOperations.step1Title', 'Add Your First Node')}</h3>
+                      <p className="text-gray-600 text-sm">{t('chartOperations.step1Desc', 'Start by creating the root node of your organization tree')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                      2
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-1">{t('chartOperations.step2Title', 'Build Your Structure')}</h3>
+                      <p className="text-gray-600 text-sm">{t('chartOperations.step2Desc', 'Add children and siblings to create your organizational hierarchy')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gray-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                      3
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-1">{t('chartOperations.step3Title', 'Visualize & Manage')}</h3>
+                      <p className="text-gray-600 text-sm">{t('chartOperations.step3Desc', 'View your tree, edit nodes, and export your data anytime')}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <div className="flex justify-center pt-4 border-t border-gray-100">
+                  <motion.button
+                    whileHover={{ scale: 1.05, boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      console.log('Add First Node clicked!');
+                      setNodeEditorMode('add');
+                      setParentNodeForAdd(null); // Root level
+                      setSelectedNodeForEdit(null);
+                      setIsNodeEditorOpen(true);
+                      console.log('Modal should open, isNodeEditorOpen set to true');
+                    }}
+                    className="group relative px-8 py-4 bg-gray-900 text-white rounded-lg font-semibold transition-all duration-200 flex items-center gap-3 overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-gray-800 to-gray-900 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <motion.span
+                      className="relative text-2xl"
+                      animate={{ rotate: [0, 90, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                    >
+                      +
+                    </motion.span>
+                    <span className="relative text-lg">{t('chartOperations.addFirstNode')}</span>
+                  </motion.button>
+                </div>
+
+                {/* Helper Text */}
+                <p className="text-center text-gray-500 text-xs mt-6">
+                  {t('chartOperations.tipText', 'Tip: Right-click any node later to add children or siblings')}
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Feature Cards */}
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="grid grid-cols-3 gap-4 mt-6"
+            >
+              <div className="bg-white/80 backdrop-blur rounded-lg p-4 text-center border border-gray-200">
+                <div className="text-2xl mb-2">🎯</div>
+                <p className="text-xs font-medium text-gray-700">{t('chartOperations.feature1', 'Easy to Use')}</p>
+              </div>
+              <div className="bg-white/80 backdrop-blur rounded-lg p-4 text-center border border-gray-200">
+                <div className="text-2xl mb-2">⚡</div>
+                <p className="text-xs font-medium text-gray-700">{t('chartOperations.feature2', 'Fast & Responsive')}</p>
+              </div>
+              <div className="bg-white/80 backdrop-blur rounded-lg p-4 text-center border border-gray-200">
+                <div className="text-2xl mb-2">🔄</div>
+                <p className="text-xs font-medium text-gray-700">{t('chartOperations.feature3', 'Real-time Updates')}</p>
+              </div>
+            </motion.div>
           </div>
         </motion.div>
 
