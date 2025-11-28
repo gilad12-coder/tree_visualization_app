@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, User, Briefcase, Heart, ArrowLeft } from 'react-feather';
+import { X, Save, User, Briefcase, Heart, ArrowLeft, ArrowRight } from 'react-feather';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import '../../styles/radio.css';
+import '../../styles/scrollbar.css';
 
 const THEME = {
   primary: '#1F2937',
@@ -366,90 +367,104 @@ const NodeEditorModal = ({
     </div>
   );
 
+  const renderFormContent = () => {
+    switch (currentTab) {
+      case 'personal':
+        return renderPersonalInfoFields();
+      case 'role':
+        return renderRoleInfoFields();
+      case 'status':
+        return renderStatusFields();
+      default:
+        return renderPersonalInfoFields();
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+        <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
           onClick={(e) => e.target === e.currentTarget && onClose()}
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden flex flex-col"
+          <div
+            className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden flex flex-col"
+            style={{ maxHeight: "90vh" }}
             onClick={(e) => e.stopPropagation()}
-            style={{ maxHeight: "calc(100vh - 40px)" }}
           >
-            {/* Header */}
-            <div className="flex justify-between items-center p-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-800">
-                {mode === 'add'
-                  ? t('nodeEditor.addNode', 'Add New Node')
-                  : t('nodeEditor.editNode', 'Edit Node')
-                }
-              </h2>
+            {/* Header - Back Button */}
+            <div className="p-4 border-b border-gray-100">
               <button
                 onClick={onClose}
-                className="text-gray-500 hover:text-gray-700"
+                className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
               >
-                <X size={20} />
+                {isRTL ? <ArrowRight size={18} className="ml-2" /> : <ArrowLeft size={18} className="mr-2" />}
+                <span>{t('updatePersonalInfo.backToMainInfo')}</span>
               </button>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex border-b border-gray-200 bg-gray-50">
-              {tabs.map((tab) => (
+            {/* Content Area */}
+            <div className="flex-grow overflow-y-auto custom-scrollbar">
+              <div className="p-4">
+                {/* Tab navigation */}
+                <div className="flex border-b border-gray-100 mb-4">
+                  {tabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setCurrentTab(tab.id)}
+                      className={`flex-1 py-2 px-1 flex items-center justify-center relative text-xs ${
+                        currentTab === tab.id
+                          ? 'text-gray-900 bg-white font-medium'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                      style={{
+                        color: currentTab === tab.id ? THEME.primary : undefined
+                      }}
+                    >
+                      {tab.icon}
+                      <span className={currentTab === tab.id ? 'font-medium' : ''}>{tab.label}</span>
+                      {currentTab === tab.id && (
+                        <div
+                          className="absolute bottom-0 left-0 right-0 h-0.5"
+                          style={{ backgroundColor: THEME.primary }}
+                        ></div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Tab content */}
+                <div key={currentTab}>
+                  {renderFormContent()}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer - Action Buttons */}
+            <div className="border-t border-gray-100 p-4">
+              <div className="flex gap-3">
                 <button
-                  key={tab.id}
-                  onClick={() => setCurrentTab(tab.id)}
-                  className={`flex-1 px-4 py-3 text-xs font-medium flex items-center justify-center transition-colors ${
-                    currentTab === tab.id
-                      ? 'bg-white border-b-2 border-gray-800 text-gray-900'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                  }`}
+                  onClick={onClose}
+                  className="flex-1 px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                 >
-                  {tab.icon}
-                  <span>{tab.label}</span>
+                  {t('updatePersonalInfo.cancel', 'Cancel')}
                 </button>
-              ))}
+                <button
+                  onClick={handleSubmit}
+                  className="flex-1 px-4 py-2.5 rounded-md text-sm font-medium text-white flex items-center justify-center gap-2 transition-colors"
+                  style={{
+                    backgroundColor: THEME.buttonColor,
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = THEME.buttonHover}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = THEME.buttonColor}
+                >
+                  <Save size={16} />
+                  {t('updatePersonalInfo.save', 'Save')}
+                </button>
+              </div>
             </div>
-
-            {/* Content */}
-            <div className="flex-grow overflow-y-auto p-4 custom-scrollbar" style={{ maxHeight: "calc(100vh - 220px)" }}>
-              {currentTab === 'personal' && renderPersonalInfoFields()}
-              {currentTab === 'role' && renderRoleInfoFields()}
-              {currentTab === 'status' && renderStatusFields()}
-            </div>
-
-            {/* Footer */}
-            <div className="flex gap-3 p-4 border-t border-gray-100">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-              >
-                {t('nodeEditor.cancel', 'Cancel')}
-              </button>
-              <button
-                onClick={handleSubmit}
-                className="flex-1 px-4 py-2.5 rounded-md text-sm font-medium text-white flex items-center justify-center gap-2 transition-colors"
-                style={{
-                  backgroundColor: THEME.buttonColor,
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = THEME.buttonHover}
-                onMouseLeave={(e) => e.target.style.backgroundColor = THEME.buttonColor}
-              >
-                <Save size={16} />
-                {t('nodeEditor.save', 'Save')}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
     </AnimatePresence>
   );
