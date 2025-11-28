@@ -361,7 +361,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
     setEditDate(table.upload_date ? parseISO(table.upload_date) : null);
   }, []);
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = useCallback(async () => {
     if (!editItem || !editName.trim()) return;
 
     try {
@@ -391,7 +391,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
       console.error('Failed to update:', error);
       toast.error(t('tableSelection.updateFailed'));
     }
-  };
+  }, [editItem, editName, editMode, editDate, dbPath, t, onRefresh]);
 
   // Delete handlers
   const handleDeleteFolder = useCallback((folder) => {
