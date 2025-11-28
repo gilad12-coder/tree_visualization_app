@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   List,
   Database,
+  FolderPlus,
   Clock,
   ArrowLeft,
   ArrowRight,
