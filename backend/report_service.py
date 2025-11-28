@@ -579,6 +579,15 @@ class OrganizationReportService:
                 except Exception as e:
                     logger.warning(f"Failed to register Rubik Bold font: {e}")
 
+            # Register font family for better ReportLab support
+            if rubik_font_registered and rubik_bold_registered:
+                try:
+                    from reportlab.pdfbase.pdfmetrics import registerFontFamily
+                    registerFontFamily('Rubik', normal='Rubik', bold='Rubik-Bold', italic='Rubik', boldItalic='Rubik-Bold')
+                    logger.info("Registered Rubik font family")
+                except Exception as e:
+                    logger.warning(f"Failed to register Rubik font family: {e}")
+
             if not rubik_font_registered:
                 logger.warning("Rubik font not found, falling back to Helvetica")
 
@@ -600,17 +609,23 @@ class OrganizationReportService:
         # RTL text processing function
         def process_text(text, is_rtl_lang):
             """Process text for RTL display if needed."""
+            if not text:
+                return ""
             if not is_rtl_lang or not rtl_support:
                 return str(text)
             try:
                 import arabic_reshaper
                 from bidi.algorithm import get_display
-                # Reshape Arabic/Hebrew characters and apply bidi algorithm
-                reshaped_text = arabic_reshaper.reshape(str(text))
-                bidi_text = get_display(reshaped_text)
+                # Convert to string first
+                text_str = str(text)
+                # Reshape Arabic/Hebrew characters for proper display
+                reshaped_text = arabic_reshaper.reshape(text_str)
+                # Apply bidirectional algorithm with base_dir='R' for RTL
+                bidi_text = get_display(reshaped_text, base_dir='R')
+                logger.debug(f"RTL processed: '{text_str[:20]}' -> '{bidi_text[:20]}'")
                 return bidi_text
             except Exception as e:
-                logger.warning(f"Error processing RTL text: {e}")
+                logger.warning(f"Error processing RTL text '{str(text)[:30]}': {e}")
                 return str(text)
 
         # Get the report data
