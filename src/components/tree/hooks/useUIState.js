@@ -9,7 +9,7 @@ import {
   DEFAULT_SEARCH_ZOOM_LEVEL,
   DEFAULT_PRIMARY_FIELD,
   DEFAULT_SECONDARY_FIELD
-} from '../../ToolsComponents/DefaultSettings';
+} from '../../settings/DefaultSettings';
 
 const useUIState = (
   setExpandAll,

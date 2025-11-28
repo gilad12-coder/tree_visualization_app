@@ -21,12 +21,12 @@ import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/lan
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
-import PopupInfoModal from '../HelperComponents/PopupInfoModal';
+import PopupInfoModal from '../../common/PopupInfoModal';
 import '../../styles/datepicker.css';
 import '../../styles/fonts.css';
 import '../../styles/scrollbar.css';
 import '../../styles/radio.css';
-import DatePickerWrapper from '../HelperComponents/DatePickerWrapper';
+import DatePickerWrapper from '../../common/DatePickerWrapper';
 
 const API_BASE_URL = "http://localhost:5001";
 const MAX_HEIGHT_FOR_REVIEW_CHANGES = 300;

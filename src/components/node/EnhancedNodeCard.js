@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 import { X, ArrowRight, User, Edit, ArrowLeft, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
-import CVTimelineSection from '../NodeCardComponents/CVTimelineSection';
-import UpdatePersonalInfoSection from '../NodeCardComponents/UpdatePersonalInfoSection.js';
-import NodeInformation from '../NodeCardComponents/NodeInformation.js';
+import CVTimelineSection from './card/CVTimelineSection';
+import UpdatePersonalInfoSection from './card/UpdatePersonalInfoSection.js';
+import NodeInformation from './card/NodeInformation.js';
 import '../../styles/fonts.css';
 import '../../styles/scrollbar.css';
 

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { DEFAULT_KEYBINDINGS } from '../components/ToolsComponents/DefaultSettings';
+import { DEFAULT_KEYBINDINGS } from '../components/settings/DefaultSettings';
 
 // Get settings from localStorage if available
 const getSettingsFromStorage = () => {

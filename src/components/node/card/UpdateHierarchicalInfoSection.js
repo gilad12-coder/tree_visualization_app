@@ -10,7 +10,7 @@ import '../../styles/datepicker.css';
 import '../../styles/scrollbar.css';
 import '../../styles/fonts.css';
 import DatePickerWrapper from '../../styles/datepicker.css';
-import PopupInfoModal from '../HelperComponents/PopupInfoModal';
+import PopupInfoModal from '../../common/PopupInfoModal';
 
 const API_BASE_URL = "http://localhost:5001";
 const MAX_HEIGHT_FOR_REVIEW_CHANGES = 200;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { OrgChartProvider } from './components/Context/OrgChartContext';
-import OrgChart from './components/OrgChart/OrgChart';
-import LandingPage from './components/Pages/LandingPage';
+import { OrgChartProvider } from './components/context/OrgChartContext';
+import OrgChart from './components/tree/OrgChart';
+import LandingPage from './components/pages/LandingPage';
 import { ToastContainer } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import 'react-toastify/dist/ReactToastify.css';
