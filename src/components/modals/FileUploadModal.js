@@ -34,7 +34,7 @@ const convertToUTCDate = (date) =>
   new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 const formatDateForAPI = (date) => date.toISOString().split("T")[0];
 
-const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderId }) => {
+const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderId, folderStructure = [] }) => {
   const { t } = useTranslation();
   const [creationMethod, setCreationMethod] = useState("upload"); // "upload" or "build"
   const [lockedMethod, setLockedMethod] = useState(null); // Locked method based on previous usage
@@ -43,6 +43,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
   const [uploadDate, setUploadDate] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [treeName, setTreeName] = useState("");
+  const [folderName, setFolderName] = useState(""); // Store folder name for create-tree
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -63,8 +64,16 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
       setTableName("");
       setUploadDate(null);
       setTreeName("");
+
+      // Look up folder name from folder ID
+      if (preselectedFolderId && folderStructure.length > 0) {
+        const folder = folderStructure.find(f => f.id === preselectedFolderId);
+        if (folder) {
+          setFolderName(folder.name);
+        }
+      }
     }
-  }, [isOpen, dbPath]);
+  }, [isOpen, dbPath, preselectedFolderId, folderStructure]);
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -144,7 +153,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
   };
 
   const handleBuildTree = async () => {
-    if (treeName && preselectedFolderId && uploadDate) {
+    if (treeName && folderName && uploadDate) {
       // Create empty tree structure with just the root node
       const nodes = {
         root: { id: 'root', children: [] }
@@ -154,9 +163,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
         const response = await axios.post(`${API_BASE_URL}/create-tree`, {
           treeName: treeName,
           nodes: nodes,
-          folderId: preselectedFolderId,
-          isNewFolder: false,
-          uploadDate: formatDateForAPI(convertToUTCDate(uploadDate))
+          folderName: folderName,
         }, {
           params: { db_path: dbPath }
         });
@@ -187,7 +194,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
   };
 
   const isUploadDisabled = !selectedFile || !uploadDate || !preselectedFolderId;
-  const isBuildDisabled = !treeName || !uploadDate || !preselectedFolderId;
+  const isBuildDisabled = !treeName || !uploadDate || !folderName;
 
   return (
     <>

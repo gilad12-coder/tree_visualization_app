@@ -995,6 +995,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onUpload={handleFileUpload}
           dbPath={dbPath}
           preselectedFolderId={selectedFolderForUpload}
+          folderStructure={folderStructure}
         />
 
         <NodeEditorModal

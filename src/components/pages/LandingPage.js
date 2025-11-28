@@ -663,6 +663,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
         onUpload={handleUploadFile}
         dbPath={dbPath}
         preselectedFolderId={selectedFolderForUpload}
+        folderStructure={folderStructure}
       />
       <TableSelectionModal
         isOpen={isTableSelectionOpen}
