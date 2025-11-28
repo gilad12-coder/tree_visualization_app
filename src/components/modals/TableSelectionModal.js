@@ -253,12 +253,11 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState({ start: null, end: null });
 
-  // Edit/Delete states
+  // Edit states
   const [editMode, setEditMode] = useState(null); // 'folder' or 'table'
   const [editItem, setEditItem] = useState(null);
   const [editName, setEditName] = useState('');
   const [editDate, setEditDate] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const filterMenuRef = useRef(null);
   const filterButtonRef = useRef(null);
@@ -394,46 +393,53 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
   }, [editItem, editName, editMode, editDate, dbPath, t, onRefresh]);
 
   // Delete handlers
-  const handleDeleteFolder = useCallback((folder) => {
-    setDeleteConfirm({ type: 'folder', item: folder });
-  }, []);
+  const handleDeleteFolder = useCallback(async (folder) => {
+    const confirmMessage = t('tableSelection.deleteFolderWarning', { name: folder.name }) + '\n\n' + t('tableSelection.deleteFolderTablesWarning');
 
-  const handleDeleteTable = useCallback((table) => {
-    setDeleteConfirm({ type: 'table', item: table });
-  }, []);
-
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirm) return;
-
-    try {
-      if (deleteConfirm.type === 'folder') {
-        await axios.delete(`${API_BASE_URL}/folder/${deleteConfirm.item.id}`, {
+    if (window.confirm(confirmMessage)) {
+      try {
+        await axios.delete(`${API_BASE_URL}/folder/${folder.id}`, {
           params: { db_path: dbPath }
         });
         toast.success(t('tableSelection.folderDeleted'));
+
         // If we deleted the current folder, go back to folder selection
-        if (deleteConfirm.item.id === selectedFolder) {
+        if (folder.id === selectedFolder) {
           setSelectedFolder(null);
           setStep('folder');
         }
-      } else if (deleteConfirm.type === 'table') {
-        await axios.delete(`${API_BASE_URL}/table/${deleteConfirm.item.id}`, {
+
+        // Refresh folder structure without reloading the page
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } catch (error) {
+        console.error('Failed to delete folder:', error);
+        toast.error(t('tableSelection.deleteFailed'));
+      }
+    }
+  }, [dbPath, t, onRefresh, selectedFolder]);
+
+  const handleDeleteTable = useCallback(async (table) => {
+    const confirmMessage = t('tableSelection.deleteTableWarning', { name: table.name });
+
+    if (window.confirm(confirmMessage)) {
+      try {
+        await axios.delete(`${API_BASE_URL}/table/${table.id}`, {
           params: { db_path: dbPath }
         });
         toast.success(t('tableSelection.tableDeleted'));
-      }
 
-      setDeleteConfirm(null);
-
-      // Refresh folder structure without reloading the page
-      if (onRefresh) {
-        await onRefresh();
+        // Refresh folder structure without reloading the page
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } catch (error) {
+        console.error('Failed to delete table:', error);
+        toast.error(t('tableSelection.deleteFailed'));
       }
-    } catch (error) {
-      console.error('Failed to delete:', error);
-      toast.error(t('tableSelection.deleteFailed'));
     }
-  };
+  }, [dbPath, t, onRefresh]);
 
   const handleCancelEdit = useCallback(() => {
     setEditMode(null);
@@ -642,72 +648,6 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                 </AutoSizer>
               </div>
             </motion.div>
-          </AnimatePresence>
-
-          {/* Delete Confirmation Dialog */}
-          <AnimatePresence>
-            {deleteConfirm && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
-                onClick={() => setDeleteConfirm(null)}
-              >
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.95, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Header */}
-                  <div className="flex justify-end items-center p-4 border-b border-gray-100">
-                    <button
-                      onClick={() => setDeleteConfirm(null)}
-                      className="text-gray-500 hover:text-gray-700 transition-colors"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-6">
-                    <p className="text-gray-700 text-sm leading-relaxed mb-3">
-                      {deleteConfirm.type === 'folder'
-                        ? t('tableSelection.deleteFolderWarning', { name: deleteConfirm.item.name })
-                        : t('tableSelection.deleteTableWarning', { name: deleteConfirm.item.name })
-                      }
-                    </p>
-
-                    {deleteConfirm.type === 'folder' && (
-                      <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                        <p className="text-red-700 font-medium text-xs">
-                          {t('tableSelection.deleteFolderTablesWarning')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex justify-end gap-3 p-4 border-t border-gray-100 bg-gray-50">
-                    <button
-                      onClick={() => setDeleteConfirm(null)}
-                      className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-md text-sm font-medium transition-colors"
-                    >
-                      {t('common.cancel')}
-                    </button>
-                    <button
-                      onClick={handleConfirmDelete}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium transition-colors"
-                    >
-                      {t('common.delete')}
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
           </AnimatePresence>
         </motion.div>
       </motion.div>
