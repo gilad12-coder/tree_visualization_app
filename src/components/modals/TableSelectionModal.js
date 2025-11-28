@@ -247,7 +247,7 @@ const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate,
   );
 };
 
-const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, onCreateTable, mode = 'view', folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath, onRefresh }) => {
+const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, onCreateTable, onCurrentItemDeleted, mode = 'view', folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath, onRefresh }) => {
   const { t } = useTranslation();
   const [step, setStep] = useState('folder');
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -418,7 +418,13 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
         });
         toast.success(t('tableSelection.folderDeleted'));
 
-        // If we deleted the current folder, go back to folder selection
+        // If we deleted the current folder (that user is viewing), notify parent
+        if (folder.id === currentFolderId && onCurrentItemDeleted) {
+          onCurrentItemDeleted('folder', folder.name);
+          return; // Don't proceed with other updates since we're redirecting
+        }
+
+        // If we deleted the folder we're browsing in the modal, go back to folder selection
         if (folder.id === selectedFolder) {
           setSelectedFolder(null);
           setStep('folder');
@@ -433,7 +439,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
         toast.error(t('tableSelection.deleteFailed'));
       }
     }
-  }, [dbPath, t, onRefresh, selectedFolder]);
+  }, [dbPath, t, onRefresh, selectedFolder, currentFolderId, onCurrentItemDeleted]);
 
   const handleDeleteTable = useCallback(async (table) => {
     const confirmMessage = t('tableSelection.deleteTableWarning', { name: table.name });
@@ -445,6 +451,12 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
         });
         toast.success(t('tableSelection.tableDeleted'));
 
+        // If we deleted the current table (that user is viewing), notify parent
+        if (table.id === currentTableId && onCurrentItemDeleted) {
+          onCurrentItemDeleted('table', table.name);
+          return; // Don't proceed with other updates since we're redirecting
+        }
+
         // Refresh folder structure without reloading the page
         if (onRefresh) {
           await onRefresh();
@@ -454,7 +466,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
         toast.error(t('tableSelection.deleteFailed'));
       }
     }
-  }, [dbPath, t, onRefresh]);
+  }, [dbPath, t, onRefresh, currentTableId, onCurrentItemDeleted]);
 
   const handleCancelEdit = useCallback(() => {
     setEditMode(null);

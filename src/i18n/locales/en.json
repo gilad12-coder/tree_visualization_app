@@ -31,7 +31,9 @@
     "previous": "Previous",
     "done": "Done",
     "continue": "Continue",
-    "tip": "Tip"
+    "tip": "Tip",
+    "folder": "folder",
+    "table": "table"
   },
   "databaseSelection": {
     "enterDbPath": "Enter path to existing .db file",
@@ -511,6 +513,7 @@
   },
   "chartOperations": {
     "chartCentered": "Chart centered successfully",
+    "currentItemDeleted": "The {{type}} \"{{name}}\" you were viewing has been deleted. Returning to database selection.",
     "parsingIssues": "Parsing encountered issues. The log has been downloaded for your review.",
     "parsingIssuesDownloaded": "Parsing encountered issues. The error log has been downloaded for your review.",
     "parsingIssuesExist": "Parsing issues detected. The error log was previously downloaded.",

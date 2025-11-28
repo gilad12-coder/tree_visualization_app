@@ -715,38 +715,35 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="flex flex-col justify-center items-center h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50"
+          className="flex flex-col justify-center items-center h-screen bg-gradient-to-br from-gray-50 to-gray-100"
         >
           <div className="max-w-2xl w-full mx-4">
-            {/* Main Card */}
+            {/* Main Card - matching landing page style */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.1 }}
-              className="bg-white rounded-xl shadow-2xl overflow-hidden"
+              className="bg-white shadow-md border border-gray-200 overflow-hidden"
             >
-              {/* Header Section with Gradient */}
-              <div className="bg-gradient-to-r from-gray-800 to-gray-900 p-8 text-center">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center mb-4 shadow-lg"
-                >
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1F2937" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {/* Header Section */}
+              <div className="bg-gray-800 p-6 flex items-center border-b border-gray-700">
+                <div className="bg-white p-3 mr-4 rtl:mr-0 rtl:ml-4">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1F2937" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                   </svg>
-                </motion.div>
-                <h2 className="text-3xl font-bold text-white mb-2">{t('chartOperations.emptyTreeTitle')}</h2>
-                <p className="text-gray-300 text-lg">{t('chartOperations.emptyTreeMessage')}</p>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">{t('chartOperations.emptyTreeTitle')}</h2>
+                  <p className="text-gray-300 text-sm mt-1">{t('chartOperations.emptyTreeMessage')}</p>
+                </div>
               </div>
 
               {/* Content Section */}
-              <div className="p-8">
+              <div className="p-6">
                 {/* Steps Guide */}
-                <div className="mb-8 space-y-4">
+                <div className="mb-6 space-y-4">
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gray-800 text-white flex items-center justify-center font-bold text-sm">
                       1
                     </div>
                     <div>
@@ -755,7 +752,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-gray-700 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gray-700 text-white flex items-center justify-center font-bold text-sm">
                       2
                     </div>
                     <div>
@@ -764,7 +761,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-gray-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gray-600 text-white flex items-center justify-center font-bold text-sm">
                       3
                     </div>
                     <div>
@@ -775,9 +772,9 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
                 </div>
 
                 {/* Action Button */}
-                <div className="flex justify-center pt-4 border-t border-gray-100">
+                <div className="flex justify-center pt-4 border-t border-gray-200">
                   <motion.button
-                    whileHover={{ scale: 1.05, boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" }}
+                    whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => {
                       console.log('Add First Node clicked!');
@@ -787,44 +784,51 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
                       setIsNodeEditorOpen(true);
                       console.log('Modal should open, isNodeEditorOpen set to true');
                     }}
-                    className="group relative px-8 py-4 bg-gray-900 text-white rounded-lg font-semibold transition-all duration-200 flex items-center gap-3 overflow-hidden"
+                    className="px-8 py-3 bg-gray-800 text-white hover:bg-gray-700 transition-colors flex items-center gap-3 font-medium"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-gray-800 to-gray-900 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <motion.span
-                      className="relative text-2xl"
-                      animate={{ rotate: [0, 90, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                    >
-                      +
-                    </motion.span>
-                    <span className="relative text-lg">{t('chartOperations.addFirstNode')}</span>
+                    <span className="text-xl">+</span>
+                    <span>{t('chartOperations.addFirstNode')}</span>
                   </motion.button>
                 </div>
 
                 {/* Helper Text */}
-                <p className="text-center text-gray-500 text-xs mt-6">
+                <p className="text-center text-gray-500 text-xs mt-4">
                   {t('chartOperations.tipText', 'Tip: Right-click any node later to add children or siblings')}
                 </p>
               </div>
             </motion.div>
 
-            {/* Feature Cards */}
+            {/* Feature Cards - matching landing page feature card style */}
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="grid grid-cols-3 gap-4 mt-6"
+              className="grid grid-cols-3 gap-3 mt-4"
             >
-              <div className="bg-white/80 backdrop-blur rounded-lg p-4 text-center border border-gray-200">
-                <div className="text-2xl mb-2">🎯</div>
+              <div className="bg-white p-4 shadow-sm border border-gray-200 flex flex-col items-center text-center">
+                <div className="p-2 bg-gray-100 mb-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                  </svg>
+                </div>
                 <p className="text-xs font-medium text-gray-700">{t('chartOperations.feature1', 'Easy to Use')}</p>
               </div>
-              <div className="bg-white/80 backdrop-blur rounded-lg p-4 text-center border border-gray-200">
-                <div className="text-2xl mb-2">⚡</div>
+              <div className="bg-white p-4 shadow-sm border border-gray-200 flex flex-col items-center text-center">
+                <div className="p-2 bg-gray-100 mb-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                  </svg>
+                </div>
                 <p className="text-xs font-medium text-gray-700">{t('chartOperations.feature2', 'Fast & Responsive')}</p>
               </div>
-              <div className="bg-white/80 backdrop-blur rounded-lg p-4 text-center border border-gray-200">
-                <div className="text-2xl mb-2">🔄</div>
+              <div className="bg-white p-4 shadow-sm border border-gray-200 flex flex-col items-center text-center">
+                <div className="p-2 bg-gray-100 mb-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                  </svg>
+                </div>
                 <p className="text-xs font-medium text-gray-700">{t('chartOperations.feature3', 'Real-time Updates')}</p>
               </div>
             </motion.div>
@@ -1061,6 +1065,14 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
             setSelectedFolderForUpload(folderId);
             setIsTableSelectionOpen(false);
             setIsUploadOpen(true);
+          }}
+          onCurrentItemDeleted={(type, name) => {
+            // Close the modal
+            setIsTableSelectionOpen(false);
+            // Show toast message
+            toast.info(t('chartOperations.currentItemDeleted', {type: type === 'folder' ? t('common.folder') : t('common.table'), name: name}));
+            // Redirect to landing page
+            onReturnToLanding();
           }}
           mode={tableSelectionMode}
           folderStructure={folderStructure}

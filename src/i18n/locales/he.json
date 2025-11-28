@@ -31,7 +31,9 @@
     "previous": "הקודם",
     "done": "סיים",
     "continue": "המשך",
-    "tip": "טיפ"
+    "tip": "טיפ",
+    "folder": "תיקייה",
+    "table": "טבלה"
   },
   "databaseSelection": {
     "enterDbPath": "הזן נתיב לקובץ .db קיים",
@@ -511,6 +513,7 @@
   },
   "chartOperations": {
     "chartCentered": "התרשים מורכז בהצלחה",
+    "currentItemDeleted": "ה{{type}} \"{{name}}\" שצפית בה נמחק. חוזר לבחירת מסד נתונים.",
     "parsingIssues": "נתקלו בעיות בניתוח. היומן הורד לבדיקה שלך.",
     "parsingIssuesDownloaded": "נתקלו בעיות בניתוח. יומן השגיאות הורד לבדיקה שלך.",
     "parsingIssuesExist": "זוהו בעיות בניתוח. יומן השגיאות הורד בעבר.",

@@ -22,6 +22,12 @@ html[lang="he"] button {
   font-family: 'Rubik', sans-serif !important;
 }
 
+/* Apply Rubik font to all Hebrew text regardless of language setting */
+/* This ensures Hebrew characters always use Rubik font */
+* {
+  font-family: 'Rubik', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;

@@ -19,6 +19,23 @@
   src: url('./fonts/Rubik/Rubik-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F; /* Hebrew Unicode range */
+}
+
+@font-face {
+  font-family: 'Rubik';
+  src: url('./fonts/Rubik/Rubik-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  unicode-range: U+0590-05FF, U+FB1D-FB4F; /* Hebrew Unicode range */
+}
+
+/* Rubik for all text (fallback when no unicode-range is supported) */
+@font-face {
+  font-family: 'Rubik';
+  src: url('./fonts/Rubik/Rubik-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
 }
 
 @font-face {
