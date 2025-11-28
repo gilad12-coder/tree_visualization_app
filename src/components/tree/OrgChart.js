@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { List, Upload } from "react-feather";
 import { toast } from 'react-toastify';
@@ -50,6 +50,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState(null);
   const [contextMenuNode, setContextMenuNode] = useState(null);
+  const contextMenuNodeRef = useRef(null);
 
   const {
     expandAll,
@@ -264,16 +265,16 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
 
   // Node CRUD handlers
   const handleContextMenu = (e, node) => {
-    // If clicking the same node again, toggle the menu
+    // Use ref to check if clicking the same node again
     const isSameNode = contextMenuOpen &&
-                       contextMenuNode &&
+                       contextMenuNodeRef.current &&
                        node &&
-                       contextMenuNode.hierarchical_structure === node.hierarchical_structure;
+                       contextMenuNodeRef.current.hierarchical_structure === node.hierarchical_structure;
 
     console.log('handleContextMenu called:', {
       isSameNode,
       contextMenuOpen,
-      currentNode: contextMenuNode?.hierarchical_structure,
+      currentNode: contextMenuNodeRef.current?.hierarchical_structure,
       clickedNode: node?.hierarchical_structure
     });
 
@@ -282,10 +283,12 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
       setContextMenuOpen(false);
       setContextMenuPosition(null);
       setContextMenuNode(null);
+      contextMenuNodeRef.current = null;
     } else {
       console.log('Opening context menu');
       setContextMenuPosition({ x: e.clientX, y: e.clientY });
       setContextMenuNode(node);
+      contextMenuNodeRef.current = node;
       setContextMenuOpen(true);
     }
   };
@@ -294,6 +297,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     setContextMenuOpen(false);
     setContextMenuPosition(null);
     setContextMenuNode(null);
+    contextMenuNodeRef.current = null;
   };
 
   const handleAddChild = () => {
