@@ -5,11 +5,11 @@ import Select from 'react-select';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
-import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
-import '../../styles/datepicker.css';
-import '../../styles/scrollbar.css';
-import '../../styles/fonts.css';
-import DatePickerWrapper from '../../styles/datepicker.css';
+import { getLanguage, getFontClass, getTextDirection } from '../../../Utilities/languageUtils';
+import '../../../styles/datepicker.css';
+import '../../../styles/scrollbar.css';
+import '../../../styles/fonts.css';
+import DatePickerWrapper from '../../../styles/datepicker.css';
 import PopupInfoModal from '../../common/PopupInfoModal';
 
 const API_BASE_URL = "http://localhost:5001";

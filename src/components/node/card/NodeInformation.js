@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, User, BookOpen, Briefcase, Heart, Calendar, BadgeInfo, Award, Building } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
+import { getLanguage, getFontClass, getTextDirection } from '../../../Utilities/languageUtils';
 import DOMPurify from 'dompurify';
-import '../../styles/fonts.css';
-import '../../styles/scrollbar.css';
+import '../../../styles/fonts.css';
+import '../../../styles/scrollbar.css';
 
 // Default theme to match other components
 const DEFAULT_THEME = {

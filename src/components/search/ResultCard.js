@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Briefcase, Hash, Award, UserCheck, HelpCircle } from 'lucide-react';
-import PopupInfoModal from '../HelperComponents/PopupInfoModal.js';
+import PopupInfoModal from '../common/PopupInfoModal.js';
 
 const ResultCard = ({ result, isSelected, onSelect, theme }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);

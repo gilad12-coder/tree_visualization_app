@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, User, GitBranch, Clock, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getLanguage, getFontClass, getTextAlignClass, getTextDirection } from '../../Utilities/languageUtils';
+import { getLanguage, getFontClass, getTextAlignClass, getTextDirection } from '../../../Utilities/languageUtils';
 import axios from 'axios';
-import '../../styles/scrollbar.css';
-import '../../styles/fonts.css';
+import '../../../styles/scrollbar.css';
+import '../../../styles/fonts.css';
 
 const API_BASE_URL = "http://localhost:5001";
 const MAX_HEIGHT = 160; // Maximum height in pixels
