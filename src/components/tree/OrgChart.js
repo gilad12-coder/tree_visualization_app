@@ -194,7 +194,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     handleCloseTableSelection,
     handleExpandAll,
     handleCollapseAll,
-    handleExportImage: exportImageHandler,
     handleKeyDown
   } = useUIState(
     setExpandAll,
@@ -207,10 +206,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
 
   const handleHighlight = (hierarchicalNodeStructure) => {
     highlightHandler(hierarchicalNodeStructure, highlightedNodes, setHighlightedNodes);
-  };
-
-  const handleExportImage = () => {
-    exportImageHandler(chartRef);
   };
 
   const handleNodeClickWrapper = (node, isOrgFilter = false) => {
@@ -868,7 +863,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onSearch={toggleSearchBar}
           onClearFilter={handleClearFilter}
           onExportExcel={handleExportExcel}
-          onExportImage={handleExportImage}
           isHierarchyMode={isHierarchyMode}
           isOrganizationMode={isOrganizationMode}
           hideVacancies={hideVacancies}

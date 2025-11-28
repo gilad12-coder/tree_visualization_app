@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react';
-import html2canvas from 'html2canvas';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import {
@@ -108,146 +107,6 @@ const useUIState = (
     setTimeout(() => setCollapseAll(false), 100);
     toast.info(t('orgChart.collapsedAllNodes'));
   }, [setExpandAll, t]);
-
-  const handleExportImage = useCallback((chartRef) => {
-    if (!chartRef.current) {
-      toast.error(t('orgChart.imageExportError', 'Unable to export image'));
-      return;
-    }
-
-    // Get the chartRef element (the transformed container)
-    const element = chartRef.current;
-    const viewport = element.parentElement;
-
-    if (!viewport) {
-      toast.error(t('orgChart.imageExportError', 'Unable to export image'));
-      return;
-    }
-
-    // Show loading toast immediately
-    const loadingToast = toast.info(t('orgChart.capturingImage', 'Capturing image...'), {
-      autoClose: false
-    });
-
-    // Store original styles to restore later
-    const originalOverflow = viewport.style.overflow;
-    const originalTransition = element.style.transition;
-    const originalPosition = viewport.style.position;
-    const originalHeight = viewport.style.height;
-
-    // Temporarily allow overflow and set viewport to contain all content
-    viewport.style.overflow = 'visible';
-    viewport.style.position = 'relative';
-    viewport.style.height = 'auto';
-    element.style.transition = 'none';
-
-    // Add longer delay to ensure all Framer Motion animations complete
-    setTimeout(() => {
-      // Force multiple layout reflows to ensure everything is painted
-      void viewport.offsetHeight;
-      void element.offsetHeight;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Use high resolution (3x for crisp detail)
-          const scaleFactor = 3;
-
-          // Capture the element directly (which contains all the tree content)
-          html2canvas(element, {
-            scale: scaleFactor,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: '#f9fafb',
-            logging: false,
-            imageTimeout: 15000,
-            removeContainer: true,
-            foreignObjectRendering: false,
-            ignoreElements: (element) => {
-              // Don't ignore any elements
-              return false;
-            },
-            onclone: (clonedDoc, clonedElement) => {
-              // Add CSS to force all content to be visible and disable all animations
-              const style = clonedDoc.createElement('style');
-              style.textContent = `
-                * {
-                  animation: none !important;
-                  animation-delay: 0s !important;
-                  animation-duration: 0s !important;
-                  transition: none !important;
-                  transition-delay: 0s !important;
-                  transition-duration: 0s !important;
-                  transform: none !important;
-                  opacity: 1 !important;
-                  visibility: visible !important;
-                }
-                [style*="opacity: 0"] {
-                  opacity: 1 !important;
-                }
-                [style*="display: none"],
-                [style*="visibility: hidden"] {
-                  /* Keep these hidden */
-                }
-              `;
-              clonedDoc.head.appendChild(style);
-
-              // Force all motion.div elements to be visible
-              const allDivs = clonedDoc.querySelectorAll('div');
-              allDivs.forEach((div) => {
-                const computedStyle = window.getComputedStyle(div);
-                if (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden') {
-                  div.style.opacity = '1';
-                  div.style.visibility = 'visible';
-                  div.style.transform = 'none';
-                }
-              });
-
-              // Wait for fonts to load in cloned document
-              if (clonedDoc.fonts && clonedDoc.fonts.ready) {
-                return clonedDoc.fonts.ready;
-              }
-            }
-          }).then((capturedCanvas) => {
-        // Restore original styles
-        viewport.style.overflow = originalOverflow;
-        viewport.style.position = originalPosition;
-        viewport.style.height = originalHeight;
-        element.style.transition = originalTransition;
-
-        // Convert to blob and download
-        capturedCanvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            const timestamp = new Date().toISOString().slice(0, 10);
-            link.href = url;
-            link.download = `org_chart_${timestamp}.png`;
-            link.click();
-            URL.revokeObjectURL(url);
-
-            // Close loading toast and show success
-            toast.dismiss(loadingToast);
-            toast.success(t('orgChart.imageDownloadSuccess', 'Image downloaded successfully'));
-          } else {
-            toast.dismiss(loadingToast);
-            toast.error(t('orgChart.imageExportError', 'Failed to create image'));
-          }
-        }, 'image/png', 0.95); // 95% quality
-      }).catch((error) => {
-        console.error('Error capturing image:', error);
-
-        // Restore original styles
-        viewport.style.overflow = originalOverflow;
-        viewport.style.position = originalPosition;
-        viewport.style.height = originalHeight;
-        element.style.transition = originalTransition;
-
-        toast.dismiss(loadingToast);
-        toast.error(t('orgChart.imageExportError', 'Failed to export image'));
-      });
-        });
-      });
-    }, 500); // Increased to 500ms for better rendering
-  }, [t]);
 
   const handleKeyDown = useCallback((e, isUpdateModalOpen, isFilterOpen, selectedSwapNode, handleCancelSwap, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleClearFilter, handleHierarchyMode, handleOrganizationMode, handleToggleVacancies, toggleSearchBar, setIsTableSelectionOpen, setIsUploadOpen, setTransform) => {
     // More detailed logging for debugging
@@ -485,7 +344,6 @@ const useUIState = (
     handleCloseTableSelection,
     handleExpandAll,
     handleCollapseAll,
-    handleExportImage,
     handleKeyDown
   };
 };

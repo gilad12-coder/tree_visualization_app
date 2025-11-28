@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Target, Filter, Users, Layers, ChevronDown, ChevronUp,
   Settings, X,
-  Table, Camera, Eye, Download, Minus, Globe
+  Table, Eye, Download, Minus, Globe
 } from 'react-feather';
 import { useTranslation } from 'react-i18next';
 
@@ -21,7 +21,6 @@ const NavigationBar = ({
   onSearch,
   onClearFilter,
   onExportExcel,
-  onExportImage,
   isHierarchyMode,
   isOrganizationMode,
   hideVacancies,
@@ -75,8 +74,7 @@ const NavigationBar = ({
       label: t('navigation.export'),
       icon: Download,
       items: [
-        { id: 'exportExcel', label: t('navigation.excel'), icon: Table, onClick: onExportExcel },
-        { id: 'exportImage', label: t('navigation.treeImage'), icon: Camera, onClick: onExportImage }
+        { id: 'exportExcel', label: t('navigation.excel'), icon: Table, onClick: onExportExcel }
       ]
     }
   ];
