@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users, Move, X, ExternalLink, Plus } from 'react-feather';
+import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users, Move, X, ExternalLink, MoreHorizontal } from 'react-feather';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 
 const DEFAULT_NODE_COLOR = '#F5F7FA'; 
@@ -646,7 +646,7 @@ const TreeNode = ({
               onClick={handlePlusButtonClick}
             >
               <div className="w-7 h-7 rounded-full bg-white hover:bg-gray-50 border-2 border-gray-800 shadow-lg cursor-pointer transition-colors duration-200 flex items-center justify-center">
-                <Plus size={16} className="text-gray-800" strokeWidth={3} />
+                <MoreHorizontal size={16} className="text-gray-800" strokeWidth={3} />
               </div>
             </motion.div>
           )}

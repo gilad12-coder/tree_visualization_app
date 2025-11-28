@@ -263,16 +263,32 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   };
 
   // Node CRUD handlers
-  const handleContextMenu = (e, node) => {
+  const handleContextMenu = useCallback((e, node) => {
     // If clicking the same node again, toggle the menu
-    if (contextMenuOpen && contextMenuNode?.hierarchical_structure === node?.hierarchical_structure) {
-      handleCloseContextMenu();
+    const isSameNode = contextMenuOpen &&
+                       contextMenuNode &&
+                       node &&
+                       contextMenuNode.hierarchical_structure === node.hierarchical_structure;
+
+    console.log('handleContextMenu called:', {
+      isSameNode,
+      contextMenuOpen,
+      currentNode: contextMenuNode?.hierarchical_structure,
+      clickedNode: node?.hierarchical_structure
+    });
+
+    if (isSameNode) {
+      console.log('Closing context menu (same node clicked)');
+      setContextMenuOpen(false);
+      setContextMenuPosition(null);
+      setContextMenuNode(null);
     } else {
+      console.log('Opening context menu');
       setContextMenuPosition({ x: e.clientX, y: e.clientY });
       setContextMenuNode(node);
       setContextMenuOpen(true);
     }
-  };
+  }, [contextMenuOpen, contextMenuNode]);
 
   const handleCloseContextMenu = () => {
     setContextMenuOpen(false);
