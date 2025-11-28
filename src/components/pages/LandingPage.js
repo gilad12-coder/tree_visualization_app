@@ -673,6 +673,11 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
         }}
         onSelectTable={tableSelectionMode === 'view' ? handleTableSelection : undefined}
         onSelectFolder={tableSelectionMode === 'upload' ? handleFolderSelectedForUpload : undefined}
+        onCreateTable={(folderId) => {
+          setSelectedFolderForUpload(folderId);
+          setIsTableSelectionOpen(false);
+          setIsUploadModalOpen(true);
+        }}
         mode={tableSelectionMode}
         folderStructure={folderStructure}
         dbPath={dbPath}
