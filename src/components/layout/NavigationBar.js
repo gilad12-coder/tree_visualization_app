@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Target, Filter, Users, Layers, ChevronDown, ChevronUp,
   Settings, X,
-  Table, Camera, FileText, Eye, Download, Minus
+  Table, Camera, FileText, Eye, Download, Minus, Globe
 } from 'react-feather';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -34,7 +34,7 @@ const NavigationBar = ({
   setActiveMenuId,
   selectedTableId
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const downloadReport = async (format) => {
     if (!selectedTableId) {
@@ -265,6 +265,18 @@ const NavigationBar = ({
             title={t('settings.title')}
           >
             <Settings size={18} />
+          </button>
+
+          {/* Language Toggle */}
+          <button
+            onClick={() => {
+              const newLanguage = i18n.language === 'he' ? 'en' : 'he';
+              i18n.changeLanguage(newLanguage);
+            }}
+            className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors"
+            title={i18n.language === 'he' ? 'Switch to English' : 'עבור לעברית'}
+          >
+            <Globe size={18} />
           </button>
         </div>
       </nav>

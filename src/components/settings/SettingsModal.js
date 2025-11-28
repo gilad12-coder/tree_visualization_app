@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Layout, Move, X, RotateCcw, Command, Globe } from 'react-feather';
+import { Eye, Layout, Move, X, RotateCcw, Command } from 'react-feather';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -21,7 +21,7 @@ import {
 const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'he';
-  const [activeTab, setActiveTab] = useState('language');
+  const [activeTab, setActiveTab] = useState('display');
   const [localSettings, setLocalSettings] = useState(() => {
     if (!settings || typeof settings !== 'object') {
       return { toggle: {} };
@@ -378,7 +378,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
   if (!isOpen) return null;
 
   const tabs = [
-    { id: 'language', label: t('settings.languageSettings'), icon: Globe },
     { id: 'display', label: t('settings.displaySettings'), icon: Eye },
     { id: 'colors', label: t('settings.nodeColors'), icon: Layout },
     { id: 'navigation', label: t('settings.navigation'), icon: Move },
@@ -438,76 +437,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
 
           {/* Content with improved visual hierarchy */}
           <div className="flex-1 p-8 overflow-y-auto relative bg-white">
-            {activeTab === 'language' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900">{t('settings.languageSettings')}</h3>
-                  <ResetButton onClick={resetLanguageSettings} label={t('settings.resetToDefaults')} />
-                </div>
-
-                <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-sm">
-                  <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
-                    <label className="block text-sm font-medium text-gray-700 mb-4">
-                      {t('settings.chooseLanguage')}
-                    </label>
-
-                    <div className="space-y-3">
-                      <button
-                        onClick={() => handleLanguageChange('he')}
-                        className={`w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all ${
-                          localSettings.language === 'he'
-                            ? 'border-gray-700 bg-gray-50 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            localSettings.language === 'he'
-                              ? 'border-gray-700 bg-gray-700'
-                              : 'border-gray-300'
-                          }`}>
-                            {localSettings.language === 'he' && (
-                              <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
-                            )}
-                          </div>
-                          <div className="text-left">
-                            <div className="font-medium text-gray-900">{t('settings.hebrew')}</div>
-                            <div className="text-sm text-gray-500">עברית (RTL)</div>
-                          </div>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => handleLanguageChange('en')}
-                        className={`w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all ${
-                          localSettings.language === 'en'
-                            ? 'border-gray-700 bg-gray-50 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            localSettings.language === 'en'
-                              ? 'border-gray-700 bg-gray-700'
-                              : 'border-gray-300'
-                          }`}>
-                            {localSettings.language === 'en' && (
-                              <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
-                            )}
-                          </div>
-                          <div className="text-left">
-                            <div className="font-medium text-gray-900">{t('settings.english')}</div>
-                            <div className="text-sm text-gray-500">English (LTR)</div>
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-            )}
-
             {activeTab === 'display' && (
               <div className="h-full">
                 <div className="flex justify-between items-center mb-6">
