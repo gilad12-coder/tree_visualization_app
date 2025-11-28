@@ -115,38 +115,41 @@ const useUIState = (
       return;
     }
 
-    // Capture immediately at current view - no centering, no zoom change
+    // Get the viewport (parent container with overflow: hidden)
     const element = chartRef.current;
+    const viewport = element.parentElement;
 
-    // Store original transition to restore later
+    if (!viewport) {
+      toast.error(t('orgChart.imageExportError', 'Unable to export image'));
+      return;
+    }
+
+    // Store original transition
     const originalTransition = element.style.transition;
-
-    // Only disable transition to prevent animation during capture
-    // Keep the current transform (zoom level) as the user set it
     element.style.transition = 'none';
+
+    // Show loading toast immediately
+    const loadingToast = toast.info(t('orgChart.capturingImage', 'Capturing image...'), {
+      autoClose: false
+    });
 
     // Wait for DOM to update
     requestAnimationFrame(() => {
-        // Get the actual content size with current zoom applied
-        const rect = element.getBoundingClientRect();
+        // Get viewport dimensions (what user actually sees)
+        const viewportRect = viewport.getBoundingClientRect();
+        const captureWidth = viewportRect.width;
+        const captureHeight = viewportRect.height;
 
         // Use high resolution (3x for crisp detail)
         const scaleFactor = 3;
-        const captureWidth = rect.width;
-        const captureHeight = rect.height;
 
         // Create high-resolution canvas
         const canvas = document.createElement('canvas');
         canvas.width = captureWidth * scaleFactor;
         canvas.height = captureHeight * scaleFactor;
 
-        // Show loading toast
-        const loadingToast = toast.info(t('orgChart.capturingImage', 'Capturing image...'), {
-          autoClose: false
-        });
-
-        // Capture with html2canvas
-        html2canvas(element, {
+        // Capture the viewport element (not the transformed chartRef)
+        html2canvas(viewport, {
           canvas: canvas,
           scale: scaleFactor,
           width: captureWidth,
@@ -157,7 +160,7 @@ const useUIState = (
           y: 0,
           useCORS: true,
           allowTaint: true,
-          backgroundColor: '#f9fafb', // Match the background color
+          backgroundColor: '#f9fafb',
           logging: false,
           imageTimeout: 0,
           removeContainer: true
