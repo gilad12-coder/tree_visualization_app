@@ -711,17 +711,22 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('chartOperations.emptyTreeTitle')}</h2>
           <p className="text-gray-600 mb-6">{t('chartOperations.emptyTreeMessage')}</p>
-          <Button
-            onClick={() => {
-              setNodeEditorMode('add');
-              setParentNodeForAdd(null); // Root level
-              setSelectedNodeForEdit(null);
-              setIsNodeEditorOpen(true);
-            }}
-            icon={Upload}
-          >
-            {t('chartOperations.addFirstNode')}
-          </Button>
+          <div className="flex justify-center">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setNodeEditorMode('add');
+                setParentNodeForAdd(null); // Root level
+                setSelectedNodeForEdit(null);
+                setIsNodeEditorOpen(true);
+              }}
+              className="px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center gap-2"
+            >
+              <span className="text-lg">+</span>
+              <span>{t('chartOperations.addFirstNode')}</span>
+            </motion.button>
+          </div>
         </div>
       </motion.div>
     );
