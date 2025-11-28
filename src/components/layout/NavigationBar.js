@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Target, Filter, Users, Layers, ChevronDown, ChevronUp,
-  Upload, Settings, X,
+  Settings, X,
   Table, Camera, FileText, Eye, Download, Minus
 } from 'react-feather';
 import axios from 'axios';

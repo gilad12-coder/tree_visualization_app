@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Upload,
   ChevronRight,
   ChevronLeft,
   List,
@@ -202,13 +201,6 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   const handleOpenTableSelection = () => {
     console.log("Opening table selection modal with folder structure:", folderStructure);
     setTableSelectionMode('view');
-    setIsTableSelectionOpen(true);
-  };
-
-  const handleOpenUploadFlow = () => {
-    console.log("Opening folder selection for upload");
-    setTableSelectionMode('upload');
-    setSelectedFolderForUpload(null);
     setIsTableSelectionOpen(true);
   };
 

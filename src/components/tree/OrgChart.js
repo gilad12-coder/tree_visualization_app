@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { List, Upload } from "react-feather";
+import { List } from "react-feather";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useTranslation } from 'react-i18next';
@@ -432,12 +432,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     await fetchData();
     setIsTableSelectionOpen(false);
     // No automatic centering - only user invoked
-  };
-
-  const handleOpenUploadFlow = () => {
-    setTableSelectionMode('upload');
-    setSelectedFolderForUpload(null);
-    setIsTableSelectionOpen(true);
   };
 
   const handleFolderSelectedForUpload = (folderId) => {
