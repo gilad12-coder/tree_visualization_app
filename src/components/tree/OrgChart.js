@@ -260,7 +260,6 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
 
   const handleHome = () => {
     setSelectedNode(null);
-    handleCenter();
     onReturnToLanding();
   };
 
