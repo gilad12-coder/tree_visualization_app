@@ -17,7 +17,7 @@ class Folder(Base):
     name = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    tables = relationship('Table', back_populates='folder')
+    tables = relationship('Table', back_populates='folder', cascade='all, delete-orphan')
 
 class Table(Base):
     __tablename__ = 'tables'
@@ -26,7 +26,7 @@ class Table(Base):
     folder_id = Column(Integer, ForeignKey('folders.id'), nullable=False)
     upload_date = Column(Date, nullable=False)
     folder = relationship('Folder', back_populates='tables')
-    data_entries = relationship('DataEntry', back_populates='table')
+    data_entries = relationship('DataEntry', back_populates='table', cascade='all, delete-orphan')
 
 class DataEntry(Base):
     __tablename__ = 'data_entries'

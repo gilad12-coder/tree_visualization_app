@@ -666,6 +666,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
         onClose={() => setIsTableSelectionOpen(false)}
         onSelectTable={handleTableSelection}
         folderStructure={folderStructure}
+        dbPath={dbPath}
       />
     </div>
   );

@@ -150,7 +150,15 @@ def validate_input(**expected_args: Dict[str, type]) -> Any:
     def decorator(f: Any) -> Any:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             for arg, arg_type in expected_args.items():
-                value = request.args.get(arg) if request.method == 'GET' else request.form.get(arg)
+                if request.method == 'GET':
+                    value = request.args.get(arg)
+                else:
+                    # Try JSON first, then fall back to form data
+                    if request.is_json:
+                        value = request.json.get(arg) if request.json else None
+                    else:
+                        value = request.form.get(arg)
+
                 if value is None:
                     return jsonify({"error": f"{arg} is required"}), 400
                 try:
@@ -415,6 +423,134 @@ def fetch_folder_structure() -> Any:
             })
 
         return jsonify(folder_structure), 200
+
+@app.route("/folder/<int:folder_id>", methods=["PUT"])
+@validate_input(name=str)
+def update_folder(folder_id: int, name: str) -> Any:
+    """
+    Update a folder's name.
+
+    Parameters:
+        folder_id (int): The ID of the folder to update.
+        name (str): The new name for the folder.
+
+    Returns:
+        JSON response with the status of the update.
+    """
+    logger.info(f"Updating folder {folder_id} with new name: {name}")
+    with session_scope() as session:
+        try:
+            folder = session.query(Folder).get(folder_id)
+            if not folder:
+                logger.warning(f"Folder {folder_id} not found")
+                return jsonify({"error": "Folder not found"}), 404
+
+            folder.name = name
+            session.commit()
+            logger.info(f"Folder {folder_id} updated successfully")
+            return jsonify({"message": "Folder updated successfully", "folder_id": folder_id}), 200
+        except Exception as e:
+            logger.error(f"Error updating folder {folder_id}: {str(e)}")
+            session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+@app.route("/folder/<int:folder_id>", methods=["DELETE"])
+def delete_folder(folder_id: int) -> Any:
+    """
+    Delete a folder and all its associated tables and data entries.
+
+    Parameters:
+        folder_id (int): The ID of the folder to delete.
+
+    Returns:
+        JSON response with the status of the deletion.
+    """
+    logger.info(f"Deleting folder {folder_id}")
+    with session_scope() as session:
+        try:
+            folder = session.query(Folder).get(folder_id)
+            if not folder:
+                logger.warning(f"Folder {folder_id} not found")
+                return jsonify({"error": "Folder not found"}), 404
+
+            # Delete all tables and their data entries (cascade should handle this)
+            session.delete(folder)
+            session.commit()
+            logger.info(f"Folder {folder_id} deleted successfully")
+            return jsonify({"message": "Folder deleted successfully", "folder_id": folder_id}), 200
+        except Exception as e:
+            logger.error(f"Error deleting folder {folder_id}: {str(e)}")
+            session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+@app.route("/table/<int:table_id>", methods=["PUT"])
+@validate_input(name=str, upload_date=str)
+def update_table(table_id: int, name: str, upload_date: str) -> Any:
+    """
+    Update a table's name and upload date.
+
+    Parameters:
+        table_id (int): The ID of the table to update.
+        name (str): The new name for the table.
+        upload_date (str): The new upload date (YYYY-MM-DD format).
+
+    Returns:
+        JSON response with the status of the update.
+    """
+    logger.info(f"Updating table {table_id} with new name: {name}, upload_date: {upload_date}")
+    with session_scope() as session:
+        try:
+            table = session.query(Table).get(table_id)
+            if not table:
+                logger.warning(f"Table {table_id} not found")
+                return jsonify({"error": "Table not found"}), 404
+
+            table.name = name
+            if upload_date:
+                table.upload_date = datetime.strptime(upload_date, '%Y-%m-%d').date()
+
+            # Update all data entries with the new upload_date
+            if upload_date:
+                session.query(DataEntry).filter_by(table_id=table_id).update(
+                    {"upload_date": datetime.strptime(upload_date, '%Y-%m-%d').date()}
+                )
+
+            session.commit()
+            logger.info(f"Table {table_id} updated successfully")
+            return jsonify({"message": "Table updated successfully", "table_id": table_id}), 200
+        except Exception as e:
+            logger.error(f"Error updating table {table_id}: {str(e)}")
+            session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+@app.route("/table/<int:table_id>", methods=["DELETE"])
+def delete_table(table_id: int) -> Any:
+    """
+    Delete a table and all its associated data entries.
+
+    Parameters:
+        table_id (int): The ID of the table to delete.
+
+    Returns:
+        JSON response with the status of the deletion.
+    """
+    logger.info(f"Deleting table {table_id}")
+    with session_scope() as session:
+        try:
+            table = session.query(Table).get(table_id)
+            if not table:
+                logger.warning(f"Table {table_id} not found")
+                return jsonify({"error": "Table not found"}), 404
+
+            # Delete all data entries (cascade should handle this)
+            session.delete(table)
+            session.commit()
+            logger.info(f"Table {table_id} deleted successfully")
+            return jsonify({"message": "Table deleted successfully", "table_id": table_id}), 200
+        except Exception as e:
+            logger.error(f"Error deleting table {table_id}: {str(e)}")
+            session.rollback()
+            return jsonify({"error": str(e)}), 500
 
 @app.route("/view_tables", methods=["GET"])
 def view_tables() -> Any:

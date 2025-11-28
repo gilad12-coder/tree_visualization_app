@@ -955,6 +955,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           folderStructure={folderStructure}
           currentFolderId={selectedFolderId}
           currentTableId={selectedTableId}
+          dbPath={dbPath}
         />
   
         <FileUploadModal

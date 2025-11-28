@@ -1,12 +1,16 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, Filter } from 'lucide-react';
+import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, Filter, Edit2, Trash2 } from 'lucide-react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { format, parseISO } from 'date-fns';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
+import axios from 'axios';
 import DatePickerWrapper from '../common/DatePickerWrapper';
 import '../../styles/scrollbar.css';
+
+const API_BASE_URL = "http://localhost:5001";
 
 const THEME = {
   primary: '#1F2937',
@@ -17,8 +21,19 @@ const THEME = {
   borderColor: '#E5E7EB'
 };
 
-const FolderCard = ({ folder, onClick, tablesCount, t }) => {
+const FolderCard = ({ folder, onClick, tablesCount, t, onEdit, onDelete }) => {
   if (!folder) return null;
+
+  const handleEdit = (e) => {
+    e.stopPropagation();
+    onEdit(folder);
+  };
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    onDelete(folder);
+  };
+
   return (
     <motion.div
       whileHover={{ scale: 1.01, backgroundColor: "#F3F4F6" }}
@@ -28,12 +43,26 @@ const FolderCard = ({ folder, onClick, tablesCount, t }) => {
       transition={{ duration: 0.1 }}
     >
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <Folder size={20} className="text-gray-500" />
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <Folder size={20} className="text-gray-500 flex-shrink-0" />
           <span className="text-base font-medium text-gray-800 truncate">{folder.name}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-sm text-gray-600">{tablesCount} {t('tableSelection.tables')}</span>
+          <button
+            onClick={handleEdit}
+            className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+            title={t('common.edit')}
+          >
+            <Edit2 size={16} className="text-gray-600" />
+          </button>
+          <button
+            onClick={handleDelete}
+            className="p-1.5 hover:bg-red-100 rounded transition-colors"
+            title={t('common.delete')}
+          >
+            <Trash2 size={16} className="text-red-600" />
+          </button>
           <ChevronRight size={18} className="text-gray-500" />
         </div>
       </div>
@@ -41,8 +70,19 @@ const FolderCard = ({ folder, onClick, tablesCount, t }) => {
   );
 };
 
-const TableCard = ({ table, onClick, isActive }) => {
+const TableCard = ({ table, onClick, isActive, t, onEdit, onDelete }) => {
   if (!table) return null;
+
+  const handleEdit = (e) => {
+    e.stopPropagation();
+    onEdit(table);
+  };
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    onDelete(table);
+  };
+
   return (
     <motion.div
       whileHover={{ scale: 1.01, backgroundColor: isActive ? THEME.primaryLight : "#F3F4F6" }}
@@ -57,19 +97,39 @@ const TableCard = ({ table, onClick, isActive }) => {
       style={{ backgroundColor: isActive ? THEME.primary : undefined }}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-grow">
-          <File size={20} className={isActive ? "text-white" : "text-gray-500"} />
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <File size={20} className={isActive ? "text-white flex-shrink-0" : "text-gray-500 flex-shrink-0"} />
           <span className="text-base font-medium truncate">{table.name}</span>
         </div>
-        <span className="text-sm whitespace-nowrap ml-2">
-          {table.upload_date ? format(parseISO(table.upload_date), 'MMM dd, yyyy') : 'N/A'}
-        </span>
+        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+          <span className="text-sm whitespace-nowrap">
+            {table.upload_date ? format(parseISO(table.upload_date), 'MMM dd, yyyy') : 'N/A'}
+          </span>
+          <button
+            onClick={handleEdit}
+            className={`p-1.5 rounded transition-colors ${
+              isActive ? 'hover:bg-gray-700' : 'hover:bg-gray-200'
+            }`}
+            title={t('common.edit')}
+          >
+            <Edit2 size={16} className={isActive ? "text-white" : "text-gray-600"} />
+          </button>
+          <button
+            onClick={handleDelete}
+            className={`p-1.5 rounded transition-colors ${
+              isActive ? 'hover:bg-red-900' : 'hover:bg-red-100'
+            }`}
+            title={t('common.delete')}
+          >
+            <Trash2 size={16} className="text-red-600" />
+          </button>
+        </div>
       </div>
     </motion.div>
   );
 };
 
-const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode, currentTableId }) => {
+const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath }) => {
   const { t } = useTranslation();
   const [step, setStep] = useState('folder');
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -77,6 +137,13 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
   const [sortByDate, setSortByDate] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState({ start: null, end: null });
+
+  // Edit/Delete states
+  const [editMode, setEditMode] = useState(null); // 'folder' or 'table'
+  const [editItem, setEditItem] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDate, setEditDate] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const filterMenuRef = useRef(null);
   const filterButtonRef = useRef(null);
@@ -165,6 +232,81 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
     setFilterMenuOpen(prevState => !prevState);
   }, []);
 
+  // Edit handlers
+  const handleEditFolder = useCallback((folder) => {
+    setEditMode('folder');
+    setEditItem(folder);
+    setEditName(folder.name);
+  }, []);
+
+  const handleEditTable = useCallback((table) => {
+    setEditMode('table');
+    setEditItem(table);
+    setEditName(table.name);
+    setEditDate(table.upload_date ? parseISO(table.upload_date) : null);
+  }, []);
+
+  const handleSaveEdit = async () => {
+    if (!editItem || !editName.trim()) return;
+
+    try {
+      if (editMode === 'folder') {
+        await axios.put(`${API_BASE_URL}/folder/${editItem.id}`, {
+          name: editName
+        }, { params: { db_path: dbPath } });
+        toast.success(t('tableSelection.folderUpdated'));
+      } else if (editMode === 'table') {
+        await axios.put(`${API_BASE_URL}/table/${editItem.id}`, {
+          name: editName,
+          upload_date: editDate ? format(editDate, 'yyyy-MM-dd') : null
+        }, { params: { db_path: dbPath } });
+        toast.success(t('tableSelection.tableUpdated'));
+      }
+
+      setEditMode(null);
+      setEditItem(null);
+      setEditName('');
+      setEditDate(null);
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to update:', error);
+      toast.error(t('tableSelection.updateFailed'));
+    }
+  };
+
+  // Delete handlers
+  const handleDeleteFolder = useCallback((folder) => {
+    setDeleteConfirm({ type: 'folder', item: folder });
+  }, []);
+
+  const handleDeleteTable = useCallback((table) => {
+    setDeleteConfirm({ type: 'table', item: table });
+  }, []);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+
+    try {
+      if (deleteConfirm.type === 'folder') {
+        await axios.delete(`${API_BASE_URL}/folder/${deleteConfirm.item.id}`, {
+          params: { db_path: dbPath }
+        });
+        toast.success(t('tableSelection.folderDeleted'));
+      } else if (deleteConfirm.type === 'table') {
+        await axios.delete(`${API_BASE_URL}/table/${deleteConfirm.item.id}`, {
+          params: { db_path: dbPath }
+        });
+        toast.success(t('tableSelection.tableDeleted'));
+      }
+
+      setDeleteConfirm(null);
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to delete:', error);
+      toast.error(t('tableSelection.deleteFailed'));
+    }
+  };
+
   const renderFolder = useCallback(({ index, style }) => {
     const folder = filteredFolders[index];
     if (!folder) return null;
@@ -175,10 +317,12 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
           onClick={() => handleFolderSelect(folder.id)}
           tablesCount={Array.isArray(folder.tables) ? folder.tables.length : 0}
           t={t}
+          onEdit={handleEditFolder}
+          onDelete={handleDeleteFolder}
         />
       </div>
     );
-  }, [filteredFolders, handleFolderSelect, t]);
+  }, [filteredFolders, handleFolderSelect, t, handleEditFolder, handleDeleteFolder]);
 
   const renderTable = useCallback(({ index, style }) => {
     const table = filteredTables[index];
@@ -189,10 +333,13 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
           table={table}
           onClick={() => handleTableSelect(table.id)}
           isActive={table.id === currentTableId}
+          t={t}
+          onEdit={handleEditTable}
+          onDelete={handleDeleteTable}
         />
       </div>
     );
-  }, [filteredTables, handleTableSelect, currentTableId]);
+  }, [filteredTables, handleTableSelect, currentTableId, t, handleEditTable, handleDeleteTable]);
 
   const pageVariants = {
     initial: { opacity: 0, x: '-100%' },
@@ -346,6 +493,147 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                 </AutoSizer>
               </div>
             </motion.div>
+          </AnimatePresence>
+
+          {/* Edit Modal */}
+          <AnimatePresence>
+            {editMode && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+                onClick={() => {
+                  setEditMode(null);
+                  setEditItem(null);
+                  setEditName('');
+                  setEditDate(null);
+                }}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">
+                    {editMode === 'folder' ? t('tableSelection.editFolder') : t('tableSelection.editTable')}
+                  </h2>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {t('tableSelection.name')}
+                      </label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900"
+                        placeholder={editMode === 'folder' ? t('tableSelection.folderName') : t('tableSelection.tableName')}
+                      />
+                    </div>
+
+                    {editMode === 'table' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t('tableSelection.uploadDate')}
+                        </label>
+                        <DatePickerWrapper
+                          date={editDate}
+                          handleDateChange={(date) => setEditDate(date)}
+                          isRange={false}
+                          placeholderText={t('tableSelection.selectDate')}
+                          wrapperColor="bg-white"
+                          wrapperOpacity=""
+                          containerClassName="border border-gray-300 rounded-md shadow-sm hover:border-gray-400 transition-colors"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setEditMode(null);
+                        setEditItem(null);
+                        setEditName('');
+                        setEditDate(null);
+                      }}
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium transition-colors"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={!editName.trim()}
+                      className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {t('common.save')}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Delete Confirmation Dialog */}
+          <AnimatePresence>
+            {deleteConfirm && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+                onClick={() => setDeleteConfirm(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                      <Trash2 size={24} className="text-red-600" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {deleteConfirm.type === 'folder' ? t('tableSelection.deleteFolder') : t('tableSelection.deleteTable')}
+                    </h2>
+                  </div>
+
+                  <p className="text-gray-700 mb-2">
+                    {deleteConfirm.type === 'folder'
+                      ? t('tableSelection.deleteFolderWarning', { name: deleteConfirm.item.name })
+                      : t('tableSelection.deleteTableWarning', { name: deleteConfirm.item.name })
+                    }
+                  </p>
+
+                  {deleteConfirm.type === 'folder' && (
+                    <p className="text-red-600 font-medium text-sm mb-4">
+                      {t('tableSelection.deleteFolderTablesWarning')}
+                    </p>
+                  )}
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium transition-colors"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      onClick={handleConfirmDelete}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors"
+                    >
+                      {t('common.delete')}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </motion.div>
       </motion.div>
