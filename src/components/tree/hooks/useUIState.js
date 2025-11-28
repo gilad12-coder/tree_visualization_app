@@ -136,11 +136,6 @@ const useUIState = (
       void element.offsetHeight;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          // Get viewport dimensions
-          const viewportRect = viewport.getBoundingClientRect();
-          const captureWidth = viewportRect.width;
-          const captureHeight = viewportRect.height;
-
           // Use high resolution (3x for crisp detail)
           const scaleFactor = 3;
 
