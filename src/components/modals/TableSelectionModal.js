@@ -85,14 +85,14 @@ const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onSt
                 <>
                   <button
                     onClick={handleCancel}
-                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    className="p-1.5 rounded transition-colors"
                     title={t('common.cancel')}
                   >
                     <X size={16} className="text-gray-600" />
                   </button>
                   <button
                     onClick={handleSave}
-                    className="p-1.5 hover:bg-green-100 rounded transition-colors"
+                    className="p-1.5 rounded transition-colors"
                     title={t('common.save')}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
