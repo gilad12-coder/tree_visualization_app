@@ -726,12 +726,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
               className="bg-white shadow-md border border-gray-200 overflow-hidden"
             >
               {/* Header Section */}
-              <div className="bg-gray-800 p-6 flex items-center border-b border-gray-700">
-                <div className="bg-white p-3 mr-4 rtl:mr-0 rtl:ml-4">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1F2937" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                  </svg>
-                </div>
+              <div className="bg-gray-800 p-6 border-b border-gray-700">
                 <div>
                   <h2 className="text-2xl font-bold text-white">{t('chartOperations.emptyTreeTitle')}</h2>
                   <p className="text-gray-300 text-sm mt-1">{t('chartOperations.emptyTreeMessage')}</p>

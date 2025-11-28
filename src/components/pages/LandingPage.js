@@ -13,7 +13,8 @@ import {
   Grid,
   FileText,
   Layout,
-  Activity
+  Activity,
+  Globe
 } from "react-feather";
 import axios from "axios";
 import { useTranslation } from 'react-i18next';
@@ -263,16 +264,33 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
           </div>
           <h1 className="text-xl font-bold text-gray-800">{t('landingPage.title')}</h1>
         </div>
-        
-        {/* Display connection status if we have a DB */}
-        {dbPath && dbInfo && (
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-gray-500 hidden md:block">
-              {dbInfo.path}
-            </p>
-            <StatusIndicator status={dbInfo.exists} t={t} />
-          </div>
-        )}
+
+        <div className="flex items-center gap-3">
+          {/* Display connection status if we have a DB */}
+          {dbPath && dbInfo && (
+            <>
+              <p className="text-sm text-gray-500 hidden md:block">
+                {dbInfo.path}
+              </p>
+              <StatusIndicator status={dbInfo.exists} t={t} />
+            </>
+          )}
+
+          {/* Language Toggle Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              const newLanguage = i18n.language === 'he' ? 'en' : 'he';
+              i18n.changeLanguage(newLanguage);
+            }}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors border border-gray-200"
+            title={i18n.language === 'he' ? 'Switch to English' : 'עבור לעברית'}
+          >
+            <Globe size={16} />
+            <span className="text-sm font-medium">{i18n.language === 'he' ? 'EN' : 'עב'}</span>
+          </motion.button>
+        </div>
       </div>
 
       {/* Main content */}
