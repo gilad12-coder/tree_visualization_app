@@ -700,12 +700,11 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         exit={{ opacity: 0 }}
         className="flex flex-col justify-center items-center h-screen"
       >
-        <p className="text-xl mb-4">No data available. Please upload a file or select a table.</p>
-        <Button onClick={handleOpenUploadFlow} icon={Upload} className="mb-4">Upload File</Button>
+        <p className="text-xl mb-4">No data available. Please open folder view to manage your data.</p>
         <Button onClick={() => {
           setTableSelectionMode('view');
           setIsTableSelectionOpen(true);
-        }} icon={List}>Select Table</Button>
+        }} icon={List}>Manage Data</Button>
       </motion.div>
     );
   }
@@ -781,13 +780,12 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onHierarchyMode={handleHierarchyMode}
           onOrganizationMode={handleOrganizationMode}
           onToggleVacancies={handleToggleVacancies}
-          onChangeTable={() => {
+          onManageData={() => {
             setTableSelectionMode('view');
             setIsTableSelectionOpen(true);
           }}
           onExpandAll={handleExpandAll}
           onCollapseAll={handleCollapseAll}
-          onUpload={handleOpenUploadFlow}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenHelp={() => {}}
           onSearch={toggleSearchBar}
@@ -981,6 +979,11 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           }}
           onSelectTable={tableSelectionMode === 'view' ? handleTableSelection : undefined}
           onSelectFolder={tableSelectionMode === 'upload' ? handleFolderSelectedForUpload : undefined}
+          onCreateTable={(folderId) => {
+            setSelectedFolderForUpload(folderId);
+            setIsTableSelectionOpen(false);
+            setIsUploadOpen(true);
+          }}
           mode={tableSelectionMode}
           folderStructure={folderStructure}
           currentFolderId={selectedFolderId}

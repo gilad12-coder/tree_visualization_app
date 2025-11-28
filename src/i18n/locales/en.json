@@ -121,9 +121,10 @@
     "organizationMode": "Organization Mode",
     "orgMode": "Org Mode",
     "toggleVacancies": "Toggle Vacancies",
-    "hideVacant": "Hide Vacant",
+    "hideVacancies": "Hide Vacant",
     "changeTable": "Change Table",
     "uploadNewTable": "Upload New Table",
+    "manageData": "Manage Data",
     "view": "View",
     "display": "Display",
     "export": "Export",
@@ -204,7 +205,8 @@
     "status": "Status",
     "viewCurrentTables": "View Current Tables",
     "uploadNewFile": "Upload New File",
-    "createNewTree": "Create New Tree"
+    "createNewTree": "Create New Tree",
+    "openFolderView": "Open Folder View"
   },
   "treeBuilder": {
     "createNewTree": "Create New Tree",
@@ -312,6 +314,7 @@
     "deleteTableWarning": "Are you sure you want to delete the table \"{{name}}\"?",
     "deleteFolderTablesWarning": "This will also delete all tables within this folder. This action cannot be undone.",
     "createFolder": "Create Folder",
+    "createTable": "Create Table",
     "newFolderName": "New folder name",
     "folderCreated": "Folder created successfully",
     "createFolderFailed": "Failed to create folder. Please try again."

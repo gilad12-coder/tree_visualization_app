@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, Filter, Edit2, Trash2 } from 'lucide-react';
+import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, Filter, Edit2, Trash2, Plus } from 'lucide-react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { format, parseISO } from 'date-fns';
@@ -249,7 +249,7 @@ const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate,
   );
 };
 
-const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, mode = 'view', folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath, onRefresh }) => {
+const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, onCreateTable, mode = 'view', folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath, onRefresh }) => {
   const { t } = useTranslation();
   const [step, setStep] = useState('folder');
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -581,27 +581,35 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, m
             >
               <div className="mb-4 flex flex-wrap gap-2">
                 {step === 'table' && (
-                  <button
-                    onClick={() => {
-                      setStep('folder');
-                      setSelectedFolder(null);
-                      setSearchTerm('');
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm"
-                  >
-                    <ArrowLeft size={16} />
-                    <span className="font-medium">{t('tableSelection.backToFolders')}</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setStep('folder');
+                        setSelectedFolder(null);
+                        setSearchTerm('');
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm"
+                    >
+                      <ArrowLeft size={16} />
+                      <span className="font-medium">{t('tableSelection.backToFolders')}</span>
+                    </button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => onCreateTable && onCreateTable(selectedFolder)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
+                    >
+                      <Plus size={16} />
+                      <span>{t('tableSelection.createTable')}</span>
+                    </motion.button>
+                  </>
                 )}
                 {step === 'folder' && !isCreatingFolder && (
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setIsCreatingFolder(true)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md text-white text-sm font-medium transition-colors"
-                    style={{ backgroundColor: THEME.primary }}
-                    onMouseEnter={(e) => e.target.style.backgroundColor = THEME.primaryLight}
-                    onMouseLeave={(e) => e.target.style.backgroundColor = THEME.primary}
+                    className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
                   >
                     <Folder size={16} />
                     <span>{t('tableSelection.createFolder')}</span>

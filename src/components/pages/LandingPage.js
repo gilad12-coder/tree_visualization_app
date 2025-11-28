@@ -566,28 +566,31 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
               >
                 <div className="flex items-center mb-4">
                   <div className="bg-gray-800 p-2 mr-3 rtl:mr-0 rtl:ml-3">
-                    <Upload size={18} className="text-white" />
+                    <Database size={18} className="text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800">{t('landingPage.uploadFirstFile')}</h3>
+                  <h3 className="text-xl font-bold text-gray-800">{t('landingPage.dbReady')}</h3>
                 </div>
-                
+
                 <div className="bg-green-50 border border-green-200 p-3 mb-4">
                   <p className="text-green-800 text-sm">
                     <span className="font-bold">{t('common.success')}!</span> {t('landingPage.dbCreatedSuccess')}
                   </p>
                 </div>
-                
+
                 <motion.button
-                  whileHover={{ y: -3 }}
+                  whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={handleOpenUploadFlow}
-                  className="w-full flex items-center justify-center p-3 bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+                  onClick={handleOpenTableSelection}
+                  className="w-full flex items-center justify-between p-3 bg-gray-800 text-white hover:bg-gray-700 transition-colors"
                   style={{ backgroundColor: THEME.buttonColor }}
                 >
-                  <Upload size={18} className="mr-2 rtl:mr-0 rtl:ml-2" />
-                  <span className="font-medium">{t('landingPage.uploadFileNow')}</span>
+                  <span className="flex items-center">
+                    <List size={18} className="mr-2 rtl:mr-0 rtl:ml-2" />
+                    <span className="font-medium">{t('landingPage.openFolderView')}</span>
+                  </span>
+                  {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                 </motion.button>
-                
+
                 <motion.button
                   whileHover={{ x: -5 }}
                   whileTap={{ scale: 0.98 }}
@@ -637,22 +640,9 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   >
                     <span className="flex items-center">
                       <List size={18} className="mr-2 rtl:mr-0 rtl:ml-2" />
-                      <span className="font-medium">{t('landingPage.viewCurrentTables')}</span>
+                      <span className="font-medium">{t('landingPage.openFolderView')}</span>
                     </span>
                     {isRTL ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-                  </motion.button>
-
-                  <motion.button
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleOpenUploadFlow}
-                    className="w-full flex items-center justify-between p-3 bg-gray-50 text-gray-800 hover:bg-gray-100 transition-colors border border-gray-200"
-                  >
-                    <span className="flex items-center">
-                      <Upload size={18} className="mr-2 rtl:mr-0 rtl:ml-2 text-gray-600" />
-                      <span className="font-medium">{t('landingPage.uploadNewFile')}</span>
-                    </span>
-                    {isRTL ? <ChevronLeft size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
                   </motion.button>
 
                   <motion.button
@@ -661,7 +651,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                     onClick={() => setStep("initial")}
                     className="w-full p-2.5 bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors flex items-center justify-center border border-gray-200"
                   >
-                    <ArrowLeft size={16} className="mr-2 rtl:mr-0 rtl:ml-2" />
+                    {isRTL ? <ArrowRight size={16} className="ml-2" /> : <ArrowLeft size={16} className="mr-2" />}
                     <span className="font-medium">{t('landingPage.backToOptions')}</span>
                   </motion.button>
                 </div>

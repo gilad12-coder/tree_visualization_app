@@ -124,6 +124,7 @@
     "hideVacant": "הסתר משרות פנויות",
     "changeTable": "החלף טבלה",
     "uploadNewTable": "העלה טבלה חדשה",
+    "manageData": "נהל נתונים",
     "view": "תצוגה",
     "display": "תצוגה",
     "export": "ייצוא",
@@ -204,7 +205,8 @@
     "status": "סטטוס",
     "viewCurrentTables": "צפה בטבלאות נוכחיות",
     "uploadNewFile": "העלה קובץ חדש",
-    "createNewTree": "צור עץ חדש"
+    "createNewTree": "צור עץ חדש",
+    "openFolderView": "פתח תצוגת תיקיות"
   },
   "treeBuilder": {
     "createNewTree": "צור עץ חדש",
@@ -312,6 +314,7 @@
     "deleteTableWarning": "האם אתה בטוח שברצונך למחוק את הטבלה \"{{name}}\"?",
     "deleteFolderTablesWarning": "פעולה זו תמחק גם את כל הטבלאות בתיקייה זו. לא ניתן לבטל פעולה זו.",
     "createFolder": "צור תיקייה",
+    "createTable": "צור טבלה",
     "newFolderName": "שם תיקייה חדשה",
     "folderCreated": "התיקייה נוצרה בהצלחה",
     "createFolderFailed": "נכשל ליצור תיקייה. נסה שוב."

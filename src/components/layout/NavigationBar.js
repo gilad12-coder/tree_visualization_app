@@ -17,10 +17,9 @@ const NavigationBar = ({
   onHierarchyMode,
   onOrganizationMode,
   onToggleVacancies,
-  onChangeTable,
+  onManageData,
   onExpandAll,
   onCollapseAll,
-  onUpload,
   onOpenSettings,
   onOpenHelp,
   onSearch,
@@ -174,12 +173,8 @@ const NavigationBar = ({
             <Target size={18} />
           </button>
 
-          <button onClick={onChangeTable} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.changeTable')}>
+          <button onClick={onManageData} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.manageData')}>
             <Layers size={18} />
-          </button>
-
-          <button onClick={onUpload} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.uploadNewTable')}>
-            <Upload size={18} />
           </button>
 
           <button
