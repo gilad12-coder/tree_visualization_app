@@ -151,8 +151,8 @@ const NodeEditorModal = ({
               name="name"
               value={formData.name || ''}
               onChange={handleInputChange}
-              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.name))}`}
-              dir={getTextDirection(getLanguage(formData.name))}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.name || ''))}`}
+              dir={getTextDirection(getLanguage(formData.name || ''))}
             />
             {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
           </div>
@@ -198,8 +198,8 @@ const NodeEditorModal = ({
               value={formData.personal_information || ''}
               onChange={handleInputChange}
               rows={4}
-              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.personal_information))}`}
-              dir={getTextDirection(getLanguage(formData.personal_information))}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.personal_information || ''))}`}
+              dir={getTextDirection(getLanguage(formData.personal_information || ''))}
             ></textarea>
           </div>
         </div>
@@ -227,8 +227,8 @@ const NodeEditorModal = ({
               name="role"
               value={formData.role || ''}
               onChange={handleInputChange}
-              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role))}`}
-              dir={getTextDirection(getLanguage(formData.role))}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role || ''))}`}
+              dir={getTextDirection(getLanguage(formData.role || ''))}
             />
             {errors.role && <p className="text-xs text-red-600 mt-1">{errors.role}</p>}
           </div>
@@ -244,8 +244,8 @@ const NodeEditorModal = ({
               name="department"
               value={formData.department || ''}
               onChange={handleInputChange}
-              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.department))}`}
-              dir={getTextDirection(getLanguage(formData.department))}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.department || ''))}`}
+              dir={getTextDirection(getLanguage(formData.department || ''))}
             />
           </div>
 
@@ -260,8 +260,8 @@ const NodeEditorModal = ({
               name="rank"
               value={formData.rank || ''}
               onChange={handleInputChange}
-              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.rank))}`}
-              dir={getTextDirection(getLanguage(formData.rank))}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.rank || ''))}`}
+              dir={getTextDirection(getLanguage(formData.rank || ''))}
             />
           </div>
 
@@ -276,8 +276,8 @@ const NodeEditorModal = ({
               name="organization_id"
               value={formData.organization_id || ''}
               onChange={handleInputChange}
-              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_id))}`}
-              dir={getTextDirection(getLanguage(formData.organization_id))}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_id || ''))}`}
+              dir={getTextDirection(getLanguage(formData.organization_id || ''))}
             />
           </div>
 
@@ -292,8 +292,8 @@ const NodeEditorModal = ({
               name="organization_name"
               value={formData.organization_name || ''}
               onChange={handleInputChange}
-              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_name))}`}
-              dir={getTextDirection(getLanguage(formData.organization_name))}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_name || ''))}`}
+              dir={getTextDirection(getLanguage(formData.organization_name || ''))}
             />
           </div>
 
@@ -308,8 +308,8 @@ const NodeEditorModal = ({
               value={formData.role_information || ''}
               onChange={handleInputChange}
               rows={4}
-              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role_information))}`}
-              dir={getTextDirection(getLanguage(formData.role_information))}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role_information || ''))}`}
+              dir={getTextDirection(getLanguage(formData.role_information || ''))}
             ></textarea>
           </div>
         </div>
