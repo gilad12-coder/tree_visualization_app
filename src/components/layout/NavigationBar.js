@@ -2,13 +2,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Target, Filter, Users, Layers, ChevronDown, ChevronUp,
   Settings, X,
-  Table, Camera, FileText, Eye, Download, Minus, Globe
+  Table, Camera, Eye, Download, Minus, Globe
 } from 'react-feather';
-import axios from 'axios';
-import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
-
-const API_BASE_URL = "http://localhost:5001";
 
 const NavigationBar = ({
   onHome,
@@ -35,78 +31,6 @@ const NavigationBar = ({
   selectedTableId
 }) => {
   const { t, i18n } = useTranslation();
-
-  const downloadReport = async (format) => {
-    if (!selectedTableId) {
-      toast.warning(t('navigation.pleaseSelectTable'));
-      return;
-    }
-
-    try {
-      if (format === 'pdf') {
-        const response = await axios.get(
-          `${API_BASE_URL}/generate_org_report_pdf/${selectedTableId}`,
-          {
-            responseType: 'blob',
-            params: { language: i18n.language }
-          }
-        );
-
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `org_report_table_${selectedTableId}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        toast.success(t('navigation.pdfDownloadSuccess'));
-      }
-      else if (format === 'json') {
-        const response = await axios.get(`${API_BASE_URL}/generate_org_report/${selectedTableId}`);
-
-        const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `org_report_table_${selectedTableId}.json`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        toast.success(t('navigation.jsonDownloadSuccess'));
-      }
-      else if (format.startsWith('chart_')) {
-        const chartType = format.split('_')[1];
-        const response = await axios.get(
-          `${API_BASE_URL}/org_report_visualization/${selectedTableId}/${chartType}`,
-          { responseType: 'json' }
-        );
-
-        // Convert base64 to blob
-        const byteString = atob(response.data.image_data);
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-          ia[i] = byteString.charCodeAt(i);
-        }
-        const blob = new Blob([ab], { type: 'image/png' });
-
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `${chartType}_chart_table_${selectedTableId}.png`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        toast.success(t('navigation.chartDownloadSuccess', { chartType: chartType.replace('_', ' ') }));
-      }
-    } catch (error) {
-      console.error("Error downloading report:", error);
-      toast.error(t('navigation.downloadFailed'));
-    }
-  };
 
   const menus = [
     {
@@ -152,8 +76,7 @@ const NavigationBar = ({
       icon: Download,
       items: [
         { id: 'exportExcel', label: t('navigation.excel'), icon: Table, onClick: onExportExcel },
-        { id: 'exportImage', label: t('navigation.treeImage'), icon: Camera, onClick: onExportImage },
-        { id: 'exportPdf', label: t('navigation.pdfReport'), icon: FileText, onClick: () => downloadReport('pdf') }
+        { id: 'exportImage', label: t('navigation.treeImage'), icon: Camera, onClick: onExportImage }
       ]
     }
   ];

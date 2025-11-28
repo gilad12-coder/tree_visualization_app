@@ -110,67 +110,102 @@ const useUIState = (
   }, [setExpandAll, t]);
 
   const handleExportImage = useCallback((chartRef) => {
-    if (chartRef.current) {
+    if (!chartRef.current) {
+      toast.error(t('orgChart.imageExportError', 'Unable to export image'));
+      return;
+    }
+
+    // Step 1: Center the tree first
+    handleCenter();
+
+    // Step 2: Wait for centering animation to complete, then capture
+    setTimeout(() => {
       const element = chartRef.current;
-      const scaleFactor = 2;
 
-      const originalClassName = element.className;
-      element.className += ' inline-block min-w-full min-h-full chart-container';
-      setExpandAll(true);
+      // Store original styles to restore later
+      const originalStyles = {
+        transform: element.style.transform,
+        transition: element.style.transition,
+        transformOrigin: element.style.transformOrigin
+      };
 
-      setTimeout(() => {
-        const originalStyles = {
-          transform: element.style.transform,
-          transition: element.style.transition,
-          width: element.style.width,
-          height: element.style.height,
-        };
+      // Temporarily remove transform for accurate capture
+      element.style.transition = 'none';
+      element.style.transform = 'translate(0px, 0px) scale(1)';
+      element.style.transformOrigin = '0 0';
 
-        element.style.transform = 'none';
-        element.style.transition = 'none';
-        element.style.width = 'auto';
-        element.style.height = 'auto';
-
+      // Wait for DOM to update
+      requestAnimationFrame(() => {
+        // Get the actual content size
         const rect = element.getBoundingClientRect();
-        const contentSize = { width: rect.width, height: rect.height };
 
+        // Use high resolution (3x for crisp detail)
+        const scaleFactor = 3;
+        const captureWidth = rect.width;
+        const captureHeight = rect.height;
+
+        // Create high-resolution canvas
         const canvas = document.createElement('canvas');
-        canvas.width = contentSize.width * scaleFactor;
-        canvas.height = contentSize.height * scaleFactor;
-        const ctx = canvas.getContext('2d');
-        ctx.scale(scaleFactor, scaleFactor);
+        canvas.width = captureWidth * scaleFactor;
+        canvas.height = captureHeight * scaleFactor;
 
+        // Show loading toast
+        const loadingToast = toast.info(t('orgChart.capturingImage', 'Capturing image...'), {
+          autoClose: false
+        });
+
+        // Capture with html2canvas
         html2canvas(element, {
           canvas: canvas,
-          scale: 1,
-          width: contentSize.width,
-          height: contentSize.height,
+          scale: scaleFactor,
+          width: captureWidth,
+          height: captureHeight,
           scrollX: 0,
           scrollY: 0,
+          x: 0,
+          y: 0,
           useCORS: true,
-          logging: true,
-        }).then((canvas) => {
+          allowTaint: true,
+          backgroundColor: '#f9fafb', // Match the background color
+          logging: false,
+          imageTimeout: 0,
+          removeContainer: true
+        }).then((capturedCanvas) => {
+          // Restore original styles
           Object.assign(element.style, originalStyles);
-          element.className = originalClassName;
 
-          canvas.toBlob((blob) => {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'org_chart.png';
-            link.click();
-            URL.revokeObjectURL(url);
-            toast.success(t('orgChart.imageDownloadSuccess'));
-          }, 'image/png');
+          // Convert to blob and download
+          capturedCanvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              const timestamp = new Date().toISOString().slice(0, 10);
+              link.href = url;
+              link.download = `org_chart_${timestamp}.png`;
+              link.click();
+              URL.revokeObjectURL(url);
+
+              // Close loading toast and show success
+              toast.dismiss(loadingToast);
+              toast.success(t('orgChart.imageDownloadSuccess', 'Image downloaded successfully'));
+            } else {
+              toast.dismiss(loadingToast);
+              toast.error(t('orgChart.imageExportError', 'Failed to create image'));
+            }
+          }, 'image/png', 0.95); // 95% quality
         }).catch((error) => {
-          console.error('Error capturing image', error);
+          console.error('Error capturing image:', error);
+
+          // Restore original styles
           Object.assign(element.style, originalStyles);
-          element.className = originalClassName;
+
+          // Show error
+          toast.dismiss(loadingToast);
+          toast.error(t('orgChart.imageExportError', 'Failed to export image'));
         });
-      }, 1000);
-    }
-    handleCenter();
-  }, [setExpandAll, handleCenter, t]);
+      });
+    }, 500); // Wait 500ms for centering to complete
+  }, [handleCenter, t]);
 
   const handleKeyDown = useCallback((e, isUpdateModalOpen, isFilterOpen, selectedSwapNode, handleCancelSwap, toggleFilterModal, toggleHelpModal, handleCenter, handleExpandAll, handleCollapseAll, handleClearFilter, handleHierarchyMode, handleOrganizationMode, handleToggleVacancies, toggleSearchBar, setIsTableSelectionOpen, setIsUploadOpen, setTransform) => {
     // More detailed logging for debugging
