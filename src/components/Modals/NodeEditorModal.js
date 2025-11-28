@@ -23,8 +23,7 @@ const NodeEditorModal = ({
   mode = 'add',
   parentNode = null
 }) => {
-  const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === 'he';
+  const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
     name: '',
