@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, User, Briefcase, Heart, ArrowLeft, ArrowRight } from 'react-feather';
+import { AnimatePresence } from 'framer-motion';
+import { X, Save, User, Briefcase, Heart } from 'react-feather';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'react-toastify';
 import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
 import '../../styles/radio.css';
 import '../../styles/scrollbar.css';
@@ -392,14 +391,13 @@ const NodeEditorModal = ({
             style={{ maxHeight: "90vh" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header - Back Button */}
-            <div className="p-4 border-b border-gray-100">
+            {/* Header - Close Button */}
+            <div className="flex justify-end items-center p-4 border-b border-gray-100">
               <button
                 onClick={onClose}
-                className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                className="text-gray-500 hover:text-gray-700 transition-colors"
               >
-                {isRTL ? <ArrowRight size={18} className="ml-2" /> : <ArrowLeft size={18} className="mr-2" />}
-                <span>{t('updatePersonalInfo.backToMainInfo')}</span>
+                <X size={20} />
               </button>
             </div>
 
