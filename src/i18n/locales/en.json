@@ -263,7 +263,8 @@
     "failedToFetchFolders": "Failed to fetch folders. Please try again.",
     "failedToUpload": "Failed to upload file. Please try again.",
     "treeCreatedSuccess": "Tree created successfully!",
-    "failedToCreateTree": "Failed to create tree. Please try again."
+    "failedToCreateTree": "Failed to create tree. Please try again.",
+    "tableNameOptional": "Table name (optional)"
   },
   "filterModal": {
     "title": "Filter Nodes",
@@ -309,7 +310,11 @@
     "deleteFailed": "Failed to delete. Please try again.",
     "deleteFolderWarning": "Are you sure you want to delete the folder \"{{name}}\"?",
     "deleteTableWarning": "Are you sure you want to delete the table \"{{name}}\"?",
-    "deleteFolderTablesWarning": "This will also delete all tables within this folder. This action cannot be undone."
+    "deleteFolderTablesWarning": "This will also delete all tables within this folder. This action cannot be undone.",
+    "createFolder": "Create Folder",
+    "newFolderName": "New folder name",
+    "folderCreated": "Folder created successfully",
+    "createFolderFailed": "Failed to create folder. Please try again."
   },
   "orgChart": {
     "noDataAfterHidingVacancies": "No data available after hiding vacant positions.",

@@ -439,6 +439,20 @@ def update_folder(folder_id: int, name: str) -> Any:
     Returns:
         JSON response with the status of the update.
     """
+    db_path = request.args.get('db_path')
+    if not db_path:
+        return jsonify({"error": "No database path provided"}), 400
+
+    if not os.path.exists(db_path):
+        return jsonify({"error": "Database file does not exist"}), 404
+
+    if not is_valid_sqlite_db(db_path):
+        return jsonify({"error": "Invalid SQLite database file"}), 400
+
+    dispose_db()
+    set_db_path(db_path)
+    init_db()
+
     logger.info(f"Updating folder {folder_id} with new name: {name}")
     with session_scope() as session:
         try:
@@ -467,6 +481,20 @@ def delete_folder(folder_id: int) -> Any:
     Returns:
         JSON response with the status of the deletion.
     """
+    db_path = request.args.get('db_path')
+    if not db_path:
+        return jsonify({"error": "No database path provided"}), 400
+
+    if not os.path.exists(db_path):
+        return jsonify({"error": "Database file does not exist"}), 404
+
+    if not is_valid_sqlite_db(db_path):
+        return jsonify({"error": "Invalid SQLite database file"}), 400
+
+    dispose_db()
+    set_db_path(db_path)
+    init_db()
+
     logger.info(f"Deleting folder {folder_id}")
     with session_scope() as session:
         try:
@@ -482,6 +510,45 @@ def delete_folder(folder_id: int) -> Any:
             return jsonify({"message": "Folder deleted successfully", "folder_id": folder_id}), 200
         except Exception as e:
             logger.error(f"Error deleting folder {folder_id}: {str(e)}")
+            session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+@app.route("/folder", methods=["POST"], endpoint='create_folder')
+@validate_input(name=str)
+def create_folder(name: str) -> Any:
+    """
+    Create a new folder.
+
+    Parameters:
+        name (str): The name of the folder to create.
+
+    Returns:
+        JSON response with the created folder information.
+    """
+    db_path = request.args.get('db_path')
+    if not db_path:
+        return jsonify({"error": "No database path provided"}), 400
+
+    if not os.path.exists(db_path):
+        return jsonify({"error": "Database file does not exist"}), 404
+
+    if not is_valid_sqlite_db(db_path):
+        return jsonify({"error": "Invalid SQLite database file"}), 400
+
+    dispose_db()
+    set_db_path(db_path)
+    init_db()
+
+    logger.info(f"Creating new folder with name: {name}")
+    with session_scope() as session:
+        try:
+            folder = Folder(name=name)
+            session.add(folder)
+            session.commit()
+            logger.info(f"Folder created successfully with ID: {folder.id}")
+            return jsonify({"message": "Folder created successfully", "folder_id": folder.id, "folder_name": folder.name}), 201
+        except Exception as e:
+            logger.error(f"Error creating folder: {str(e)}")
             session.rollback()
             return jsonify({"error": str(e)}), 500
 

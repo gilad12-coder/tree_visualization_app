@@ -75,6 +75,8 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   const [recentDbPath, setRecentDbPath] = useState(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isTableSelectionOpen, setIsTableSelectionOpen] = useState(false);
+  const [tableSelectionMode, setTableSelectionMode] = useState('view'); // 'view' or 'upload'
+  const [selectedFolderForUpload, setSelectedFolderForUpload] = useState(null);
   const [dbInfo, setDbInfo] = useState(null);
   const [folderStructure, setFolderStructure] = useState([]);
 
@@ -199,7 +201,22 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
 
   const handleOpenTableSelection = () => {
     console.log("Opening table selection modal with folder structure:", folderStructure);
+    setTableSelectionMode('view');
     setIsTableSelectionOpen(true);
+  };
+
+  const handleOpenUploadFlow = () => {
+    console.log("Opening folder selection for upload");
+    setTableSelectionMode('upload');
+    setSelectedFolderForUpload(null);
+    setIsTableSelectionOpen(true);
+  };
+
+  const handleFolderSelectedForUpload = (folderId) => {
+    console.log("Folder selected for upload:", folderId);
+    setSelectedFolderForUpload(folderId);
+    setIsTableSelectionOpen(false);
+    setIsUploadModalOpen(true);
   };
 
   const handleUseRecentDB = async () => {
@@ -563,7 +580,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                 <motion.button
                   whileHover={{ y: -3 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setIsUploadModalOpen(true)}
+                  onClick={handleOpenUploadFlow}
                   className="w-full flex items-center justify-center p-3 bg-gray-800 text-white hover:bg-gray-700 transition-colors"
                   style={{ backgroundColor: THEME.buttonColor }}
                 >
@@ -628,7 +645,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                   <motion.button
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setIsUploadModalOpen(true)}
+                    onClick={handleOpenUploadFlow}
                     className="w-full flex items-center justify-between p-3 bg-gray-50 text-gray-800 hover:bg-gray-100 transition-colors border border-gray-200"
                   >
                     <span className="flex items-center">
@@ -657,14 +674,24 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       {/* Modals */}
       <FileUploadModal
         isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+        onClose={() => {
+          setIsUploadModalOpen(false);
+          setSelectedFolderForUpload(null);
+        }}
         onUpload={handleUploadFile}
         dbPath={dbPath}
+        preselectedFolderId={selectedFolderForUpload}
       />
       <TableSelectionModal
         isOpen={isTableSelectionOpen}
-        onClose={() => setIsTableSelectionOpen(false)}
-        onSelectTable={handleTableSelection}
+        onClose={() => {
+          setIsTableSelectionOpen(false);
+          setTableSelectionMode('view');
+          setSelectedFolderForUpload(null);
+        }}
+        onSelectTable={tableSelectionMode === 'view' ? handleTableSelection : undefined}
+        onSelectFolder={tableSelectionMode === 'upload' ? handleFolderSelectedForUpload : undefined}
+        mode={tableSelectionMode}
         folderStructure={folderStructure}
         dbPath={dbPath}
         onRefresh={() => fetchFolderStructure(dbPath)}

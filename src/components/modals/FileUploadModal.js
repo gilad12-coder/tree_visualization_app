@@ -38,40 +38,19 @@ const convertToUTCDate = (date) =>
   new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 const formatDateForAPI = (date) => date.toISOString().split("T")[0];
 
-const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
+const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderId }) => {
   const { t } = useTranslation();
   const [creationMethod, setCreationMethod] = useState("upload"); // "upload" or "build"
   const [lockedMethod, setLockedMethod] = useState(null); // Locked method based on previous usage
   const [selectedFile, setSelectedFile] = useState(null);
-  const [folderName, setFolderName] = useState("");
+  const [tableName, setTableName] = useState(""); // Changed from folderName to tableName
   const [uploadDate, setUploadDate] = useState(null);
-  const [folders, setFolders] = useState([]);
-  const [selectedFolderId, setSelectedFolderId] = useState("");
-  const [folderSelectionType, setFolderSelectionType] = useState("existing");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [treeName, setTreeName] = useState("");
   const fileInputRef = useRef(null);
-  const dropdownRef = useRef(null);
-
-  const fetchFolders = useCallback(async () => {
-    if (!dbPath) return;
-    try {
-      const response = await axios.get(`${API_BASE_URL}/folders`, {
-        params: { db_path: dbPath },
-      });
-      setFolders(response.data);
-    } catch (error) {
-      console.error("Failed to fetch folders:", error);
-      toast.error(t('fileUpload.failedToFetchFolders'));
-    }
-  }, [dbPath, t]);
 
   useEffect(() => {
     if (isOpen && dbPath) {
-      fetchFolders();
-
       // Check if this database has a locked creation method
       const storageKey = `creationMethod_${dbPath}`;
       const storedMethod = localStorage.getItem(storageKey);
@@ -85,28 +64,11 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
       }
 
       setSelectedFile(null);
-      setFolderName("");
+      setTableName("");
       setUploadDate(null);
-      setSelectedFolderId("");
-      setFolderSelectionType("existing");
-      setIsDropdownOpen(false);
-      setSearchTerm("");
       setTreeName("");
     }
-  }, [isOpen, dbPath, fetchFolders]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  }, [isOpen, dbPath]);
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -146,32 +108,18 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
     fileInputRef.current.click();
   };
 
-  const handleFolderSelection = (folderId) => {
-    setSelectedFolderId(folderId);
-    setFolderName(folders.find((folder) => folder.id === folderId).name);
-    setIsDropdownOpen(false);
-  };
-
-  const handleNewFolderNameChange = (event) =>
-    setFolderName(event.target.value);
+  const handleTableNameChange = (event) => setTableName(event.target.value);
   const handleUploadDateChange = (date) => setUploadDate(date);
 
   const handleUpload = async () => {
-    if (
-      selectedFile &&
-      ((folderSelectionType === "existing" && selectedFolderId) ||
-        (folderSelectionType === "new" && folderName)) &&
-      uploadDate
-    ) {
+    if (selectedFile && preselectedFolderId && uploadDate) {
       const formData = new FormData();
       formData.append("file", selectedFile);
-      formData.append("folder_name", folderName);
-      formData.append(
-        "is_new_folder",
-        folderSelectionType === "new" ? "true" : "false"
-      );
-      if (folderSelectionType === "existing")
-        formData.append("folder_id", selectedFolderId);
+      formData.append("folder_id", preselectedFolderId);
+      formData.append("is_new_folder", "false");
+      if (tableName) {
+        formData.append("table_name", tableName);
+      }
       formData.append(
         "upload_date",
         formatDateForAPI(convertToUTCDate(uploadDate))
@@ -200,12 +148,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
   };
 
   const handleBuildTree = async () => {
-    if (
-      treeName &&
-      ((folderSelectionType === "existing" && selectedFolderId) ||
-        (folderSelectionType === "new" && folderName)) &&
-      uploadDate
-    ) {
+    if (treeName && preselectedFolderId && uploadDate) {
       // Create empty tree structure with just the root node
       const nodes = {
         root: { id: 'root', children: [] }
@@ -215,9 +158,8 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
         const response = await axios.post(`${API_BASE_URL}/create-tree`, {
           treeName: treeName,
           nodes: nodes,
-          folderName: folderName,
-          folderId: folderSelectionType === "existing" ? selectedFolderId : undefined,
-          isNewFolder: folderSelectionType === "new",
+          folderId: preselectedFolderId,
+          isNewFolder: false,
           uploadDate: formatDateForAPI(convertToUTCDate(uploadDate))
         }, {
           params: { db_path: dbPath }
@@ -248,21 +190,8 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
     document.body.removeChild(link);
   };
 
-  const filteredFolders = folders.filter((folder) =>
-    folder.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const isUploadDisabled =
-    !selectedFile ||
-    !uploadDate ||
-    (folderSelectionType === "new" && !folderName) ||
-    (folderSelectionType === "existing" && !selectedFolderId);
-
-  const isBuildDisabled =
-    !treeName ||
-    !uploadDate ||
-    (folderSelectionType === "new" && !folderName) ||
-    (folderSelectionType === "existing" && !selectedFolderId);
+  const isUploadDisabled = !selectedFile || !uploadDate || !preselectedFolderId;
+  const isBuildDisabled = !treeName || !uploadDate || !preselectedFolderId;
 
   return (
     <>
@@ -415,113 +344,8 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   </>
                 )}
 
-                {/* Folder Selection Tabs - Show for both methods */}
-                <div className="flex gap-2">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setFolderSelectionType("existing")}
-                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 ${
-                      folderSelectionType === "existing"
-                        ? "bg-gray-900 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                    style={{
-                      backgroundColor: folderSelectionType === "existing" ? THEME.primary : undefined
-                    }}
-                  >
-                    {t('fileUpload.existingFolder')}
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setFolderSelectionType("new")}
-                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 ${
-                      folderSelectionType === "new"
-                        ? "bg-gray-900 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                    style={{
-                      backgroundColor: folderSelectionType === "new" ? THEME.primary : undefined
-                    }}
-                  >
-                    {t('fileUpload.newFolder')}
-                  </motion.button>
-                </div>
-
-                {/* Folder Selection */}
-                {folderSelectionType === "existing" && (
-                  <div className="relative" ref={dropdownRef}>
-                    <motion.button
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="w-full px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-md shadow-sm transition-colors flex items-center justify-between text-sm"
-                      whileHover={{
-                        borderColor: "#9CA3AF"
-                      }}
-                    >
-                      <span className="truncate">
-                        {selectedFolderId
-                          ? folders.find((f) => f.id === selectedFolderId)?.name
-                          : t('fileUpload.selectAFolder')}
-                      </span>
-                      <ChevronDown
-                        size={18}
-                        className={`transform transition-transform ${
-                          isDropdownOpen ? "rotate-180" : ""
-                        } text-gray-500`}
-                      />
-                    </motion.button>
-                    <AnimatePresence>
-                      {isDropdownOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden"
-                        >
-                          <div className="sticky top-0 bg-white p-2 border-b border-gray-100 z-10">
-                            <div className="flex items-center bg-gray-50 rounded-md px-3 py-2">
-                              <Search size={16} className="text-gray-400 mr-2 rtl:mr-0 rtl:ml-2" />
-                              <input
-                                type="text"
-                                placeholder={t('fileUpload.searchFolders')}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="bg-transparent w-full outline-none text-sm"
-                              />
-                            </div>
-                          </div>
-                          <div
-                            className="overflow-y-auto custom-scrollbar"
-                            style={{ maxHeight: "180px" }}
-                          >
-                            {filteredFolders.length > 0 ? (
-                              filteredFolders.map((folder) => (
-                                <button
-                                  key={folder.id}
-                                  onClick={() => handleFolderSelection(folder.id)}
-                                  className={`w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm ${
-                                    selectedFolderId === folder.id ? 'bg-gray-50 font-medium' : ''
-                                  }`}
-                                >
-                                  <Folder size={16} className="text-gray-500" />
-                                  <span className="truncate">{folder.name}</span>
-                                </button>
-                              ))
-                            ) : (
-                              <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                                {t('fileUpload.noFoldersFound')}
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
-
-                {folderSelectionType === "new" && (
+                {/* Table Name (optional) - Only show for upload method */}
+                {creationMethod === "upload" && (
                   <div>
                     <motion.div
                       className="flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm"
@@ -529,12 +353,12 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                         borderColor: "#9CA3AF"
                       }}
                     >
-                      <Plus size={18} className="text-gray-500 mr-2 rtl:mr-0 rtl:ml-2" />
+                      <FileText size={18} className="text-gray-500 mr-2 rtl:mr-0 rtl:ml-2" />
                       <input
                         type="text"
-                        value={folderName}
-                        onChange={handleNewFolderNameChange}
-                        placeholder={t('fileUpload.enterNewFolderName')}
+                        value={tableName}
+                        onChange={handleTableNameChange}
+                        placeholder={t('fileUpload.tableNameOptional')}
                         className="bg-transparent w-full outline-none text-sm"
                       />
                     </motion.div>

@@ -21,7 +21,7 @@ const THEME = {
   borderColor: '#E5E7EB'
 };
 
-const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onStartEdit, onSaveEdit, onCancelEdit, onNameChange, onDelete }) => {
+const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onStartEdit, onSaveEdit, onCancelEdit, onNameChange, onDelete, hideActions }) => {
   if (!folder) return null;
 
   const handleDelete = (e) => {
@@ -79,44 +79,49 @@ const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onSt
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {!isEditing && <span className="text-sm text-gray-600">{tablesCount} {t('tableSelection.tables')}</span>}
-          {isEditing ? (
+          {!hideActions && (
             <>
-              <button
-                onClick={handleCancel}
-                className="p-1.5 hover:bg-gray-200 rounded transition-colors"
-                title={t('common.cancel')}
-              >
-                <X size={16} className="text-gray-600" />
-              </button>
-              <button
-                onClick={handleSave}
-                className="p-1.5 hover:bg-green-100 rounded transition-colors"
-                title={t('common.save')}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={handleStartEdit}
-                className="p-1.5 hover:bg-gray-200 rounded transition-colors"
-                title={t('common.edit')}
-              >
-                <Edit2 size={16} className="text-gray-600" />
-              </button>
-              <button
-                onClick={handleDelete}
-                className="p-1.5 hover:bg-red-100 rounded transition-colors"
-                title={t('common.delete')}
-              >
-                <Trash2 size={16} className="text-red-600" />
-              </button>
-              <ChevronRight size={18} className="text-gray-500" />
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleCancel}
+                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    title={t('common.cancel')}
+                  >
+                    <X size={16} className="text-gray-600" />
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="p-1.5 hover:bg-green-100 rounded transition-colors"
+                    title={t('common.save')}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleStartEdit}
+                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    title={t('common.edit')}
+                  >
+                    <Edit2 size={16} className="text-gray-600" />
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                    title={t('common.delete')}
+                  >
+                    <Trash2 size={16} className="text-red-600" />
+                  </button>
+                  <ChevronRight size={18} className="text-gray-500" />
+                </>
+              )}
             </>
           )}
+          {hideActions && <ChevronRight size={18} className="text-gray-500" />}
         </div>
       </div>
     </motion.div>
@@ -244,7 +249,7 @@ const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate,
   );
 };
 
-const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath, onRefresh }) => {
+const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, mode = 'view', folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath, onRefresh }) => {
   const { t } = useTranslation();
   const [step, setStep] = useState('folder');
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -258,6 +263,10 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
   const [editItem, setEditItem] = useState(null);
   const [editName, setEditName] = useState('');
   const [editDate, setEditDate] = useState(null);
+
+  // Create folder state
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
 
   const filterMenuRef = useRef(null);
   const filterButtonRef = useRef(null);
@@ -325,10 +334,16 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
   }, [selectedFolder, folderStructure, searchTerm, sortByDate, dateFilter]);
 
   const handleFolderSelect = useCallback((folderId) => {
-    setSelectedFolder(folderId);
-    setStep('table');
-    setSearchTerm('');
-  }, []);
+    if (mode === 'upload' && onSelectFolder) {
+      // In upload mode, selecting a folder triggers the callback
+      onSelectFolder(folderId);
+    } else {
+      // In view mode, selecting a folder shows its tables
+      setSelectedFolder(folderId);
+      setStep('table');
+      setSearchTerm('');
+    }
+  }, [mode, onSelectFolder]);
 
   const handleTableSelect = useCallback((tableId) => {
     onSelectTable(tableId, selectedFolder);
@@ -448,6 +463,29 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
     setEditDate(null);
   }, []);
 
+  // Create folder handlers
+  const handleCreateFolder = useCallback(async () => {
+    if (!newFolderName.trim()) return;
+
+    try {
+      await axios.post(`${API_BASE_URL}/folder`, {
+        name: newFolderName
+      }, { params: { db_path: dbPath } });
+
+      toast.success(t('tableSelection.folderCreated'));
+      setIsCreatingFolder(false);
+      setNewFolderName('');
+
+      // Refresh folder structure
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error) {
+      console.error('Failed to create folder:', error);
+      toast.error(t('tableSelection.createFolderFailed'));
+    }
+  }, [newFolderName, dbPath, t, onRefresh]);
+
   const renderFolder = useCallback(({ index, style }) => {
     const folder = filteredFolders[index];
     if (!folder) return null;
@@ -466,10 +504,11 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
           onCancelEdit={handleCancelEdit}
           onNameChange={setEditName}
           onDelete={handleDeleteFolder}
+          hideActions={mode === 'upload'}
         />
       </div>
     );
-  }, [filteredFolders, handleFolderSelect, t, editMode, editItem, editName, handleEditFolder, handleSaveEdit, handleCancelEdit, handleDeleteFolder]);
+  }, [filteredFolders, handleFolderSelect, t, editMode, editItem, editName, handleEditFolder, handleSaveEdit, handleCancelEdit, handleDeleteFolder, mode]);
 
   const renderTable = useCallback(({ index, style }) => {
     const table = filteredTables[index];
@@ -554,6 +593,20 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                     <span className="font-medium">{t('tableSelection.backToFolders')}</span>
                   </button>
                 )}
+                {step === 'folder' && !isCreatingFolder && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsCreatingFolder(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-md text-white text-sm font-medium transition-colors"
+                    style={{ backgroundColor: THEME.primary }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = THEME.primaryLight}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = THEME.primary}
+                  >
+                    <Folder size={16} />
+                    <span>{t('tableSelection.createFolder')}</span>
+                  </motion.button>
+                )}
                 <div className="flex-grow bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 flex items-center gap-2 min-w-[200px] hover:border-gray-400 transition-colors">
                   <Search size={18} className="text-gray-500" />
                   <input
@@ -631,21 +684,68 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                   </>
                 )}
               </div>
-              <div className="flex-grow overflow-hidden rounded-md border border-gray-100">
-                <AutoSizer>
-                  {({ height, width }) => (
-                    <List
-                      className="custom-scrollbar"
-                      height={height}
-                      itemCount={step === 'folder' ? filteredFolders.length : filteredTables.length}
-                      itemSize={80}
-                      width={width}
-                      itemData={step === 'folder' ? filteredFolders : filteredTables}
-                    >
-                      {step === 'folder' ? renderFolder : renderTable}
-                    </List>
-                  )}
-                </AutoSizer>
+              <div className="flex-grow overflow-hidden rounded-md border border-gray-100 flex flex-col">
+                {/* Inline folder creation form */}
+                {isCreatingFolder && step === 'folder' && (
+                  <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                    <div className="bg-white rounded-lg border border-gray-300 shadow-sm p-4">
+                      <div className="flex items-center gap-3">
+                        <Folder size={20} className="text-gray-500 flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleCreateFolder();
+                            } else if (e.key === 'Escape') {
+                              setIsCreatingFolder(false);
+                              setNewFolderName('');
+                            }
+                          }}
+                          placeholder={t('tableSelection.newFolderName')}
+                          autoFocus
+                          className="flex-1 px-2 py-1 text-base font-medium text-gray-800 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                        />
+                        <button
+                          onClick={() => {
+                            setIsCreatingFolder(false);
+                            setNewFolderName('');
+                          }}
+                          className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                          title={t('common.cancel')}
+                        >
+                          <X size={16} className="text-gray-600" />
+                        </button>
+                        <button
+                          onClick={handleCreateFolder}
+                          className="p-1.5 hover:bg-green-100 rounded transition-colors"
+                          title={t('common.save')}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex-1 overflow-hidden">
+                  <AutoSizer>
+                    {({ height, width }) => (
+                      <List
+                        className="custom-scrollbar"
+                        height={height}
+                        itemCount={step === 'folder' ? filteredFolders.length : filteredTables.length}
+                        itemSize={80}
+                        width={width}
+                        itemData={step === 'folder' ? filteredFolders : filteredTables}
+                      >
+                        {step === 'folder' ? renderFolder : renderTable}
+                      </List>
+                    )}
+                  </AutoSizer>
+                </div>
               </div>
             </motion.div>
           </AnimatePresence>

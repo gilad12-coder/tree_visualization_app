@@ -263,7 +263,8 @@
     "failedToFetchFolders": "נכשל בטעינת תיקיות. נסה שוב.",
     "failedToUpload": "נכשל להעלות קובץ. נסה שוב.",
     "treeCreatedSuccess": "העץ נוצר בהצלחה!",
-    "failedToCreateTree": "נכשל ליצור עץ. נסה שוב."
+    "failedToCreateTree": "נכשל ליצור עץ. נסה שוב.",
+    "tableNameOptional": "שם טבלה (אופציונלי)"
   },
   "filterModal": {
     "title": "סינון צמתים",
@@ -309,7 +310,11 @@
     "deleteFailed": "נכשל למחוק. נסה שוב.",
     "deleteFolderWarning": "האם אתה בטוח שברצונך למחוק את התיקייה \"{{name}}\"?",
     "deleteTableWarning": "האם אתה בטוח שברצונך למחוק את הטבלה \"{{name}}\"?",
-    "deleteFolderTablesWarning": "פעולה זו תמחק גם את כל הטבלאות בתיקייה זו. לא ניתן לבטל פעולה זו."
+    "deleteFolderTablesWarning": "פעולה זו תמחק גם את כל הטבלאות בתיקייה זו. לא ניתן לבטל פעולה זו.",
+    "createFolder": "צור תיקייה",
+    "newFolderName": "שם תיקייה חדשה",
+    "folderCreated": "התיקייה נוצרה בהצלחה",
+    "createFolderFailed": "נכשל ליצור תיקייה. נסה שוב."
   },
   "orgChart": {
     "noDataAfterHidingVacancies": "אין נתונים זמינים לאחר הסתרת משרות פנויות.",
