@@ -21,17 +21,35 @@ const THEME = {
   borderColor: '#E5E7EB'
 };
 
-const FolderCard = ({ folder, onClick, tablesCount, t, onEdit, onDelete }) => {
+const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onStartEdit, onSaveEdit, onCancelEdit, onNameChange, onDelete }) => {
   if (!folder) return null;
-
-  const handleEdit = (e) => {
-    e.stopPropagation();
-    onEdit(folder);
-  };
 
   const handleDelete = (e) => {
     e.stopPropagation();
     onDelete(folder);
+  };
+
+  const handleStartEdit = (e) => {
+    e.stopPropagation();
+    onStartEdit(folder);
+  };
+
+  const handleSave = async (e) => {
+    e.stopPropagation();
+    await onSaveEdit();
+  };
+
+  const handleCancel = (e) => {
+    e.stopPropagation();
+    onCancelEdit();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      onSaveEdit();
+    } else if (e.key === 'Escape') {
+      onCancelEdit();
+    }
   };
 
   return (
@@ -39,92 +57,189 @@ const FolderCard = ({ folder, onClick, tablesCount, t, onEdit, onDelete }) => {
       whileHover={{ scale: 1.01, backgroundColor: "#F3F4F6" }}
       whileTap={{ scale: 0.99 }}
       className="bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-200 ease-out p-4 w-full cursor-pointer"
-      onClick={onClick}
+      onClick={isEditing ? undefined : onClick}
       transition={{ duration: 0.1 }}
     >
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <Folder size={20} className="text-gray-500 flex-shrink-0" />
-          <span className="text-base font-medium text-gray-800 truncate">{folder.name}</span>
+          {isEditing ? (
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => onNameChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+              className="flex-1 px-2 py-1 text-base font-medium text-gray-800 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+            />
+          ) : (
+            <span className="text-base font-medium text-gray-800 truncate">{folder.name}</span>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-sm text-gray-600">{tablesCount} {t('tableSelection.tables')}</span>
-          <button
-            onClick={handleEdit}
-            className="p-1.5 hover:bg-gray-200 rounded transition-colors"
-            title={t('common.edit')}
-          >
-            <Edit2 size={16} className="text-gray-600" />
-          </button>
-          <button
-            onClick={handleDelete}
-            className="p-1.5 hover:bg-red-100 rounded transition-colors"
-            title={t('common.delete')}
-          >
-            <Trash2 size={16} className="text-red-600" />
-          </button>
-          <ChevronRight size={18} className="text-gray-500" />
+          {!isEditing && <span className="text-sm text-gray-600">{tablesCount} {t('tableSelection.tables')}</span>}
+          {isEditing ? (
+            <>
+              <button
+                onClick={handleCancel}
+                className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                title={t('common.cancel')}
+              >
+                <X size={16} className="text-gray-600" />
+              </button>
+              <button
+                onClick={handleSave}
+                className="p-1.5 hover:bg-green-100 rounded transition-colors"
+                title={t('common.save')}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleStartEdit}
+                className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                title={t('common.edit')}
+              >
+                <Edit2 size={16} className="text-gray-600" />
+              </button>
+              <button
+                onClick={handleDelete}
+                className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                title={t('common.delete')}
+              >
+                <Trash2 size={16} className="text-red-600" />
+              </button>
+              <ChevronRight size={18} className="text-gray-500" />
+            </>
+          )}
         </div>
       </div>
     </motion.div>
   );
 };
 
-const TableCard = ({ table, onClick, isActive, t, onEdit, onDelete }) => {
+const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate, onStartEdit, onSaveEdit, onCancelEdit, onNameChange, onDateChange, onDelete }) => {
   if (!table) return null;
-
-  const handleEdit = (e) => {
-    e.stopPropagation();
-    onEdit(table);
-  };
 
   const handleDelete = (e) => {
     e.stopPropagation();
     onDelete(table);
   };
 
+  const handleStartEdit = (e) => {
+    e.stopPropagation();
+    onStartEdit(table);
+  };
+
+  const handleSave = async (e) => {
+    e.stopPropagation();
+    await onSaveEdit();
+  };
+
+  const handleCancel = (e) => {
+    e.stopPropagation();
+    onCancelEdit();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      onSaveEdit();
+    } else if (e.key === 'Escape') {
+      onCancelEdit();
+    }
+  };
+
   return (
     <motion.div
-      whileHover={{ scale: 1.01, backgroundColor: isActive ? THEME.primaryLight : "#F3F4F6" }}
-      whileTap={{ scale: 0.99 }}
+      whileHover={{ scale: isEditing ? 1 : 1.01, backgroundColor: isEditing ? undefined : (isActive ? THEME.primaryLight : "#F3F4F6") }}
+      whileTap={{ scale: isEditing ? 1 : 0.99 }}
       className={`${
-        isActive
+        isActive && !isEditing
           ? `bg-gray-900 text-white`
           : 'bg-white text-gray-800'
-      } rounded-lg border border-gray-200 shadow-sm transition-all duration-200 ease-out p-4 w-full cursor-pointer`}
-      onClick={onClick}
+      } rounded-lg border border-gray-200 shadow-sm transition-all duration-200 ease-out p-4 w-full ${!isEditing ? 'cursor-pointer' : ''}`}
+      onClick={isEditing ? undefined : onClick}
       transition={{ duration: 0.1 }}
-      style={{ backgroundColor: isActive ? THEME.primary : undefined }}
+      style={{ backgroundColor: isActive && !isEditing ? THEME.primary : undefined }}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <File size={20} className={isActive ? "text-white flex-shrink-0" : "text-gray-500 flex-shrink-0"} />
-          <span className="text-base font-medium truncate">{table.name}</span>
+      {isEditing ? (
+        <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-3">
+            <File size={20} className="text-gray-500 flex-shrink-0" />
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => onNameChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="flex-1 px-2 py-1 text-base font-medium text-gray-800 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              placeholder={t('tableSelection.tableName')}
+            />
+          </div>
+          <div className="flex items-center gap-2 ml-8">
+            <DatePickerWrapper
+              date={editDate}
+              handleDateChange={onDateChange}
+              isRange={false}
+              placeholderText={t('tableSelection.selectDate')}
+              wrapperColor="bg-white"
+              wrapperOpacity=""
+              containerClassName="border border-gray-300 rounded-md shadow-sm hover:border-gray-400 transition-colors"
+            />
+            <button
+              onClick={handleCancel}
+              className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+              title={t('common.cancel')}
+            >
+              <X size={16} className="text-gray-600" />
+            </button>
+            <button
+              onClick={handleSave}
+              className="p-1.5 hover:bg-green-100 rounded transition-colors"
+              title={t('common.save')}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-          <span className="text-sm whitespace-nowrap">
-            {table.upload_date ? format(parseISO(table.upload_date), 'MMM dd, yyyy') : 'N/A'}
-          </span>
-          <button
-            onClick={handleEdit}
-            className={`p-1.5 rounded transition-colors ${
-              isActive ? 'hover:bg-gray-700' : 'hover:bg-gray-200'
-            }`}
-            title={t('common.edit')}
-          >
-            <Edit2 size={16} className={isActive ? "text-white" : "text-gray-600"} />
-          </button>
-          <button
-            onClick={handleDelete}
-            className={`p-1.5 rounded transition-colors ${
-              isActive ? 'hover:bg-red-900' : 'hover:bg-red-100'
-            }`}
-            title={t('common.delete')}
-          >
-            <Trash2 size={16} className="text-red-600" />
-          </button>
+      ) : (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <File size={20} className={isActive ? "text-white flex-shrink-0" : "text-gray-500 flex-shrink-0"} />
+            <span className="text-base font-medium truncate">{table.name}</span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+            <span className="text-sm whitespace-nowrap">
+              {table.upload_date ? format(parseISO(table.upload_date), 'MMM dd, yyyy') : 'N/A'}
+            </span>
+            <button
+              onClick={handleStartEdit}
+              className={`p-1.5 rounded transition-colors ${
+                isActive ? 'hover:bg-gray-700' : 'hover:bg-gray-200'
+              }`}
+              title={t('common.edit')}
+            >
+              <Edit2 size={16} className={isActive ? "text-white" : "text-gray-600"} />
+            </button>
+            <button
+              onClick={handleDelete}
+              className={`p-1.5 rounded transition-colors ${
+                isActive ? 'hover:bg-red-900' : 'hover:bg-red-100'
+              }`}
+              title={t('common.delete')}
+            >
+              <Trash2 size={16} className="text-red-600" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </motion.div>
   );
 };
@@ -307,9 +422,17 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
     }
   };
 
+  const handleCancelEdit = useCallback(() => {
+    setEditMode(null);
+    setEditItem(null);
+    setEditName('');
+    setEditDate(null);
+  }, []);
+
   const renderFolder = useCallback(({ index, style }) => {
     const folder = filteredFolders[index];
     if (!folder) return null;
+    const isEditing = editMode === 'folder' && editItem?.id === folder.id;
     return (
       <div style={style} className="px-4 py-2">
         <FolderCard
@@ -317,16 +440,22 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
           onClick={() => handleFolderSelect(folder.id)}
           tablesCount={Array.isArray(folder.tables) ? folder.tables.length : 0}
           t={t}
-          onEdit={handleEditFolder}
+          isEditing={isEditing}
+          editName={editName}
+          onStartEdit={handleEditFolder}
+          onSaveEdit={handleSaveEdit}
+          onCancelEdit={handleCancelEdit}
+          onNameChange={setEditName}
           onDelete={handleDeleteFolder}
         />
       </div>
     );
-  }, [filteredFolders, handleFolderSelect, t, handleEditFolder, handleDeleteFolder]);
+  }, [filteredFolders, handleFolderSelect, t, editMode, editItem, editName, handleEditFolder, handleSaveEdit, handleCancelEdit, handleDeleteFolder]);
 
   const renderTable = useCallback(({ index, style }) => {
     const table = filteredTables[index];
     if (!table) return null;
+    const isEditing = editMode === 'table' && editItem?.id === table.id;
     return (
       <div style={style} className="px-4 py-2">
         <TableCard
@@ -334,12 +463,19 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
           onClick={() => handleTableSelect(table.id)}
           isActive={table.id === currentTableId}
           t={t}
-          onEdit={handleEditTable}
+          isEditing={isEditing}
+          editName={editName}
+          editDate={editDate}
+          onStartEdit={handleEditTable}
+          onSaveEdit={handleSaveEdit}
+          onCancelEdit={handleCancelEdit}
+          onNameChange={setEditName}
+          onDateChange={setEditDate}
           onDelete={handleDeleteTable}
         />
       </div>
     );
-  }, [filteredTables, handleTableSelect, currentTableId, t, handleEditTable, handleDeleteTable]);
+  }, [filteredTables, handleTableSelect, currentTableId, t, editMode, editItem, editName, editDate, handleEditTable, handleSaveEdit, handleCancelEdit, handleDeleteTable]);
 
   const pageVariants = {
     initial: { opacity: 0, x: '-100%' },
@@ -495,110 +631,6 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
             </motion.div>
           </AnimatePresence>
 
-          {/* Edit Modal */}
-          <AnimatePresence>
-            {editMode && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
-                onClick={() => {
-                  setEditMode(null);
-                  setEditItem(null);
-                  setEditName('');
-                  setEditDate(null);
-                }}
-              >
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.95, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Header */}
-                  <div className="flex justify-between items-center p-4 border-b border-gray-100">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      {editMode === 'folder' ? t('tableSelection.editFolder') : t('tableSelection.editTable')}
-                    </h2>
-                    <button
-                      onClick={() => {
-                        setEditMode(null);
-                        setEditItem(null);
-                        setEditName('');
-                        setEditDate(null);
-                      }}
-                      className="text-gray-500 hover:text-gray-700 transition-colors"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-6 space-y-4">
-                    <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">
-                        {t('tableSelection.name')}
-                      </label>
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        autoFocus
-                        className="w-full px-2 py-1.5 text-sm border-0 focus:outline-none focus:ring-0"
-                        placeholder={editMode === 'folder' ? t('tableSelection.folderName') : t('tableSelection.tableName')}
-                      />
-                    </div>
-
-                    {editMode === 'table' && (
-                      <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300 transition-colors">
-                        <label className="block text-xs font-medium text-gray-500 mb-2">
-                          {t('tableSelection.uploadDate')}
-                        </label>
-                        <DatePickerWrapper
-                          date={editDate}
-                          handleDateChange={(date) => setEditDate(date)}
-                          isRange={false}
-                          placeholderText={t('tableSelection.selectDate')}
-                          wrapperColor="bg-white"
-                          wrapperOpacity=""
-                          containerClassName="border-0"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex justify-end gap-3 p-4 border-t border-gray-100 bg-gray-50">
-                    <button
-                      onClick={() => {
-                        setEditMode(null);
-                        setEditItem(null);
-                        setEditName('');
-                        setEditDate(null);
-                      }}
-                      className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-md text-sm font-medium transition-colors"
-                    >
-                      {t('common.cancel')}
-                    </button>
-                    <button
-                      onClick={handleSaveEdit}
-                      disabled={!editName.trim()}
-                      className="px-4 py-2 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ backgroundColor: THEME.primary }}
-                      onMouseEnter={(e) => !editName.trim() ? null : e.target.style.backgroundColor = THEME.primaryLight}
-                      onMouseLeave={(e) => !editName.trim() ? null : e.target.style.backgroundColor = THEME.primary}
-                    >
-                      {t('common.save')}
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* Delete Confirmation Dialog */}
           <AnimatePresence>
             {deleteConfirm && (
@@ -618,15 +650,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, folderStructure =
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Header */}
-                  <div className="flex justify-between items-center p-4 border-b border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                        <Trash2 size={20} className="text-red-600" />
-                      </div>
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        {deleteConfirm.type === 'folder' ? t('tableSelection.deleteFolder') : t('tableSelection.deleteTable')}
-                      </h2>
-                    </div>
+                  <div className="flex justify-end items-center p-4 border-b border-gray-100">
                     <button
                       onClick={() => setDeleteConfirm(null)}
                       className="text-gray-500 hover:text-gray-700 transition-colors"
