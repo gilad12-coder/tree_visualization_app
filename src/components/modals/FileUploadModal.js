@@ -37,7 +37,6 @@ const formatDateForAPI = (date) => date.toISOString().split("T")[0];
 const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderId, folderStructure = [] }) => {
   const { t } = useTranslation();
   const [creationMethod, setCreationMethod] = useState("upload"); // "upload" or "build"
-  const [lockedMethod, setLockedMethod] = useState(null); // Locked method based on previous usage
   const [selectedFile, setSelectedFile] = useState(null);
   const [tableName, setTableName] = useState(""); // Changed from folderName to tableName
   const [uploadDate, setUploadDate] = useState(null);
@@ -48,17 +47,8 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
 
   useEffect(() => {
     if (isOpen && dbPath) {
-      // Check if this database has a locked creation method
-      const storageKey = `creationMethod_${dbPath}`;
-      const storedMethod = localStorage.getItem(storageKey);
-
-      if (storedMethod) {
-        setLockedMethod(storedMethod);
-        setCreationMethod(storedMethod);
-      } else {
-        setLockedMethod(null);
-        setCreationMethod("upload");
-      }
+      // Always default to upload method when modal opens
+      setCreationMethod("upload");
 
       setSelectedFile(null);
       setTableName("");
@@ -136,10 +126,6 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
           headers: { "Content-Type": "multipart/form-data" },
         });
 
-        // Store the creation method for this database
-        const storageKey = `creationMethod_${dbPath}`;
-        localStorage.setItem(storageKey, "upload");
-
         onUpload(response.data);
         onClose();
         toast.success(t('fileUpload.uploadSuccess'));
@@ -167,10 +153,6 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
         }, {
           params: { db_path: dbPath }
         });
-
-        // Store the creation method for this database
-        const storageKey = `creationMethod_${dbPath}`;
-        localStorage.setItem(storageKey, "build");
 
         onUpload(response.data);
         onClose();
@@ -225,15 +207,12 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
                 {/* Method Selection Tabs */}
                 <div className="flex gap-2">
                   <motion.button
-                    whileHover={!lockedMethod || lockedMethod === "upload" ? { scale: 1.02 } : {}}
-                    whileTap={!lockedMethod || lockedMethod === "upload" ? { scale: 0.98 } : {}}
-                    onClick={() => !lockedMethod || lockedMethod === "upload" ? setCreationMethod("upload") : null}
-                    disabled={lockedMethod && lockedMethod !== "upload"}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setCreationMethod("upload")}
                     className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
                       creationMethod === "upload"
                         ? "bg-gray-900 text-white"
-                        : lockedMethod && lockedMethod !== "upload"
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                     style={{
@@ -244,15 +223,12 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
                     {t('fileUpload.uploadFile')}
                   </motion.button>
                   <motion.button
-                    whileHover={!lockedMethod || lockedMethod === "build" ? { scale: 1.02 } : {}}
-                    whileTap={!lockedMethod || lockedMethod === "build" ? { scale: 0.98 } : {}}
-                    onClick={() => !lockedMethod || lockedMethod === "build" ? setCreationMethod("build") : null}
-                    disabled={lockedMethod && lockedMethod !== "build"}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setCreationMethod("build")}
                     className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
                       creationMethod === "build"
                         ? "bg-gray-900 text-white"
-                        : lockedMethod && lockedMethod !== "build"
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                     style={{
