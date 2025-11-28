@@ -545,37 +545,73 @@ class OrganizationReportService:
         Returns:
             bytes: PDF report as bytes.
         """
-        # Register Hebrew font support
+        # Register Rubik font (matches application font)
         import os
-        hebrew_font_registered = False
+        rubik_font_registered = False
+        rubik_bold_registered = False
+        rtl_support = False
 
         try:
-            # Try to register DejaVu Sans font for Hebrew support
+            # Register Rubik font for both English and Hebrew (matches web app)
             from reportlab.pdfbase.ttfonts import TTFont
             from reportlab.pdfbase import pdfmetrics
 
-            # Common font paths for different systems
-            font_paths = [
-                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-                '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
-                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
-                'C:\\Windows\\Fonts\\Arial.ttf'
-            ]
-            for font_path in font_paths:
-                if os.path.exists(font_path):
-                    try:
-                        pdfmetrics.registerFont(TTFont('HebrewFont', font_path))
-                        hebrew_font_registered = True
-                        logger.info(f"Registered Hebrew font: {font_path}")
-                        break
-                    except Exception as e:
-                        logger.warning(f"Failed to register font {font_path}: {e}")
-                        continue
+            # Path to Rubik font in the project
+            project_root = os.path.dirname(os.path.dirname(__file__))
+            rubik_regular_path = os.path.join(project_root, 'src', 'styles', 'fonts', 'Rubik', 'Rubik-Regular.ttf')
+            rubik_bold_path = os.path.join(project_root, 'src', 'styles', 'fonts', 'Rubik', 'Rubik-Bold.ttf')
 
-            if not hebrew_font_registered:
-                logger.warning("No Hebrew-compatible font found, Hebrew text may not display correctly")
+            # Register Rubik Regular
+            if os.path.exists(rubik_regular_path):
+                try:
+                    pdfmetrics.registerFont(TTFont('Rubik', rubik_regular_path))
+                    rubik_font_registered = True
+                    logger.info(f"Registered Rubik Regular font: {rubik_regular_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to register Rubik Regular font: {e}")
+
+            # Register Rubik Bold
+            if os.path.exists(rubik_bold_path):
+                try:
+                    pdfmetrics.registerFont(TTFont('Rubik-Bold', rubik_bold_path))
+                    rubik_bold_registered = True
+                    logger.info(f"Registered Rubik Bold font: {rubik_bold_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to register Rubik Bold font: {e}")
+
+            if not rubik_font_registered:
+                logger.warning("Rubik font not found, falling back to Helvetica")
+
+
+            # Try to import RTL text processing libraries
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+                rtl_support = True
+                logger.info("RTL text processing enabled")
+            except ImportError:
+                logger.warning("RTL libraries not available, Hebrew text will not be properly reversed")
+                rtl_support = False
+
         except Exception as e:
             logger.error(f"Error registering Hebrew font: {e}")
+            rtl_support = False
+
+        # RTL text processing function
+        def process_text(text, is_rtl_lang):
+            """Process text for RTL display if needed."""
+            if not is_rtl_lang or not rtl_support:
+                return str(text)
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+                # Reshape Arabic/Hebrew characters and apply bidi algorithm
+                reshaped_text = arabic_reshaper.reshape(str(text))
+                bidi_text = get_display(reshaped_text)
+                return bidi_text
+            except Exception as e:
+                logger.warning(f"Error processing RTL text: {e}")
+                return str(text)
 
         # Get the report data
         report = self.generate_report()
@@ -690,13 +726,18 @@ class OrganizationReportService:
             }
         }
 
-        t = translations.get(language, translations['en'])
+        t_raw = translations.get(language, translations['en'])
         is_rtl = (language == 'he')
 
-        # Determine font to use
-        if is_rtl and hebrew_font_registered:
-            base_font = 'HebrewFont'
-            bold_font = 'HebrewFont'
+        # Process all translation strings for RTL if needed
+        t = {}
+        for key, value in t_raw.items():
+            t[key] = process_text(value, is_rtl)
+
+        # Determine font to use - Rubik for both English and Hebrew
+        if rubik_font_registered:
+            base_font = 'Rubik'
+            bold_font = 'Rubik-Bold'
         else:
             base_font = 'Helvetica'
             bold_font = 'Helvetica-Bold'
@@ -759,8 +800,8 @@ class OrganizationReportService:
 
         # Title
         story.append(Paragraph(t['title'], title_style))
-        story.append(Paragraph(f"{t['table']}: {report['table_name']}", body_style))
-        story.append(Paragraph(f"{t['generated_on']}: {report['report_date']}", body_style))
+        story.append(Paragraph(f"{t['table']}: {process_text(report['table_name'], is_rtl)}", body_style))
+        story.append(Paragraph(f"{t['generated_on']}: {process_text(report['report_date'], is_rtl)}", body_style))
         story.append(Spacer(1, 20))
 
         # Executive Summary Section with colored background
@@ -855,7 +896,8 @@ class OrganizationReportService:
             dept_data = []
             for dept, count in sorted_depts:
                 percentage = report['department_distribution']['department_percentages'].get(dept, 0)
-                dept_data.append([str(dept) if dept else 'N/A', str(count), f"{percentage:.1f}%"])
+                dept_name = process_text(str(dept) if dept else 'N/A', is_rtl)
+                dept_data.append([dept_name, str(count), f"{percentage:.1f}%"])
 
             dept_table = RLTable(
                 [[t['department_analysis'], t['employees'], '%']] + dept_data,
@@ -885,7 +927,8 @@ class OrganizationReportService:
         # Top roles
         top_roles_data = []
         for role, count in list(report['role_distribution']['top_roles'].items())[:10]:
-            top_roles_data.append([str(role) if role else 'N/A', str(count)])
+            role_name = process_text(str(role) if role else 'N/A', is_rtl)
+            top_roles_data.append([role_name, str(count)])
 
         if top_roles_data:
             role_table = RLTable(
@@ -915,8 +958,8 @@ class OrganizationReportService:
         high_span_data = []
         for node in report['critical_roles']['high_span_nodes'][:5]:
             high_span_data.append([
-                node['name'],
-                node['role'] if node['role'] else 'N/A',
+                process_text(node['name'], is_rtl),
+                process_text(node['role'] if node['role'] else 'N/A', is_rtl),
                 f"{node['span_of_control']} {t['direct_reports']}"
             ])
 
@@ -937,8 +980,8 @@ class OrganizationReportService:
         bottleneck_data = []
         for node in report['critical_roles']['bottlenecks'][:5]:
             bottleneck_data.append([
-                node['name'],
-                node['role'] if node['role'] else 'N/A',
+                process_text(node['name'], is_rtl),
+                process_text(node['role'] if node['role'] else 'N/A', is_rtl),
                 f"{node['span_of_control']} {t['direct_reports']}, {node['sibling_count']} {t['siblings']}"
             ])
 
