@@ -133,8 +133,12 @@ const useUIState = (
       autoClose: false
     });
 
-    // Wait for DOM to update
+    // Wait for DOM to update and ensure all elements are fully rendered
     requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Force layout reflow to ensure all elements are rendered
+        void viewport.offsetHeight;
+
         // Get viewport dimensions (what user actually sees)
         const viewportRect = viewport.getBoundingClientRect();
         const captureWidth = viewportRect.width;
@@ -163,7 +167,10 @@ const useUIState = (
           backgroundColor: '#f9fafb',
           logging: false,
           imageTimeout: 0,
-          removeContainer: true
+          removeContainer: true,
+          foreignObjectRendering: false,
+          windowWidth: captureWidth,
+          windowHeight: captureHeight
         }).then((capturedCanvas) => {
           // Restore original transition
           element.style.transition = originalTransition;
@@ -197,6 +204,7 @@ const useUIState = (
           toast.dismiss(loadingToast);
           toast.error(t('orgChart.imageExportError', 'Failed to export image'));
         });
+      });
     });
   }, [t]);
 
