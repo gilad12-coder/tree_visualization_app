@@ -72,7 +72,7 @@ const useNodeInteractions = (
 
   const handleNodeRendered = useCallback((node) => {
     if (!node || !node.hierarchical_structure) return;
-    
+
     setRenderedNodes(prev => {
       // Check if this node is already tracked
       const existing = prev.find(n => n.hierarchical_structure === node.hierarchical_structure);
@@ -80,16 +80,34 @@ const useNodeInteractions = (
         // Add the node to the rendered nodes list
         return [...prev, node];
       }
-      
+
       // If the node exists but has different properties (might be updated), replace it
       if (JSON.stringify(existing) !== JSON.stringify(node)) {
-        return prev.map(n => 
+        return prev.map(n =>
           n.hierarchical_structure === node.hierarchical_structure ? node : n
         );
       }
-      
+
       return prev;
     });
+
+    // Initialize node order for this node's children if they exist
+    if (node.children && node.children.length > 0) {
+      const parentId = node.hierarchical_structure;
+      const childIds = node.children.map(child => child.hierarchical_structure);
+
+      setNodeOrder(prevOrder => {
+        // Only initialize if this parent's order hasn't been set yet
+        if (!prevOrder[parentId] || prevOrder[parentId].length === 0) {
+          console.log(`Initializing node order for parent ${parentId}:`, childIds);
+          return {
+            ...prevOrder,
+            [parentId]: childIds
+          };
+        }
+        return prevOrder;
+      });
+    }
   }, []);
 
   const handleNodeUnrendered = useCallback((nodeStructure) => {
@@ -107,40 +125,49 @@ const useNodeInteractions = (
   }, [t]);
 
   const handleSwapNodes = useCallback((parentId, node1Id, node2Id) => {
-    console.log(`Swapping nodes: Parent=${parentId}, Node1=${node1Id}, Node2=${node2Id}`);
+    console.log('=== SWAP START ===');
+    console.log(`Parent: ${parentId}`);
+    console.log(`Node1: ${node1Id}`);
+    console.log(`Node2: ${node2Id}`);
 
     // Validate inputs
     if (!parentId || !node1Id || !node2Id) {
-      console.error('Missing required IDs for node swapping');
+      console.error('ERROR: Missing required IDs');
       return;
     }
 
     // Prevent swapping a node with itself
     if (node1Id === node2Id) {
-      console.warn('Cannot swap a node with itself');
+      console.warn('WARNING: Cannot swap node with itself');
       return;
     }
 
     setNodeOrder(prevOrder => {
-      const currentOrder = prevOrder[parentId] || [];
+      console.log('Previous order state:', JSON.stringify(prevOrder));
+
+      let currentOrder = prevOrder[parentId] || [];
+      console.log(`Current order for parent ${parentId}:`, currentOrder);
+
       const index1 = currentOrder.indexOf(node1Id);
       const index2 = currentOrder.indexOf(node2Id);
+      console.log(`Indices before swap - node1: ${index1}, node2: ${index2}`);
 
-      // If either node is not in the order array, add them
+      // If EITHER node is missing from the order, we can't swap reliably
+      // This means the order hasn't been initialized yet
+      if (index1 === -1 || index2 === -1) {
+        console.error('ERROR: One or both nodes not found in order array!');
+        console.error('This indicates the node order hasn\'t been properly initialized.');
+        console.error('Cannot perform swap - order would be incorrect.');
+        toast.error('Cannot swap: node order not initialized');
+        return prevOrder; // Return unchanged
+      }
+
+      // Both nodes exist in the order - perform the swap
       const newOrder = [...currentOrder];
-      if (index1 === -1) {
-        newOrder.push(node1Id);
-      }
-      if (index2 === -1) {
-        newOrder.push(node2Id);
-      }
+      [newOrder[index1], newOrder[index2]] = [newOrder[index2], newOrder[index1]];
 
-      // Get updated indices after potential additions
-      const finalIndex1 = newOrder.indexOf(node1Id);
-      const finalIndex2 = newOrder.indexOf(node2Id);
-
-      // Perform the swap using destructuring
-      [newOrder[finalIndex1], newOrder[finalIndex2]] = [newOrder[finalIndex2], newOrder[finalIndex1]];
+      console.log('New order after swap:', newOrder);
+      console.log('=== SWAP END ===');
 
       return { ...prevOrder, [parentId]: newOrder };
     });
