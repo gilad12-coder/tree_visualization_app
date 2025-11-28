@@ -85,11 +85,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     if (!updatedSettings.secondaryField) {
       updatedSettings.secondaryField = DEFAULT_SECONDARY_FIELD;
     }
-
-    // Set default language
-    if (!updatedSettings.language) {
-      updatedSettings.language = DEFAULT_LANGUAGE;
-    }
     
     // Initialize default keybindings if they don't exist
     if (!updatedSettings.keybindings) {
@@ -319,10 +314,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     
     formattedSettings.keybindings = processedKeybindings;
 
-    // Store language change info before any state changes
-    const needsLanguageChange = formattedSettings.language && formattedSettings.language !== i18n.language;
-    const newLanguage = formattedSettings.language;
-
     // Get the success message in the CURRENT language before closing modal
     const successMessage = t('settings.settingsUpdatedSuccessfully') || "Settings updated successfully";
 
@@ -332,34 +323,18 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     // Close modal FIRST
     onClose();
 
-    // Update settings and handle language change in next tick
+    // Update settings and show toast
     setTimeout(() => {
       onSettingsChange(formattedSettings);
 
-      // Change language and show toast
-      if (needsLanguageChange) {
-        setTimeout(() => {
-          i18n.changeLanguage(newLanguage).then(() => {
-            // Wait longer for all React re-renders to complete
-            setTimeout(() => {
-              toast.success(successMessage, {
-                autoClose: 3000,
-                closeOnClick: true,
-                pauseOnHover: false
-              });
-            }, 300);
-          });
-        }, 100);
-      } else {
-        // Show success message after delay to allow state to settle
-        setTimeout(() => {
-          toast.success(successMessage, {
-            autoClose: 3000,
-            closeOnClick: true,
-            pauseOnHover: false
-          });
-        }, 100);
-      }
+      // Show success message after delay to allow state to settle
+      setTimeout(() => {
+        toast.success(successMessage, {
+          autoClose: 3000,
+          closeOnClick: true,
+          pauseOnHover: false
+        });
+      }, 100);
     }, 50);
   };
 

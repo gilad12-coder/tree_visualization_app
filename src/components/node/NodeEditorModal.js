@@ -86,18 +86,9 @@ const NodeEditorModal = ({
   };
 
   const validate = () => {
-    const newErrors = {};
-
-    if (!formData.name || !formData.name.trim()) {
-      newErrors.name = t('nodeEditor.nameRequired', 'Name is required');
-    }
-
-    if (!formData.role || !formData.role.trim()) {
-      newErrors.role = t('nodeEditor.roleRequired', 'Role is required');
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    // No required fields - all fields are optional per backend specification
+    // Backend auto-generates required fields (table_id, hierarchical_structure, upload_date)
+    return true;
   };
 
   const handleSubmit = async () => {
@@ -143,7 +134,7 @@ const NodeEditorModal = ({
           {/* Name field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="name" className="block text-xs font-medium text-gray-500 mb-1">
-              {t('updatePersonalInfo.fullName')} *
+              {t('updatePersonalInfo.fullName')}
             </label>
             <input
               type="text"
@@ -223,7 +214,7 @@ const NodeEditorModal = ({
           {/* Role field */}
           <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
             <label htmlFor="role" className="block text-xs font-medium text-gray-500 mb-1">
-              {t('updatePersonalInfo.positionRole')} *
+              {t('updatePersonalInfo.positionRole')}
             </label>
             <input
               type="text"
