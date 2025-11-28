@@ -78,13 +78,13 @@ class OrganizationReportService:
             
     def find_multiple_positions(self):
         """Identify people who hold multiple positions in the organization.
-        
+
         Returns:
             dict: Analysis of people with multiple positions.
         """
         # Skip if no person_id or it's all NaN
         if 'person_id' not in self.data.columns or self.data['person_id'].isna().all():
-            return {'error': 'No person_id data available'}
+            return {'count': 0, 'details': [], 'error': 'No person_id data available'}
             
         # Get counts of person_ids
         person_counts = self.data['person_id'].value_counts()
@@ -209,15 +209,15 @@ class OrganizationReportService:
         for dept in dept_counts.index:
             if pd.isna(dept):
                 continue
-                
+
             # Find the highest-ranking person in each department
-            dept_entries = self.data[self.data['department'] == dept]
-            
+            dept_entries = self.data[self.data['department'] == dept].copy()
+
             # Use hierarchy depth as a proxy for seniority
             dept_entries['depth'] = dept_entries['hierarchical_structure'].apply(
                 lambda x: len(str(x).split('/')) if pd.notna(x) else 999
             )
-            
+
             # Sort by depth (ascending) to find the highest position
             dept_entries = dept_entries.sort_values('depth')
             
