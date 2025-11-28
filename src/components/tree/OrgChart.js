@@ -264,9 +264,14 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
 
   // Node CRUD handlers
   const handleContextMenu = (e, node) => {
-    setContextMenuPosition({ x: e.clientX, y: e.clientY });
-    setContextMenuNode(node);
-    setContextMenuOpen(true);
+    // If clicking the same node again, toggle the menu
+    if (contextMenuOpen && contextMenuNode?.hierarchical_structure === node?.hierarchical_structure) {
+      handleCloseContextMenu();
+    } else {
+      setContextMenuPosition({ x: e.clientX, y: e.clientY });
+      setContextMenuNode(node);
+      setContextMenuOpen(true);
+    }
   };
 
   const handleCloseContextMenu = () => {

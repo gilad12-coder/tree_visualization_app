@@ -637,11 +637,11 @@ const TreeNode = ({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
-              className="absolute z-50"
               style={{
+                position: 'absolute',
                 bottom: '-14px',
-                left: '50%',
-                transform: 'translateX(-50%)'
+                left: 'calc(50% - 14px)',
+                zIndex: 50
               }}
               onClick={handlePlusButtonClick}
             >
