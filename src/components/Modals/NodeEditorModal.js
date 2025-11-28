@@ -151,6 +151,7 @@ const NodeEditorModal = ({
               name="name"
               value={formData.name || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.name || ''))}`}
               dir={getTextDirection(getLanguage(formData.name || ''))}
             />
@@ -168,6 +169,7 @@ const NodeEditorModal = ({
               name="person_id"
               value={formData.person_id || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
@@ -183,6 +185,7 @@ const NodeEditorModal = ({
               name="birth_date"
               value={formData.birth_date || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
@@ -197,6 +200,7 @@ const NodeEditorModal = ({
               name="personal_information"
               value={formData.personal_information || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               rows={4}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.personal_information || ''))}`}
               dir={getTextDirection(getLanguage(formData.personal_information || ''))}
@@ -227,6 +231,7 @@ const NodeEditorModal = ({
               name="role"
               value={formData.role || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role || ''))}`}
               dir={getTextDirection(getLanguage(formData.role || ''))}
             />
@@ -244,6 +249,7 @@ const NodeEditorModal = ({
               name="department"
               value={formData.department || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.department || ''))}`}
               dir={getTextDirection(getLanguage(formData.department || ''))}
             />
@@ -260,6 +266,7 @@ const NodeEditorModal = ({
               name="rank"
               value={formData.rank || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.rank || ''))}`}
               dir={getTextDirection(getLanguage(formData.rank || ''))}
             />
@@ -276,6 +283,7 @@ const NodeEditorModal = ({
               name="organization_id"
               value={formData.organization_id || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_id || ''))}`}
               dir={getTextDirection(getLanguage(formData.organization_id || ''))}
             />
@@ -292,6 +300,7 @@ const NodeEditorModal = ({
               name="organization_name"
               value={formData.organization_name || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_name || ''))}`}
               dir={getTextDirection(getLanguage(formData.organization_name || ''))}
             />
@@ -307,6 +316,7 @@ const NodeEditorModal = ({
               name="role_information"
               value={formData.role_information || ''}
               onChange={handleInputChange}
+              autoComplete="off"
               rows={4}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role_information || ''))}`}
               dir={getTextDirection(getLanguage(formData.role_information || ''))}
