@@ -5,6 +5,7 @@ import time
 import webbrowser
 import subprocess
 import re
+import functools
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
@@ -148,6 +149,7 @@ def validate_input(**expected_args: Dict[str, type]) -> Any:
         Function decorator that validates input parameters.
     """
     def decorator(f: Any) -> Any:
+        @functools.wraps(f)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             for arg, arg_type in expected_args.items():
                 if request.method == 'GET':
@@ -424,7 +426,7 @@ def fetch_folder_structure() -> Any:
 
         return jsonify(folder_structure), 200
 
-@app.route("/folder/<int:folder_id>", methods=["PUT"])
+@app.route("/folder/<int:folder_id>", methods=["PUT"], endpoint='update_folder')
 @validate_input(name=str)
 def update_folder(folder_id: int, name: str) -> Any:
     """
@@ -454,7 +456,7 @@ def update_folder(folder_id: int, name: str) -> Any:
             session.rollback()
             return jsonify({"error": str(e)}), 500
 
-@app.route("/folder/<int:folder_id>", methods=["DELETE"])
+@app.route("/folder/<int:folder_id>", methods=["DELETE"], endpoint='delete_folder')
 def delete_folder(folder_id: int) -> Any:
     """
     Delete a folder and all its associated tables and data entries.
@@ -483,7 +485,7 @@ def delete_folder(folder_id: int) -> Any:
             session.rollback()
             return jsonify({"error": str(e)}), 500
 
-@app.route("/table/<int:table_id>", methods=["PUT"])
+@app.route("/table/<int:table_id>", methods=["PUT"], endpoint='update_table')
 @validate_input(name=str, upload_date=str)
 def update_table(table_id: int, name: str, upload_date: str) -> Any:
     """
@@ -523,7 +525,7 @@ def update_table(table_id: int, name: str, upload_date: str) -> Any:
             session.rollback()
             return jsonify({"error": str(e)}), 500
 
-@app.route("/table/<int:table_id>", methods=["DELETE"])
+@app.route("/table/<int:table_id>", methods=["DELETE"], endpoint='delete_table')
 def delete_table(table_id: int) -> Any:
     """
     Delete a table and all its associated data entries.
