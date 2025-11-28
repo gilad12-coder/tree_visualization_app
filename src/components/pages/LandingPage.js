@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   List,
   Database,
-  FolderPlus,
   Clock,
   ArrowLeft,
   ArrowRight,
@@ -207,6 +206,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       await handleUseExistingDB(recentDbPath);
     }
   };
+
 
   if (isLoading) {
     return (
@@ -636,7 +636,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
                     </span>
                     {isRTL ? <ChevronLeft size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />}
                   </motion.button>
-                  
+
                   <motion.button
                     whileHover={{ x: -5 }}
                     whileTap={{ scale: 0.98 }}

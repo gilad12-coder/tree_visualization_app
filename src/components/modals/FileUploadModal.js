@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Search,
   FileText,
+  Edit3,
 } from "react-feather";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -39,6 +40,7 @@ const formatDateForAPI = (date) => date.toISOString().split("T")[0];
 
 const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
   const { t } = useTranslation();
+  const [creationMethod, setCreationMethod] = useState("upload"); // "upload" or "build"
   const [selectedFile, setSelectedFile] = useState(null);
   const [folderName, setFolderName] = useState("");
   const [uploadDate, setUploadDate] = useState(null);
@@ -48,6 +50,9 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [treeName, setTreeName] = useState("");
+  const [rootNodeName, setRootNodeName] = useState("");
+  const [rootNodeRole, setRootNodeRole] = useState("");
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -67,6 +72,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
   useEffect(() => {
     if (isOpen) {
       fetchFolders();
+      setCreationMethod("upload");
       setSelectedFile(null);
       setFolderName("");
       setUploadDate(null);
@@ -74,6 +80,9 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
       setFolderSelectionType("existing");
       setIsDropdownOpen(false);
       setSearchTerm("");
+      setTreeName("");
+      setRootNodeName("");
+      setRootNodeRole("");
     }
   }, [isOpen, fetchFolders]);
 
@@ -176,6 +185,50 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
     }
   };
 
+  const handleBuildTree = async () => {
+    if (
+      treeName &&
+      ((folderSelectionType === "existing" && selectedFolderId) ||
+        (folderSelectionType === "new" && folderName)) &&
+      uploadDate &&
+      rootNodeName &&
+      rootNodeRole
+    ) {
+      // Create nodes structure with just root node
+      const nodes = {
+        root: { id: 'root', children: ['node-1'] },
+        'node-1': {
+          id: 'node-1',
+          name: rootNodeName,
+          role: rootNodeRole,
+          children: []
+        }
+      };
+
+      try {
+        const response = await axios.post(`${API_BASE_URL}/create-tree`, {
+          treeName: treeName,
+          nodes: nodes,
+          folderName: folderName,
+          folderId: folderSelectionType === "existing" ? selectedFolderId : undefined,
+          isNewFolder: folderSelectionType === "new",
+          uploadDate: formatDateForAPI(convertToUTCDate(uploadDate))
+        }, {
+          params: { db_path: dbPath }
+        });
+
+        onUpload(response.data);
+        onClose();
+        toast.success(t('fileUpload.treeCreatedSuccess'));
+      } catch (error) {
+        console.error("Failed to create tree:", error);
+        toast.error(
+          error.response?.data?.error || t('fileUpload.failedToCreateTree')
+        );
+      }
+    }
+  };
+
   const handleDownloadGuide = () => {
     const link = document.createElement("a");
     link.href = process.env.PUBLIC_URL + "מדריך מפורט להעלאת נתונים.pdf";
@@ -191,6 +244,14 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
 
   const isUploadDisabled =
     !selectedFile ||
+    !uploadDate ||
+    (folderSelectionType === "new" && !folderName) ||
+    (folderSelectionType === "existing" && !selectedFolderId);
+
+  const isBuildDisabled =
+    !treeName ||
+    !rootNodeName ||
+    !rootNodeRole ||
     !uploadDate ||
     (folderSelectionType === "new" && !folderName) ||
     (folderSelectionType === "existing" && !selectedFolderId);
@@ -221,8 +282,45 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
 
               {/* Content */}
               <div className="p-6 space-y-5 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
-                {/* File Upload Area */}
-                <motion.div
+                {/* Method Selection Tabs */}
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setCreationMethod("upload")}
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
+                      creationMethod === "upload"
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    style={{
+                      backgroundColor: creationMethod === "upload" ? THEME.primary : undefined
+                    }}
+                  >
+                    <Upload size={16} />
+                    {t('fileUpload.uploadFile')}
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setCreationMethod("build")}
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
+                      creationMethod === "build"
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    style={{
+                      backgroundColor: creationMethod === "build" ? THEME.primary : undefined
+                    }}
+                  >
+                    <Edit3 size={16} />
+                    {t('fileUpload.buildTree')}
+                  </motion.button>
+                </div>
+
+                {/* File Upload Area - Only show if method is "upload" */}
+                {creationMethod === "upload" && (
+                  <motion.div
                   className={`bg-gray-50 rounded-lg p-5 flex flex-col items-center justify-center space-y-3 border border-dashed ${
                     isDragging
                       ? "border-gray-500"
@@ -270,8 +368,69 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                     className="hidden"
                   />
                 </motion.div>
+                )}
 
-                {/* Folder Selection Tabs */}
+                {/* Build Tree Form - Only show if method is "build" */}
+                {creationMethod === "build" && (
+                  <>
+                    {/* Tree Name */}
+                    <div>
+                      <motion.div
+                        className="flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                        whileHover={{
+                          borderColor: "#9CA3AF"
+                        }}
+                      >
+                        <FileText size={18} className="text-gray-500 mr-2 rtl:mr-0 rtl:ml-2" />
+                        <input
+                          type="text"
+                          value={treeName}
+                          onChange={(e) => setTreeName(e.target.value)}
+                          placeholder={t('createTree.treeNamePlaceholder')}
+                          className="bg-transparent w-full outline-none text-sm"
+                        />
+                      </motion.div>
+                    </div>
+
+                    {/* Root Node Name */}
+                    <div>
+                      <motion.div
+                        className="flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                        whileHover={{
+                          borderColor: "#9CA3AF"
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={rootNodeName}
+                          onChange={(e) => setRootNodeName(e.target.value)}
+                          placeholder={t('createTree.rootNamePlaceholder')}
+                          className="bg-transparent w-full outline-none text-sm"
+                        />
+                      </motion.div>
+                    </div>
+
+                    {/* Root Node Role */}
+                    <div>
+                      <motion.div
+                        className="flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                        whileHover={{
+                          borderColor: "#9CA3AF"
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={rootNodeRole}
+                          onChange={(e) => setRootNodeRole(e.target.value)}
+                          placeholder={t('createTree.rootRolePlaceholder')}
+                          className="bg-transparent w-full outline-none text-sm"
+                        />
+                      </motion.div>
+                    </div>
+                  </>
+                )}
+
+                {/* Folder Selection Tabs - Show for both methods */}
                 <div className="flex gap-2">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
@@ -409,32 +568,52 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath }) => {
                   />
                 </div>
 
-                {/* Help and Upload Buttons */}
+                {/* Action Buttons */}
                 <div className="flex gap-3 pt-2">
-                  <motion.button
-                    whileHover={!isUploadDisabled ? { scale: 1.02 } : {}}
-                    whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}
-                    onClick={handleUpload}
-                    className={`flex-grow px-4 py-2.5 rounded-md text-white font-medium text-sm flex items-center justify-center gap-2 ${
-                      isUploadDisabled
-                        ? "opacity-50 cursor-not-allowed"
-                        : "hover:bg-gray-800"
-                    }`}
-                    style={{ backgroundColor: THEME.buttonColor }}
-                    disabled={isUploadDisabled}
-                  >
-                    <Upload size={18} />
-                    <span>{t('fileUpload.uploadFile')}</span>
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleDownloadGuide}
-                    className="px-3 py-2.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                    title={t('fileUpload.downloadGuide')}
-                  >
-                    <HelpCircle size={18} />
-                  </motion.button>
+                  {creationMethod === "upload" ? (
+                    <>
+                      <motion.button
+                        whileHover={!isUploadDisabled ? { scale: 1.02 } : {}}
+                        whileTap={!isUploadDisabled ? { scale: 0.98 } : {}}
+                        onClick={handleUpload}
+                        className={`flex-grow px-4 py-2.5 rounded-md text-white font-medium text-sm flex items-center justify-center gap-2 ${
+                          isUploadDisabled
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:bg-gray-800"
+                        }`}
+                        style={{ backgroundColor: THEME.buttonColor }}
+                        disabled={isUploadDisabled}
+                      >
+                        <Upload size={18} />
+                        <span>{t('fileUpload.uploadFile')}</span>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleDownloadGuide}
+                        className="px-3 py-2.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                        title={t('fileUpload.downloadGuide')}
+                      >
+                        <HelpCircle size={18} />
+                      </motion.button>
+                    </>
+                  ) : (
+                    <motion.button
+                      whileHover={!isBuildDisabled ? { scale: 1.02 } : {}}
+                      whileTap={!isBuildDisabled ? { scale: 0.98 } : {}}
+                      onClick={handleBuildTree}
+                      className={`flex-grow px-4 py-2.5 rounded-md text-white font-medium text-sm flex items-center justify-center gap-2 ${
+                        isBuildDisabled
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:bg-gray-800"
+                      }`}
+                      style={{ backgroundColor: THEME.buttonColor }}
+                      disabled={isBuildDisabled}
+                    >
+                      <Edit3 size={18} />
+                      <span>{t('createTree.createTree')}</span>
+                    </motion.button>
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -227,6 +227,24 @@
     "roleInformation": "מידע על התפקיד",
     "isDead": "האם נפטר"
   },
+  "createTree": {
+    "createNewTree": "צור עץ חדש",
+    "treeName": "שם העץ",
+    "treeNamePlaceholder": "לדוגמה: תרשים ארגוני של החברה",
+    "treeNameRequired": "שם העץ נדרש",
+    "folderName": "שם תיקייה",
+    "folderNamePlaceholder": "לדוגמה: מבנה 2024",
+    "folderNameRequired": "שם תיקייה נדרש",
+    "rootNodeDetails": "פרטי צומת השורש",
+    "rootName": "שם",
+    "rootNamePlaceholder": "לדוגמה: ישראל ישראלי",
+    "rootNameRequired": "שם צומת השורש נדרש",
+    "rootRole": "תפקיד",
+    "rootRolePlaceholder": "לדוגמה: מנכ\"ל",
+    "rootRoleRequired": "תפקיד צומת השורש נדרש",
+    "createTree": "צור עץ",
+    "infoText": "לאחר יצירת העץ, תוכל להוסיף עוד צמתים על ידי ריחוף מעל צמתים ולחיצה על כפתור \"•••\"."
+  },
   "fileUpload": {
     "title": "העלה קובץ",
     "dragAndDrop": "גרור ושחרר את הקובץ כאן",
@@ -247,9 +265,12 @@
     "enterNewFolderName": "הזן שם תיקיה חדשה",
     "selectUploadDate": "בחר תאריך העלאה",
     "uploadFile": "העלה קובץ",
+    "buildTree": "בנה עץ",
     "downloadGuide": "הורד מדריך",
     "failedToFetchFolders": "נכשל בטעינת תיקיות. נסה שוב.",
-    "failedToUpload": "נכשל להעלות קובץ. נסה שוב."
+    "failedToUpload": "נכשל להעלות קובץ. נסה שוב.",
+    "treeCreatedSuccess": "העץ נוצר בהצלחה!",
+    "failedToCreateTree": "נכשל ליצור עץ. נסה שוב."
   },
   "filterModal": {
     "title": "סינון צמתים",

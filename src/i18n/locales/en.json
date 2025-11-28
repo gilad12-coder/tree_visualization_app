@@ -227,6 +227,24 @@
     "roleInformation": "Role Information",
     "isDead": "Is Dead"
   },
+  "createTree": {
+    "createNewTree": "Create New Tree",
+    "treeName": "Tree Name",
+    "treeNamePlaceholder": "e.g., Company Org Chart",
+    "treeNameRequired": "Tree name is required",
+    "folderName": "Folder Name",
+    "folderNamePlaceholder": "e.g., 2024 Structure",
+    "folderNameRequired": "Folder name is required",
+    "rootNodeDetails": "Root Node Details",
+    "rootName": "Name",
+    "rootNamePlaceholder": "e.g., John Doe",
+    "rootNameRequired": "Root node name is required",
+    "rootRole": "Role",
+    "rootRolePlaceholder": "e.g., CEO",
+    "rootRoleRequired": "Root node role is required",
+    "createTree": "Create Tree",
+    "infoText": "After creating the tree, you can add more nodes by hovering over nodes and clicking the \"•••\" button."
+  },
   "fileUpload": {
     "title": "Upload File",
     "dragAndDrop": "Drag & drop your file here",
@@ -247,9 +265,12 @@
     "enterNewFolderName": "Enter new folder name",
     "selectUploadDate": "Select upload date",
     "uploadFile": "Upload File",
+    "buildTree": "Build Tree",
     "downloadGuide": "Download Guide",
     "failedToFetchFolders": "Failed to fetch folders. Please try again.",
-    "failedToUpload": "Failed to upload file. Please try again."
+    "failedToUpload": "Failed to upload file. Please try again.",
+    "treeCreatedSuccess": "Tree created successfully!",
+    "failedToCreateTree": "Failed to create tree. Please try again."
   },
   "filterModal": {
     "title": "Filter Nodes",
