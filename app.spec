@@ -34,8 +34,8 @@ for file in required_files:
         print("Please run 'npm run build' to create the React build.")
         sys.exit(1)
 
-print(f"✓ Found React build directory: {build_dir}")
-print(f"✓ Entry point: main.py")
+print(f"[OK] Found React build directory: {build_dir}")
+print(f"[OK] Entry point: main.py")
 
 # Collect all React build files recursively
 build_files = []
@@ -50,7 +50,7 @@ for root, dirs, files in os.walk(build_dir):
             dest_path = os.path.join('build', rel_path)
         build_files.append((file_path, dest_path))
 
-print(f"✓ Collected {len(build_files)} React build files")
+print(f"[OK] Collected {len(build_files)} React build files")
 
 # Collect public assets (favicons, icons, etc.)
 public_dir = os.path.join(project_root, 'public')
@@ -60,7 +60,7 @@ if os.path.exists(public_dir):
         file_path = os.path.join(public_dir, file)
         if os.path.isfile(file_path):
             public_files.append((file_path, 'public'))
-    print(f"✓ Collected {len(public_files)} public assets")
+    print(f"[OK] Collected {len(public_files)} public assets")
 
 # Additional documentation files
 additional_data = []
@@ -80,11 +80,32 @@ if os.path.exists(backend_fonts_dir):
             rel_path = os.path.relpath(root, project_root)
             backend_fonts.append((file_path, rel_path))
     if backend_fonts:
-        print(f"✓ Collected {len(backend_fonts)} backend font files")
+        print(f"[OK] Collected {len(backend_fonts)} backend font files")
 
 # Collect Flask dependencies
 flask_data = collect_data_files('flask')
 werkzeug_data = collect_data_files('werkzeug')
+
+# Collect missing DLLs from conda environment (Windows only)
+missing_dlls = []
+if sys.platform == 'win32':
+    # Look for DLLs in conda environments
+    conda_dll_paths = [
+        os.path.expanduser('~/miniconda3/envs/autogen/Library/bin'),
+        os.path.expanduser('~/miniconda3/Library/bin'),
+        os.path.expanduser('~/anaconda3/Library/bin'),
+    ]
+    required_dlls = ['ffi.dll', 'sqlite3.dll', 'liblzma.dll', 'libbz2.dll']
+
+    for dll_name in required_dlls:
+        for dll_path in conda_dll_paths:
+            full_path = os.path.join(dll_path, dll_name)
+            if os.path.exists(full_path):
+                missing_dlls.append((full_path, '.'))
+                print(f"[OK] Found {dll_name}: {full_path}")
+                break
+        else:
+            print(f"WARNING: Could not find {dll_name}")
 
 # Hidden imports (packages that PyInstaller might miss)
 hidden_imports = [
@@ -119,20 +140,20 @@ hidden_imports = [
 # Add all discovered backend modules to hidden imports
 hidden_imports.extend(backend_modules)
 
-print(f"✓ Added {len(hidden_imports)} hidden imports")
+print(f"[OK] Added {len(hidden_imports)} hidden imports")
 
 # Verify runtime hook exists
 runtime_hook_path = os.path.join(project_root, 'pyi_rth_backend.py')
 if not os.path.exists(runtime_hook_path):
     print(f"ERROR: Runtime hook not found: {runtime_hook_path}")
     sys.exit(1)
-print(f"✓ Found runtime hook: pyi_rth_backend.py")
+print(f"[OK] Found runtime hook: pyi_rth_backend.py")
 
 # Analysis
 a = Analysis(
     ['main.py'],
     pathex=[project_root, os.path.join(project_root, 'backend')],
-    binaries=[],
+    binaries=missing_dlls,
     datas=build_files + public_files + additional_data + backend_fonts + flask_data + werkzeug_data,
     hiddenimports=hidden_imports,
     hookspath=[],
@@ -165,7 +186,7 @@ if is_windows:
     ico_path = os.path.join(project_root, 'public', 'Be-net_icon.ico')
     if os.path.exists(ico_path):
         icon_path = ico_path
-        print(f"✓ Using Windows icon: {ico_path}")
+        print(f"[OK] Using Windows icon: {ico_path}")
     else:
         print("WARNING: Windows icon not found, executable will use default icon")
 elif is_macos:
@@ -173,7 +194,7 @@ elif is_macos:
     icns_path = os.path.join(project_root, 'TreeVisualizationApp.icns')
     if os.path.exists(icns_path):
         icon_path = icns_path
-        print(f"✓ Using macOS icon: {icns_path}")
+        print(f"[OK] Using macOS icon: {icns_path}")
     else:
         print("WARNING: macOS icon not found, app will use default icon")
 
