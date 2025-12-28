@@ -154,40 +154,36 @@ a = Analysis(
 # PYZ (Python zip archive)
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
-# EXE
+# EXE (single-file mode - everything bundled into one executable)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='TreeVisualizationApp',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Show console for debugging
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(project_root, 'public', 'favicon.ico') if os.path.exists(os.path.join(project_root, 'public', 'favicon.ico')) else None,
+    icon=os.path.join(project_root, 'TreeVisualizationApp.icns') if os.path.exists(os.path.join(project_root, 'TreeVisualizationApp.icns')) else None,
 )
 
-# COLLECT (bundle everything together)
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='TreeVisualizationApp',
-)
+# Note: Run create_app_bundle.py after build to create .app bundle
 
 print("\n" + "="*80)
 print("PyInstaller spec file configured successfully!")
+print("Mode: macOS .app bundle (appears as single icon)")
 print("Run: pyinstaller app.spec")
-print("Output will be in: dist/TreeVisualizationApp/")
+print("Output will be: dist/TreeVisualizationApp.app")
+print("Users can drag this to Applications or pin to Dock")
 print("="*80 + "\n")

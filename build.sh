@@ -31,9 +31,14 @@ echo "✓ React frontend built successfully"
 echo ""
 
 # Step 4: Build executable with PyInstaller
-echo "[4/4] Building standalone executable..."
+echo "[4/5] Building standalone executable..."
 pyinstaller app.spec
 echo "✓ Executable built successfully"
+echo ""
+
+# Step 5: Create macOS .app bundle
+echo "[5/5] Creating macOS .app bundle..."
+python3 create_app_bundle.py
 echo ""
 
 echo "=========================================="

@@ -1343,20 +1343,6 @@ def create_tree():
             session.rollback()
             logger.error(f"Error creating tree: {str(e)}")
             return jsonify({"error": str(e)}), 500
-        for entry in data:
-            manager = '/'.join(entry.hierarchical_structure.split('/')[:-1])
-            if manager:
-                manager_counts[manager] = manager_counts.get(manager, 0) + 1
-        return sum(manager_counts.values()) / len(manager_counts) if manager_counts else 0
-    
-    span1 = get_avg_span(data1)
-    span2 = get_avg_span(data2)
-    
-    return {
-        "before": span1,
-        "after": span2,
-        "change": span2 - span1
-    }
 
 def calculate_turnover_rate(changes: Dict[str, Any], data1: List[DataEntry]) -> float:
     """
