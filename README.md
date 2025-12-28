@@ -122,6 +122,7 @@ The script will automatically:
 2. Install all Node.js dependencies
 3. Build the React frontend with all translations
 4. Create the standalone executable
+5. (macOS only) Create .app bundle for easy distribution
 
 ### Manual Build Steps
 
@@ -143,10 +144,16 @@ If you prefer to build manually:
    pyinstaller app.spec
    ```
 
-4. **Locate the Executable**
+4. **Create macOS App Bundle (macOS only)**
+   ```bash
+   python3 create_app_bundle.py
    ```
-   dist/TreeVisualizationApp/TreeVisualizationApp.exe  (Windows)
-   dist/TreeVisualizationApp/TreeVisualizationApp      (macOS)
+
+5. **Locate the Executable**
+   ```
+   dist/TreeVisualizationApp.exe          (Windows - single .exe file)
+   dist/TreeVisualizationApp.app          (macOS - app bundle)
+   dist/TreeVisualizationApp              (Linux - single executable)
    ```
 
 ### What's Included
@@ -162,18 +169,27 @@ The standalone executable includes:
 
 ### Distribution
 
-Distribute the entire `dist/TreeVisualizationApp/` folder:
+**Windows:**
+- Distribute the single `TreeVisualizationApp.exe` file
+- Users can run it directly - no installation needed
+- File size: ~150-200 MB
+
+**macOS:**
+- Distribute the `TreeVisualizationApp.app` bundle
+- Users can drag it to Applications folder
+- File size: ~100-150 MB
 
 ```bash
-# Windows
+# Windows - zip the .exe file
 cd dist
-zip -r TreeVisualizationApp-v1.0-windows.zip TreeVisualizationApp/
+zip TreeVisualizationApp-v1.0-windows.zip TreeVisualizationApp.exe
 
-# macOS
-tar -czf TreeVisualizationApp-v1.0-macos.tar.gz TreeVisualizationApp/
+# macOS - zip the .app bundle
+cd dist
+zip -r TreeVisualizationApp-v1.0-macos.zip TreeVisualizationApp.app
 ```
 
-**File Size**: Expect ~150-200 MB (Windows) or ~100-150 MB (macOS) including Python interpreter and all dependencies.
+**Note**: The executable is self-contained with all dependencies included. No Python or Node.js installation required on the target machine.
 
 ### Troubleshooting
 

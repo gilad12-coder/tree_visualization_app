@@ -36,27 +36,34 @@ pyinstaller app.spec
 echo "✓ Executable built successfully"
 echo ""
 
-# Step 5: Create macOS .app bundle
-echo "[5/5] Creating macOS .app bundle..."
-python3 create_app_bundle.py
-echo ""
+# Step 5: Create macOS .app bundle (macOS only)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "[5/5] Creating macOS .app bundle..."
+    python3 create_app_bundle.py
+    echo ""
+fi
 
 echo "=========================================="
 echo "Build completed successfully!"
 echo "=========================================="
 echo ""
 echo "Your executable is located at:"
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    echo "  dist/TreeVisualizationApp/TreeVisualizationApp.exe"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "  dist/TreeVisualizationApp.app (macOS app bundle)"
+    echo ""
+    echo "To run the application:"
+    echo "  open dist/TreeVisualizationApp.app"
+    echo "  Or double-click the .app file in Finder"
+elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+    echo "  dist/TreeVisualizationApp.exe"
+    echo ""
+    echo "To run the application:"
+    echo "  dist/TreeVisualizationApp.exe"
+    echo "  Or double-click the .exe file in Windows Explorer"
 else
-    echo "  dist/TreeVisualizationApp/TreeVisualizationApp"
-fi
-echo ""
-echo "To run the application:"
-echo "  cd dist/TreeVisualizationApp"
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    echo "  TreeVisualizationApp.exe"
-else
-    echo "  ./TreeVisualizationApp"
+    echo "  dist/TreeVisualizationApp"
+    echo ""
+    echo "To run the application:"
+    echo "  ./dist/TreeVisualizationApp"
 fi
 echo ""

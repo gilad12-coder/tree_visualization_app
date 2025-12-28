@@ -154,6 +154,29 @@ a = Analysis(
 # PYZ (Python zip archive)
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
+# Platform detection
+is_windows = sys.platform == 'win32'
+is_macos = sys.platform == 'darwin'
+
+# Determine icon path based on platform
+icon_path = None
+if is_windows:
+    # Windows uses .ico files
+    ico_path = os.path.join(project_root, 'public', 'Be-net_icon.ico')
+    if os.path.exists(ico_path):
+        icon_path = ico_path
+        print(f"✓ Using Windows icon: {ico_path}")
+    else:
+        print("WARNING: Windows icon not found, executable will use default icon")
+elif is_macos:
+    # macOS uses .icns files
+    icns_path = os.path.join(project_root, 'TreeVisualizationApp.icns')
+    if os.path.exists(icns_path):
+        icon_path = icns_path
+        print(f"✓ Using macOS icon: {icns_path}")
+    else:
+        print("WARNING: macOS icon not found, app will use default icon")
+
 # EXE (single-file mode - everything bundled into one executable)
 exe = EXE(
     pyz,
@@ -169,21 +192,34 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=False,  # Set to True for debugging on Windows if needed
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(project_root, 'TreeVisualizationApp.icns') if os.path.exists(os.path.join(project_root, 'TreeVisualizationApp.icns')) else None,
+    icon=icon_path,
 )
 
-# Note: Run create_app_bundle.py after build to create .app bundle
-
+# Platform-specific post-build instructions
 print("\n" + "="*80)
 print("PyInstaller spec file configured successfully!")
-print("Mode: macOS .app bundle (appears as single icon)")
-print("Run: pyinstaller app.spec")
-print("Output will be: dist/TreeVisualizationApp.app")
-print("Users can drag this to Applications or pin to Dock")
+if is_windows:
+    print("Platform: Windows")
+    print("Mode: Standalone .exe file")
+    print("Run: pyinstaller app.spec")
+    print("Output will be: dist/TreeVisualizationApp.exe")
+    print("You can run it directly or distribute the .exe file")
+elif is_macos:
+    print("Platform: macOS")
+    print("Mode: Standalone executable (run create_app_bundle.py to create .app bundle)")
+    print("Run: pyinstaller app.spec")
+    print("Then run: python3 create_app_bundle.py")
+    print("Output will be: dist/TreeVisualizationApp.app")
+    print("Users can drag this to Applications or pin to Dock")
+else:
+    print(f"Platform: {sys.platform}")
+    print("Mode: Standalone executable")
+    print("Run: pyinstaller app.spec")
+    print("Output will be: dist/TreeVisualizationApp")
 print("="*80 + "\n")

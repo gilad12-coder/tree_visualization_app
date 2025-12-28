@@ -59,10 +59,11 @@ echo Build completed successfully!
 echo ==========================================
 echo.
 echo Your executable is located at:
-echo   dist\TreeVisualizationApp\TreeVisualizationApp.exe
+echo   dist\TreeVisualizationApp.exe
 echo.
 echo To run the application:
-echo   cd dist\TreeVisualizationApp
-echo   TreeVisualizationApp.exe
+echo   dist\TreeVisualizationApp.exe
+echo.
+echo Or double-click the .exe file in Windows Explorer
 echo.
 pause
