@@ -26,7 +26,9 @@ OrgChart Visualizer is a powerful full-stack application designed to help organi
 - **↔️ RTL Layout Support**: Native right-to-left layout for Hebrew and other RTL languages
 - **📱 Responsive Design**: Enjoy a seamless experience across desktop and mobile devices
 - **🔄 Real-time Updates**: Make changes to your org structure and see them reflected instantly
-- **📥 Easy Data Import/Export**: Import data from Excel files and export visualizations as images or Excel spreadsheets
+- **📥 Easy Data Import/Export**: Import data from Excel/CSV files or create trees manually, export visualizations as images or Excel spreadsheets
+- **✏️ Visual Tree Editor**: Create and edit organizational trees directly in the interface with drag-and-drop functionality
+- **🔧 Node Management**: Add, edit, delete, and reorganize nodes with an intuitive context menu
 - **📊 Comparative Analysis**: Compare organizational structures across different time periods
 - **🔔 Smart Notifications**: Language-aware toast notifications with RTL-aware positioning
 - **⚙️ Customizable Settings**: Tailor the application to your preferences with configurable settings and keyboard shortcuts
@@ -47,41 +49,106 @@ For detailed information about the internationalization setup, see [LANGUAGE_SET
 
 ### Prerequisites
 
-- Python 3.8+
-- Node.js 14+ and npm
-- Git
+- **Python 3.8+** with pip
+- **Node.js 14+** and npm
+- **Git** (for cloning the repository)
 
 ### Development Setup
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/tree_visualization_app.git
-   cd tree_visualization_app
-   ```
+#### Step 1: Clone the Repository
 
-2. **Install backend dependencies**
-   ```bash
+**Windows (Command Prompt or PowerShell):**
+```cmd
+git clone https://github.com/gilad12-coder/tree_visualization_app.git
+cd tree_visualization_app
+```
+
+**macOS/Linux:**
+```bash
+git clone https://github.com/gilad12-coder/tree_visualization_app.git
+cd tree_visualization_app
+```
+
+#### Step 2: Install Backend Dependencies
+
+**Windows:**
+```cmd
+pip install -r requirements.txt
+```
+
+**macOS/Linux:**
+```bash
+pip install -r requirements.txt
+# or
+pip3 install -r requirements.txt
+```
+
+#### Step 3: Install Frontend Dependencies
+
+**Windows:**
+```cmd
+npm install
+```
+
+**macOS/Linux:**
+```bash
+npm install
+```
+
+#### Step 4: Build the Frontend
+
+**Windows:**
+```cmd
+npm run build
+```
+
+**macOS/Linux:**
+```bash
+npm run build
+```
+
+#### Step 5: Start the Development Server
+
+**Windows:**
+```cmd
+python main.py
+```
+
+**macOS/Linux:**
+```bash
+python main.py
+# or
+python3 main.py
+```
+
+#### Step 6: Access the Application
+
+The application will automatically open in your default web browser. If it doesn't, manually navigate to:
+
+**http://localhost:5001**
+
+> **Note:** The application runs on port 5001. Make sure this port is not in use by another application.
+
+### Quick Start for Windows Users (After Git Clone)
+
+If you've just cloned the repository on Windows and want to get started quickly:
+
+1. **Open Command Prompt or PowerShell** in the project directory
+2. **Run the automated build script:**
+   ```cmd
+   build.bat
+   ```
+   This will install all dependencies and build the executable automatically.
+
+3. **Or run in development mode:**
+   ```cmd
    pip install -r requirements.txt
-   ```
-
-3. **Install frontend dependencies**
-   ```bash
    npm install
-   ```
-
-4. **Build the frontend**
-   ```bash
    npm run build
-   ```
-
-5. **Start the development server**
-   ```bash
    python main.py
    ```
 
-6. **Access the application**
-
-   Open your browser and navigate to `http://localhost:5001`
+4. **Access the app** at `http://localhost:5001`
 
 ### Running as a Standalone Application
 
@@ -89,7 +156,8 @@ For end users, the application can be run as a standalone executable:
 
 1. Download the latest release from the releases page
 2. Extract the zip file to a location of your choice
-3. Run `TreeVisualizationApp.exe` (Windows) or the application bundle (macOS)
+3. **Windows:** Double-click `TreeVisualizationApp.exe`
+4. **macOS:** Double-click `TreeVisualizationApp.app` (or drag to Applications folder)
 
 ## 🛠️ Building Standalone Executables
 
@@ -107,13 +175,16 @@ Build platform-specific executables for Windows and macOS with all international
 
 Use the automated build script that handles everything:
 
-**Windows:**
-```bash
+**Windows (Command Prompt or PowerShell):**
+```cmd
 build.bat
 ```
 
+Or double-click `build.bat` in Windows Explorer.
+
 **macOS/Linux:**
 ```bash
+chmod +x build.sh
 ./build.sh
 ```
 
@@ -129,17 +200,39 @@ The script will automatically:
 If you prefer to build manually:
 
 1. **Install Dependencies**
+
+   **Windows:**
+   ```cmd
+   pip install -r requirements.txt
+   npm install
+   ```
+
+   **macOS/Linux:**
    ```bash
    pip install -r requirements.txt
    npm install
    ```
 
 2. **Build React Frontend** (CRITICAL - includes all translations)
+
+   **Windows:**
+   ```cmd
+   npm run build
+   ```
+
+   **macOS/Linux:**
    ```bash
    npm run build
    ```
 
 3. **Build the Executable**
+
+   **Windows:**
+   ```cmd
+   pyinstaller app.spec
+   ```
+
+   **macOS/Linux:**
    ```bash
    pyinstaller app.spec
    ```
@@ -150,10 +243,32 @@ If you prefer to build manually:
    ```
 
 5. **Locate the Executable**
+
+   **Windows:**
    ```
-   dist/TreeVisualizationApp.exe          (Windows - single .exe file)
-   dist/TreeVisualizationApp.app          (macOS - app bundle)
-   dist/TreeVisualizationApp              (Linux - single executable)
+   dist\TreeVisualizationApp.exe
+   ```
+   Double-click the `.exe` file to run, or run from command line:
+   ```cmd
+   dist\TreeVisualizationApp.exe
+   ```
+
+   **macOS:**
+   ```
+   dist/TreeVisualizationApp.app
+   ```
+   Double-click the `.app` bundle to run, or use:
+   ```bash
+   open dist/TreeVisualizationApp.app
+   ```
+
+   **Linux:**
+   ```
+   dist/TreeVisualizationApp
+   ```
+   Run with:
+   ```bash
+   ./dist/TreeVisualizationApp
    ```
 
 ### What's Included
@@ -179,12 +294,20 @@ The standalone executable includes:
 - Users can drag it to Applications folder
 - File size: ~100-150 MB
 
-```bash
-# Windows - zip the .exe file
+**Windows (PowerShell):**
+```powershell
 cd dist
-zip TreeVisualizationApp-v1.0-windows.zip TreeVisualizationApp.exe
+Compress-Archive -Path TreeVisualizationApp.exe -DestinationPath TreeVisualizationApp-v1.0-windows.zip
+```
 
-# macOS - zip the .app bundle
+**Windows (Command Prompt with 7-Zip or WinRAR):**
+```cmd
+cd dist
+"C:\Program Files\7-Zip\7z.exe" a TreeVisualizationApp-v1.0-windows.zip TreeVisualizationApp.exe
+```
+
+**macOS/Linux:**
+```bash
 cd dist
 zip -r TreeVisualizationApp-v1.0-macos.zip TreeVisualizationApp.app
 ```
@@ -194,34 +317,82 @@ zip -r TreeVisualizationApp-v1.0-macos.zip TreeVisualizationApp.app
 ### Troubleshooting
 
 **Build fails with missing build/ directory**
-- Solution: Run `npm run build` first
+- Solution: Run `npm run build` first before building the executable
 
-**Executable won't start**
+**Executable won't start (Windows)**
 - Solution: Check that all dependencies in `requirements.txt` are installed
+- Try running from Command Prompt to see error messages
+- Ensure Windows Defender or antivirus isn't blocking the executable
+
+**Executable won't start (macOS)**
+- Solution: Right-click the `.app` and select "Open" if you get a security warning
+- Go to System Preferences → Security & Privacy → Allow the app
+
+**Port 5001 already in use**
+- Solution: Close any other applications using port 5001, or modify `main.py` to use a different port
 
 **Browser doesn't open automatically**
-- Solution: Manually navigate to `http://localhost:5001`
+- Solution: Manually navigate to `http://localhost:5001` in your browser
 
 **Hebrew text not displaying**
 - Solution: Rubik font loads from Google Fonts - check internet connection
+- Fonts are also bundled in the executable, so this should work offline
+
+**Database errors**
+- Solution: Ensure you have write permissions in the directory where you're creating/accessing the database
+- On Windows, try running as Administrator if permission issues persist
 
 ## 📖 Usage Guide
 
 ### First-time Users
 
-1. Launch the application
-2. Choose between creating a new database or selecting an existing one
-3. Import your organizational data from an Excel file
-4. Explore your organization's structure through the interactive visualization
-5. Switch languages from the settings menu (⚙️ icon)
+1. **Launch the application**
+   - Run the executable or start the development server
+   - The application will automatically open in your browser at `http://localhost:5001`
+
+2. **Set up your database**
+   - **Option A: Create a new database**
+     - Click "Create New Database"
+     - Choose a location to save your database file
+     - Enter a database name (e.g., `orgchart.db`)
+   - **Option B: Use an existing database**
+     - Click "Select Existing Database"
+     - Browse and select your existing database file
+
+3. **Create or import organizational data**
+   - **Option 1: Import from Excel/CSV**
+     - Click the upload button (📤) or use `Ctrl+U` (Windows) / `Cmd+U` (macOS)
+     - Select your Excel file (.xlsx) or CSV file
+     - Choose a folder name and upload date
+     - The app will automatically parse and structure your data
+   - **Option 2: Create tree manually**
+     - Click "Create New Tree" button
+     - Enter tree name, folder name, and root node details
+     - After creation, add more nodes by clicking the "•••" menu on any node
+
+4. **Explore your organization**
+   - Drag to pan around the org chart
+   - Scroll to zoom in/out
+   - Click on nodes to view detailed information
+   - Use the search bar (`Ctrl+F` / `Cmd+F`) to find specific people
+
+5. **Customize your experience**
+   - Click the settings icon (⚙️) or press `Ctrl+,` / `Cmd+,`
+   - Switch between English and Hebrew
+   - Adjust other preferences as needed
 
 ### Returning Users
 
-- **View Existing Charts**: Access and navigate through your previously created org charts
-- **Upload New Data**: Import new organizational data to create or update charts
-- **Apply Settings**: Customize your view including language preferences
-- **Compare Data**: Analyze changes between different time periods
-- **Export Visualizations**: Download your charts as images or export data to Excel
+- **View Existing Charts**: Select your database and browse through folders and tables
+- **Upload New Data**: Import updated Excel files to track changes over time
+- **Create New Trees**: Build organizational structures from scratch using the visual editor
+- **Edit Nodes**: Click on any node to edit personal information, roles, or hierarchical structure
+- **Add/Remove Nodes**: Use the context menu (•••) on nodes to add children or delete branches
+- **Search & Filter**: Use advanced search with boolean operators (AND, OR, NOT) across multiple fields
+- **Compare Data**: Analyze changes between different time periods using the comparison feature
+- **Timeline Analysis**: View career progression and organizational changes over time
+- **Export Data**: Download your charts as images or export data to Excel format
+- **Apply Settings**: Customize language, keyboard shortcuts, and other preferences
 
 ### Keyboard Shortcuts
 
@@ -317,23 +488,5 @@ See [LANGUAGE_SETUP.md](LANGUAGE_SETUP.md) for detailed instructions.
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 📬 Contact
-
-For questions, support, or feedback, please reach out to:
-- Email: [your-email@example.com](mailto:your-email@example.com)
-- GitHub Issues: [https://github.com/yourusername/tree_visualization_app/issues](https://github.com/yourusername/tree_visualization_app/issues)
-
-## 🙏 Acknowledgments
-
-- Built with support from Claude Code by Anthropic
-- Hebrew font: Rubik by Google Fonts
-- Icons: Lucide and React Feather
-
----
-
-<div align="center">
-
-**Made with ❤️ for organizations worldwide**
 
 </div>
