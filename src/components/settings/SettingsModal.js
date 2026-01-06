@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Layout, Move, X, RotateCcw, Command } from 'react-feather';
+import { Eye, Move, X, RotateCcw, Command } from 'react-feather';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 
 // Import default settings from the centralized file
 import {
-  DEFAULT_NODE_COLOR,
   DEFAULT_PRIMARY_FIELD,
   DEFAULT_SECONDARY_FIELD,
   DEFAULT_MOVE_AMOUNT,
@@ -133,13 +132,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
     return null;
   }
 
-  const handleNodeColorChange = (color) => {
-    setLocalSettings({
-      ...localSettings,
-      nodeColor: color
-    });
-  };
-
   // Reset functions for each tab
   const resetDisplaySettings = () => {
     setLocalSettings({
@@ -148,14 +140,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
       secondaryField: DEFAULT_SECONDARY_FIELD
     });
     toast.info(t('settings.displaySettingsReset') || "Display settings reset to defaults");
-  };
-
-  const resetNodeColor = () => {
-    setLocalSettings({
-      ...localSettings,
-      nodeColor: DEFAULT_NODE_COLOR
-    });
-    toast.info(t('settings.nodeColorReset') || "Node color reset to default");
   };
 
   const resetNavigationSettings = () => {
@@ -208,12 +192,12 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
       
       if (duplicateAction) {
         // Show a warning toast but still allow the change (will be fixed on apply)
-        toast.warning(`Warning: '${key}' is already used for '${duplicateAction[0]}'. This will be reset when you apply changes.`);
+        toast.warning(t('settings.keyAlreadyUsed', { key, action: duplicateAction[0] }));
       }
-      
+
       // Check if the key is valid
       if (!isValidKey(key)) {
-        toast.warning(`Invalid key: '${key}'. Only letters A-Z are allowed.`);
+        toast.warning(t('settings.invalidKeyWarning', { key }));
       }
     }
     
@@ -271,20 +255,20 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
         const duplicateMessages = Object.entries(keyUsage)
           .filter(([_, actions]) => actions.length > 1)
           .map(([key, actions]) => {
-            return `Key '${key}' is used by multiple actions: ${actions.join(', ')}`;
+            return `${t('fields.key', 'Key')} '${key}': ${actions.join(', ')}`;
           });
-        
-        toast.error(`Cannot apply settings with duplicate keybindings:\n${duplicateMessages.join('\n')}`);
+
+        toast.error(t('settings.duplicateKeybindingsError', { duplicates: duplicateMessages.join('\n') }));
       }
-      
+
       if (hasInvalidKeys) {
         const invalidKeys = Object.entries(formattedSettings.keybindings)
           .filter(([_, key]) => !isValidKey(key))
-          .map(([action, key]) => `'${key}' for '${action}'`);
-        
-        toast.error(`Cannot apply settings with invalid keys: ${invalidKeys.join(', ')}`);
+          .map(([action, key]) => `'${key}'`);
+
+        toast.error(t('settings.invalidKeysError', { keys: invalidKeys.join(', ') }));
       }
-      
+
       // Return early without applying changes
       return;
     }
@@ -338,7 +322,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
 
   const tabs = [
     { id: 'display', label: t('settings.displaySettings'), icon: Eye },
-    { id: 'colors', label: t('settings.nodeColors'), icon: Layout },
     { id: 'navigation', label: t('settings.navigation'), icon: Move },
     { id: 'keyboard', label: t('settings.keyboardShortcuts'), icon: Command }
   ];
@@ -472,16 +455,16 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-gray-700 mb-3">{t('settings.preview')}</h4>
                       <div className="relative">
-                        <div 
+                        <div
                           className="w-full h-40 py-4 px-6 rounded-xl flex items-center justify-center shadow-md border border-gray-200"
-                          style={{ 
-                            backgroundColor: localSettings.nodeColor || DEFAULT_NODE_COLOR
+                          style={{
+                            backgroundColor: '#F5F7FA'
                           }}
                         >
-                          <div 
+                          <div
                             className="w-56 h-28 rounded-lg border border-gray-200/50 shadow-sm flex flex-col justify-between p-4"
-                            style={{ 
-                              backgroundColor: localSettings.nodeColor || DEFAULT_NODE_COLOR, 
+                            style={{
+                              backgroundColor: '#F5F7FA',
                               boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
                             }}
                           >
@@ -500,87 +483,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSettingsChange }) => {
                         <div className="absolute -bottom-2 inset-x-0 flex justify-center">
                           <div className="px-3 py-1 bg-gray-100 rounded-full text-xs text-gray-500 shadow-sm">
                             {t('settings.exampleNode')}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'colors' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900">{t('settings.nodeColorSettings')}</h3>
-                  <ResetButton onClick={resetNodeColor} />
-                </div>
-                
-                <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-sm">
-                  <div className="flex items-center gap-8">
-                    <div className="w-1/2">
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        {t('settings.nodeBackgroundColor')}
-                      </label>
-                      <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
-                        <div className="flex items-center gap-5">
-                          <div 
-                            className="w-16 h-16 rounded-lg border border-gray-300 shadow-md flex-shrink-0" 
-                            style={{ 
-                              backgroundColor: localSettings.nodeColor || DEFAULT_NODE_COLOR,
-                            }}
-                          />
-                          
-                          <div className="flex flex-col space-y-3">
-                            <div className="relative">
-                              <input
-                                type="color"
-                                value={localSettings.nodeColor || DEFAULT_NODE_COLOR}
-                                onChange={(e) => handleNodeColorChange(e.target.value)}
-                                className="h-9 w-16 cursor-pointer rounded-md border border-gray-300 flex-shrink-0"
-                              />
-                              <span className="ml-2 text-xs text-gray-500">{t('settings.colorPicker')}</span>
-                            </div>
-                            
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={localSettings.nodeColor || DEFAULT_NODE_COLOR}
-                                onChange={(e) => handleNodeColorChange(e.target.value)}
-                                placeholder="#FFFFFF"
-                                className="p-2 border border-gray-300 rounded-md text-sm w-28 font-mono flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              />
-                              <span className="ml-2 text-xs text-gray-500">{t('settings.hexValue')}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Enhanced Preview */}
-                    <div className="w-1/2">
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        {t('settings.preview')}
-                      </label>
-                      <div className="relative overflow-hidden rounded-lg shadow-md border border-gray-200 h-36 bg-white">
-                        <div className="absolute inset-0 bg-gray-100 bg-opacity-50" style={{ 
-                          backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.03) 1px, transparent 1px)",
-                          backgroundSize: "20px 20px"
-                        }}></div>
-                        
-                        <div className="flex items-center justify-center h-full">
-                          <div 
-                            className="w-56 h-28 rounded-lg shadow-md flex flex-col justify-between p-4 relative z-10 hover:shadow-lg transition-shadow"
-                            style={{ 
-                              backgroundColor: localSettings.nodeColor || DEFAULT_NODE_COLOR,
-                            }}
-                          >
-                            <div className="flex items-start">
-                              <span className="text-lg font-bold text-left">{t('settings.sampleName')}</span>
-                            </div>
-                            <div className="flex justify-end mt-2">
-                              <span className="text-sm font-medium text-gray-600">{t('settings.sampleRole')}</span>
-                            </div>
                           </div>
                         </div>
                       </div>

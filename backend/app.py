@@ -182,6 +182,8 @@ def session_scope() -> Any:
         Session: A database session.
     """
     session = get_session()
+    if session is None:
+        raise RuntimeError("No database session available. Please select a database first.")
     try:
         yield session
         session.commit()
@@ -618,6 +620,80 @@ def delete_table(table_id: int) -> Any:
             logger.error(f"Error deleting table {table_id}: {str(e)}")
             session.rollback()
             return jsonify({"error": str(e)}), 500
+
+@app.route("/table/<int:table_id>/colors", methods=["GET"])
+def get_table_colors(table_id: int) -> Any:
+    """
+    Get the colors and labels configuration for a table.
+
+    Parameters:
+        table_id (int): The ID of the table.
+
+    Returns:
+        JSON response with the colors configuration.
+    """
+    logger.info(f"Getting colors for table {table_id}")
+    try:
+        with session_scope() as session:
+            table = session.query(Table).get(table_id)
+            if not table:
+                logger.warning(f"Table {table_id} not found")
+                return jsonify({"error": "Table not found"}), 404
+
+            if table.colors_config:
+                import json
+                colors = json.loads(table.colors_config)
+            else:
+                colors = None
+
+            return jsonify({"colors": colors}), 200
+    except RuntimeError as e:
+        logger.warning(f"Database not available: {str(e)}")
+        return jsonify({"colors": None}), 200
+    except Exception as e:
+        logger.error(f"Error getting colors for table {table_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/table/<int:table_id>/colors", methods=["PUT"])
+def save_table_colors(table_id: int) -> Any:
+    """
+    Save the colors and labels configuration for a table.
+
+    Parameters:
+        table_id (int): The ID of the table.
+
+    Request Body:
+        colors: The colors configuration object.
+
+    Returns:
+        JSON response with the status of the save.
+    """
+    logger.info(f"Saving colors for table {table_id}")
+    try:
+        with session_scope() as session:
+            table = session.query(Table).get(table_id)
+            if not table:
+                logger.warning(f"Table {table_id} not found")
+                return jsonify({"error": "Table not found"}), 404
+
+            data = request.json
+            colors = data.get('colors')
+
+            if colors:
+                import json
+                table.colors_config = json.dumps(colors)
+            else:
+                table.colors_config = None
+
+            session.commit()
+            logger.info(f"Colors saved successfully for table {table_id}")
+            return jsonify({"message": "Colors saved successfully"}), 200
+    except RuntimeError as e:
+        logger.warning(f"Database not available: {str(e)}")
+        return jsonify({"error": "Database not available"}), 503
+    except Exception as e:
+        logger.error(f"Error saving colors for table {table_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/view_tables", methods=["GET"])
 def view_tables() -> Any:
@@ -1294,10 +1370,20 @@ def create_tree():
     tree_name = data.get("treeName")
     nodes = data.get("nodes")
     folder_name = data.get("folderName")
+    upload_date_str = data.get("uploadDate")
     db_path = request.args.get("db_path")
 
     if not all([tree_name, nodes, folder_name, db_path]):
         return jsonify({"error": "Missing required parameters"}), 400
+
+    # Parse upload date or default to now
+    if upload_date_str:
+        try:
+            upload_date = datetime.strptime(upload_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            upload_date = datetime.now().date()
+    else:
+        upload_date = datetime.now().date()
 
     set_db_path(db_path)
     init_db()
@@ -1310,7 +1396,7 @@ def create_tree():
                 session.add(folder)
                 session.flush()
 
-            table = Table(name=tree_name, folder_id=folder.id, upload_date=datetime.now())
+            table = Table(name=tree_name, folder_id=folder.id, upload_date=upload_date)
             session.add(table)
             session.flush()
 
@@ -2320,6 +2406,18 @@ def add_node(table_id: int) -> Any:
                 # If no parent, this is a root node
                 new_hierarchy = "/1"
 
+            # Get person_id (provided or auto-generated)
+            person_id = node_data.get("person_id", f"auto-{datetime.now().timestamp()}")
+            inherited_from_person_id = None
+
+            # Check if there's an existing node with this person_id in the same table
+            existing_node = None
+            if person_id and not person_id.startswith("auto-"):
+                existing_node = session.query(DataEntry).filter(
+                    DataEntry.table_id == table_id,
+                    DataEntry.person_id == person_id
+                ).first()
+
             # Create the new data entry
             entry = DataEntry(
                 table_id=table_id,
@@ -2328,7 +2426,7 @@ def add_node(table_id: int) -> Any:
                 role=node_data.get("role", ""),
                 department=node_data.get("department", ""),
                 rank=node_data.get("rank", ""),
-                person_id=node_data.get("person_id", f"auto-{datetime.now().timestamp()}"),
+                person_id=person_id,
                 birth_date=datetime.strptime(node_data["birth_date"], '%Y-%m-%d').date() if node_data.get("birth_date") else None,
                 organization_id=node_data.get("organization_id", ""),
                 organization_name=node_data.get("organization_name", ""),
@@ -2338,6 +2436,15 @@ def add_node(table_id: int) -> Any:
                 upload_date=datetime.now().date()
             )
 
+            # If existing node found with same person_id, inherit personal info
+            if existing_node:
+                entry.name = existing_node.name
+                entry.birth_date = existing_node.birth_date
+                entry.personal_information = existing_node.personal_information
+                entry.is_dead = existing_node.is_dead
+                inherited_from_person_id = person_id
+                logger.info(f"New node inheriting personal info from existing node with person_id: {person_id}")
+
             session.add(entry)
             session.commit()
             session.refresh(entry)
@@ -2346,6 +2453,7 @@ def add_node(table_id: int) -> Any:
 
             return jsonify({
                 "message": "Node added successfully",
+                "inherited_from_person_id": inherited_from_person_id,
                 "node": {
                     "hierarchical_structure": entry.hierarchical_structure,
                     "name": entry.name,
@@ -2410,6 +2518,27 @@ def update_node(table_id: int) -> Any:
             if node_data.get("birth_date"):
                 entry.birth_date = datetime.strptime(node_data["birth_date"], '%Y-%m-%d').date()
 
+            # Sync personal info fields to other nodes with the same person_id in the same table
+            synced_nodes = []
+            if entry.person_id:
+                # Find other nodes with the same person_id in this table
+                other_entries = session.query(DataEntry).filter(
+                    DataEntry.table_id == table_id,
+                    DataEntry.person_id == entry.person_id,
+                    DataEntry.hierarchical_structure != hierarchical_structure
+                ).all()
+
+                # Sync personal info fields (not role-specific fields)
+                for other_entry in other_entries:
+                    other_entry.name = entry.name
+                    other_entry.birth_date = entry.birth_date
+                    other_entry.personal_information = entry.personal_information
+                    other_entry.is_dead = entry.is_dead
+                    synced_nodes.append(other_entry.hierarchical_structure)
+
+                if synced_nodes:
+                    logger.info(f"Synced personal info to {len(synced_nodes)} other node(s) with person_id: {entry.person_id}: {synced_nodes}")
+
             session.commit()
             session.refresh(entry)
 
@@ -2417,6 +2546,8 @@ def update_node(table_id: int) -> Any:
 
             return jsonify({
                 "message": "Node updated successfully",
+                "synced_count": len(synced_nodes),
+                "synced_person_id": entry.person_id if synced_nodes else None,
                 "node": {
                     "hierarchical_structure": entry.hierarchical_structure,
                     "name": entry.name,

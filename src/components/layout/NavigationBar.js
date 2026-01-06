@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Target, Filter, Users, Layers, ChevronDown, ChevronUp,
   Settings, X,
-  Table, Eye, Download, Minus, Globe
+  Table, Eye, Download, Minus, Globe, Camera
 } from 'react-feather';
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +21,7 @@ const NavigationBar = ({
   onSearch,
   onClearFilter,
   onExportExcel,
+  onExportImage,
   isHierarchyMode,
   isOrganizationMode,
   hideVacancies,
@@ -62,7 +63,7 @@ const NavigationBar = ({
         },
         {
           id: 'hideVacancies',
-          label: t('navigation.hideVacant'),
+          label: t('navigation.hideVacancies'),
           icon: Minus,
           onClick: onToggleVacancies,
           active: hideVacancies
@@ -74,7 +75,8 @@ const NavigationBar = ({
       label: t('navigation.export'),
       icon: Download,
       items: [
-        { id: 'exportExcel', label: t('navigation.excel'), icon: Table, onClick: onExportExcel }
+        { id: 'exportExcel', label: t('navigation.excel'), icon: Table, onClick: onExportExcel },
+        { id: 'exportImage', label: t('navigation.image'), icon: Camera, onClick: onExportImage }
       ]
     }
   ];
@@ -86,36 +88,18 @@ const NavigationBar = ({
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm w-full">
       <nav className="h-14 px-6 flex items-center justify-start w-full">
-        {/* All elements in a flat row layout */}
         <div className="flex items-center gap-3">
-          {/* Individual buttons without grouping */}
+          {/* Home */}
           <button onClick={onHome} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.home')}>
             <Home size={18} />
           </button>
 
-          <button onClick={onCenter} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.centerView')}>
-            <Target size={18} />
-          </button>
-
+          {/* Manage Data */}
           <button onClick={onManageData} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.manageData')}>
             <Layers size={18} />
           </button>
 
-          <button
-            onClick={onFilter}
-            className={`p-2 rounded-md hover:bg-gray-100 transition-colors ${hasActiveFilters ? 'text-blue-600' : 'text-gray-600'}`}
-            title={t('navigation.filter')}
-          >
-            <Filter size={18} />
-          </button>
-
-          {hasActiveFilters && (
-            <button onClick={onClearFilter} className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors" title={t('navigation.clearFilters')}>
-              <X size={18} />
-            </button>
-          )}
-
-          {/* Dropdown Menus */}
+          {/* Dropdown Menus (View, Display, Export) */}
           {menus.map((menu) => (
             <div key={menu.id} className="relative">
               <button
@@ -172,6 +156,7 @@ const NavigationBar = ({
             </div>
           ))}
 
+          {/* Search */}
           <button
             onClick={onSearch}
             className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors"
@@ -183,6 +168,27 @@ const NavigationBar = ({
             </svg>
           </button>
 
+          {/* Filter */}
+          <button
+            onClick={onFilter}
+            className={`p-2 rounded-md hover:bg-gray-100 transition-colors ${hasActiveFilters ? 'text-blue-600' : 'text-gray-600'}`}
+            title={t('navigation.filter')}
+          >
+            <Filter size={18} />
+          </button>
+
+          {hasActiveFilters && (
+            <button onClick={onClearFilter} className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors" title={t('navigation.clearFilters')}>
+              <X size={18} />
+            </button>
+          )}
+
+          {/* Center View */}
+          <button onClick={onCenter} className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors" title={t('navigation.centerView')}>
+            <Target size={18} />
+          </button>
+
+          {/* Settings */}
           <button
             onClick={onOpenSettings}
             className="text-gray-600 p-2 rounded-md hover:bg-gray-100 transition-colors"

@@ -24,3 +24,7 @@ export const updateNode = (tableId, hierarchicalStructure, nodeData) =>
 
 export const deleteNode = (tableId, hierarchicalStructure) =>
   axios.delete(`${API_BASE_URL}/delete_node/${tableId}?hierarchical_structure=${encodeURIComponent(hierarchicalStructure)}`);
+
+// Table colors and labels
+export const getTableColors = (tableId) => axios.get(`${API_BASE_URL}/table/${tableId}/colors`);
+export const saveTableColors = (tableId, colors) => axios.put(`${API_BASE_URL}/table/${tableId}/colors`, { colors });

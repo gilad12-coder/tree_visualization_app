@@ -1,6 +1,6 @@
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, DateTime, create_engine, inspect, func, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Date, DateTime, create_engine, inspect, func, UniqueConstraint, text
 import glob
 import os
 import logging
@@ -25,6 +25,7 @@ class Table(Base):
     name = Column(String, nullable=False)
     folder_id = Column(Integer, ForeignKey('folders.id'), nullable=False)
     upload_date = Column(Date, nullable=False)
+    colors_config = Column(Text, nullable=True)  # JSON string storing color and label settings
     folder = relationship('Folder', back_populates='tables')
     data_entries = relationship('DataEntry', back_populates='table', cascade='all, delete-orphan')
 
@@ -136,8 +137,42 @@ def create_new_db(path):
     logger.info(f"New database created successfully at: {path}")
     return engine
 
+def migrate_db_schema(db_path):
+    """
+    Migrate database schema by adding any missing columns.
+    This allows existing databases to work with new schema changes.
+    """
+    logger.info(f"Checking for schema migrations: {db_path}")
+    try:
+        temp_engine = create_engine(f'sqlite:///{db_path}', echo=True)
+        inspector = inspect(temp_engine)
+
+        # Define migrations: (table_name, column_name, column_type)
+        migrations = [
+            ('tables', 'colors_config', 'TEXT'),
+        ]
+
+        with temp_engine.connect() as conn:
+            for table_name, column_name, column_type in migrations:
+                actual_columns = set(col['name'] for col in inspector.get_columns(table_name))
+                if column_name not in actual_columns:
+                    logger.info(f"Adding missing column {column_name} to {table_name}")
+                    conn.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}'))
+                    conn.commit()
+                    logger.info(f"Successfully added column {column_name} to {table_name}")
+
+        temp_engine.dispose()
+        return True
+    except Exception as e:
+        logger.error(f"Error during schema migration: {str(e)}")
+        return False
+
 def check_db_schema(db_path):
     logger.info(f"Checking schema for database: {db_path}")
+
+    # First, try to migrate any missing columns
+    migrate_db_schema(db_path)
+
     try:
         temp_engine = create_engine(f'sqlite:///{db_path}', echo=True)
         inspector = inspect(temp_engine)

@@ -79,53 +79,65 @@ const useTransformHandlers = () => {
     }
   }, [findRootNodeElement]);
 
-  // Updated function to center the chart - using mode-specific positions
+  // Updated function to center the chart - always recalculates fresh position
   const centerOnRoot = useCallback((isOrganizationMode, isHierarchyMode, organizationModeData, hierarchyModeData, filteredOrgData) => {
-    // Use the appropriate stored position based on current mode
-    const positionToUse = isOrganizationMode ? 
-                         orgModePosition : 
-                         regularModePosition || initialRootPosition;
-    
-    if (positionToUse && chartRef.current) {
-      // Use the stored position
-      chartRef.current.style.transition = 'transform 0.5s ease-out';
-      setTransform(positionToUse);
-      
-      // Show a success notification when chart is centered
-      toast.success(t('chartOperations.chartCentered'));
-      
-      // Reset transition after animation completes
-      setTimeout(() => {
+    const rootElement = findRootNodeElement(isOrganizationMode, isHierarchyMode, organizationModeData, hierarchyModeData, filteredOrgData);
+
+    if (!rootElement || !chartRef.current || !dragRef.current) {
+      console.warn("Cannot center: missing root element or refs");
+      return;
+    }
+
+    try {
+      const rootRect = rootElement.getBoundingClientRect();
+      const containerRect = dragRef.current.getBoundingClientRect();
+
+      // Account for the navigation bar height
+      const navBarHeight = 60;
+
+      // Get current transform state
+      setTransform(currentTransform => {
+        const currentScale = currentTransform.scale;
+
+        // Calculate where the root node's center currently is (in screen coordinates)
+        const rootCenterX = rootRect.left + rootRect.width / 2;
+        const rootCenterY = rootRect.top + rootRect.height / 2;
+
+        // Calculate where we want the root node's center to be (screen center)
+        const targetCenterX = containerRect.left + containerRect.width / 2;
+        const targetCenterY = containerRect.top + (containerRect.height - navBarHeight) / 2 + navBarHeight;
+
+        // Calculate the delta needed to move from current position to target
+        const deltaX = targetCenterX - rootCenterX;
+        const deltaY = targetCenterY - rootCenterY;
+
+        // Apply the delta to current transform (delta is in screen space, so no scale adjustment needed)
+        const newTransform = {
+          x: currentTransform.x + deltaX,
+          y: currentTransform.y + deltaY,
+          scale: currentScale
+        };
+
+        // Apply transition for smooth animation
         if (chartRef.current) {
-          chartRef.current.style.transition = '';
-        }
-      }, 500);
-    } else {
-      // If position isn't stored yet, calculate and store it
-      storeInitialRootPosition(isOrganizationMode, isHierarchyMode, organizationModeData, hierarchyModeData, filteredOrgData);
-      
-      // Then use it (after a slight delay to allow state to update)
-      setTimeout(() => {
-        if (initialRootPosition && chartRef.current) {
           chartRef.current.style.transition = 'transform 0.5s ease-out';
-          setTransform(initialRootPosition);
-          
-          // Store in the mode-specific state
-          if (isOrganizationMode) {
-            setOrgModePosition(initialRootPosition);
-          } else {
-            setRegularModePosition(initialRootPosition);
-          }
-          
           setTimeout(() => {
             if (chartRef.current) {
               chartRef.current.style.transition = '';
             }
           }, 500);
         }
-      }, 50);
+
+        return newTransform;
+      });
+
+      // Show a success notification when chart is centered
+      toast.success(t('chartOperations.chartCentered'));
+
+    } catch (error) {
+      console.error("Error centering on root:", error);
     }
-  }, [initialRootPosition, orgModePosition, regularModePosition, storeInitialRootPosition, t]);
+  }, [findRootNodeElement, t]);
 
   const handleMouseDown = useCallback((e) => {
     if (e.button === 0) {

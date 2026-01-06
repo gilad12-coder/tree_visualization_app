@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, Save, User, Briefcase } from 'react-feather';
 import { useTranslation } from 'react-i18next';
-import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
+import { toast } from 'react-toastify';
+import { getLanguage, getFontClass } from '../../Utilities/languageUtils';
 
 const THEME = {
   primary: '#1F2937',
@@ -11,7 +12,8 @@ const THEME = {
 };
 
 const CreateTreeModal = ({ isOpen, onClose, onSave, dbPath }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
 
   const [formData, setFormData] = useState({
     treeName: '',
@@ -73,24 +75,26 @@ const CreateTreeModal = ({ isOpen, onClose, onSave, dbPath }) => {
         onClose();
       } catch (error) {
         console.error('Error creating tree:', error);
+        toast.error(t('createTree.createFailed', 'Failed to create tree. Please try again.'));
       }
     }
   };
 
-  if (!isOpen) return null;
+  // No early return - let AnimatePresence from parent handle exit animations
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
-          onClick={(e) => e.target === e.currentTarget && onClose()}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2, delay: 0.05 }}
             className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden flex flex-col"
             style={{ maxHeight: "90vh" }}
             onClick={(e) => e.stopPropagation()}
@@ -125,7 +129,7 @@ const CreateTreeModal = ({ isOpen, onClose, onSave, dbPath }) => {
                     autoComplete="off"
                     placeholder={t('createTree.treeNamePlaceholder', 'e.g., Company Org Chart')}
                     className={`w-full px-3 py-2 text-sm border ${errors.treeName ? 'border-red-500' : 'border-gray-300'} rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.treeName || ''))}`}
-                    dir={getTextDirection(getLanguage(formData.treeName || ''))}
+                    dir={isRTL ? 'rtl' : 'ltr'}
                   />
                   {errors.treeName && <p className="text-xs text-red-600 mt-1">{errors.treeName}</p>}
                 </div>
@@ -144,7 +148,7 @@ const CreateTreeModal = ({ isOpen, onClose, onSave, dbPath }) => {
                     autoComplete="off"
                     placeholder={t('createTree.folderNamePlaceholder', 'e.g., 2024 Structure')}
                     className={`w-full px-3 py-2 text-sm border ${errors.folderName ? 'border-red-500' : 'border-gray-300'} rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.folderName || ''))}`}
-                    dir={getTextDirection(getLanguage(formData.folderName || ''))}
+                    dir={isRTL ? 'rtl' : 'ltr'}
                   />
                   {errors.folderName && <p className="text-xs text-red-600 mt-1">{errors.folderName}</p>}
                 </div>
@@ -170,7 +174,7 @@ const CreateTreeModal = ({ isOpen, onClose, onSave, dbPath }) => {
                       autoComplete="off"
                       placeholder={t('createTree.rootNamePlaceholder', 'e.g., John Doe')}
                       className={`w-full px-3 py-2 text-sm border ${errors.rootName ? 'border-red-500' : 'border-gray-300'} rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.rootName || ''))}`}
-                      dir={getTextDirection(getLanguage(formData.rootName || ''))}
+                      dir={isRTL ? 'rtl' : 'ltr'}
                     />
                     {errors.rootName && <p className="text-xs text-red-600 mt-1">{errors.rootName}</p>}
                   </div>
@@ -189,7 +193,7 @@ const CreateTreeModal = ({ isOpen, onClose, onSave, dbPath }) => {
                       autoComplete="off"
                       placeholder={t('createTree.rootRolePlaceholder', 'e.g., CEO')}
                       className={`w-full px-3 py-2 text-sm border ${errors.rootRole ? 'border-red-500' : 'border-gray-300'} rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.rootRole || ''))}`}
-                      dir={getTextDirection(getLanguage(formData.rootRole || ''))}
+                      dir={isRTL ? 'rtl' : 'ltr'}
                     />
                     {errors.rootRole && <p className="text-xs text-red-600 mt-1">{errors.rootRole}</p>}
                   </div>
@@ -225,10 +229,8 @@ const CreateTreeModal = ({ isOpen, onClose, onSave, dbPath }) => {
                 </button>
               </div>
             </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+      </motion.div>
+    </motion.div>
   );
 };
 

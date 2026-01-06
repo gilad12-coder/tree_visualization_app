@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight, User, GitBranch, Clock, ChevronDown } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ArrowLeft, ArrowRight, User, GitBranch } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getLanguage, getFontClass, getTextAlignClass, getTextDirection } from '../../../Utilities/languageUtils';
+import { getLanguage, getFontClass } from '../../../Utilities/languageUtils';
 import axios from 'axios';
 import '../../../styles/scrollbar.css';
 import '../../../styles/fonts.css';
 
 const API_BASE_URL = "http://localhost:5001";
-const MAX_HEIGHT = 160; // Maximum height in pixels
+const MAX_HEIGHT = 250; // Increased max height for better viewing
 
 // Default theme to match other components
 const DEFAULT_THEME = {
@@ -19,60 +19,74 @@ const DEFAULT_THEME = {
   borderColor: '#E5E7EB'
 };
 
+// Calculate duration between two dates
+const calculateDuration = (startDate, endDate, t) => {
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : new Date();
+
+  let years = end.getFullYear() - start.getFullYear();
+  let months = end.getMonth() - start.getMonth();
+
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
+  if (years === 0 && months === 0) {
+    return t('cvTimeline.lessThanMonth', '< 1 month');
+  } else if (years === 0) {
+    return months === 1
+      ? `${months} ${t('cvTimeline.month', 'month')}`
+      : `${months} ${t('cvTimeline.months', 'months')}`;
+  } else if (months === 0) {
+    return years === 1
+      ? `${years} ${t('cvTimeline.year', 'year')}`
+      : `${years} ${t('cvTimeline.years', 'years')}`;
+  }
+
+  const yearText = years === 1
+    ? `${years} ${t('cvTimeline.year', 'year')}`
+    : `${years} ${t('cvTimeline.years', 'years')}`;
+  const monthText = months === 1
+    ? `${months} ${t('cvTimeline.month', 'month')}`
+    : `${months} ${t('cvTimeline.months', 'months')}`;
+
+  return `${yearText} ${monthText}`;
+};
+
 const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_THEME }) => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'he';
-  const [activeScreen, setActiveScreen] = useState('main');
-  const [showRoleHistory, setShowRoleHistory] = useState(false);
-  const [showTimeline, setShowTimeline] = useState(false);
-  const [timeline, setTimeline] = useState([]);
+  const [activeScreen, setActiveScreen] = useState('main'); // 'main' or 'data'
+  const [queryType, setQueryType] = useState(null); // 'person_id' or 'hierarchical'
   const [cv, setCV] = useState([]);
   const [error, setError] = useState(null);
   const [dataStatus, setDataStatus] = useState('idle');
-  const [roleHistoryHeight, setRoleHistoryHeight] = useState('auto');
-  const [timelineHeight, setTimelineHeight] = useState('auto');
 
-  const roleHistoryRef = useRef(null);
-  const timelineRef = useRef(null);
+  const contentRef = useRef(null);
 
-  useEffect(() => {
-    if (roleHistoryRef.current && showRoleHistory) {
-      const contentHeight = roleHistoryRef.current.scrollHeight;
-      setRoleHistoryHeight(contentHeight > MAX_HEIGHT ? `${MAX_HEIGHT}px` : 'auto');
-    }
-  }, [cv, showRoleHistory]);
-
-  useEffect(() => {
-    if (timelineRef.current && showTimeline) {
-      const contentHeight = timelineRef.current.scrollHeight;
-      setTimelineHeight(contentHeight > MAX_HEIGHT ? `${MAX_HEIGHT}px` : 'auto');
-    }
-  }, [timeline, showTimeline]);
-
-  const fetchTimelineAndCV = async (queryType) => {
+  const fetchCV = async (type) => {
     setDataStatus('loading');
     setError(null);
+    setQueryType(type);
 
-    let queryParam = queryType === 'person_id' 
+    const queryParam = type === 'person_id'
       ? `person_id=${encodeURIComponent(node.person_id)}`
       : `hierarchical_structure=${encodeURIComponent(node.hierarchical_structure)}`;
 
     try {
       const response = await axios.get(`${API_BASE_URL}/timeline/${folderId}?${queryParam}&table_id=${tableId}`);
-      setTimeline(response.data.timeline);
       setCV(response.data.cv);
 
-      if (response.data.cv.length === 0 && response.data.timeline.length === 0) {
+      if (response.data.cv.length === 0) {
         setDataStatus('no_data');
       } else {
         setDataStatus('success');
-        setShowRoleHistory(true);
-        setShowTimeline(true);
       }
       setActiveScreen('data');
     } catch (err) {
       setError(t('cvTimeline.errorFetching'));
-      console.error("Error fetching timeline and CV data:", err);
+      console.error("Error fetching CV data:", err);
       setDataStatus('error');
       setActiveScreen('data');
     }
@@ -84,11 +98,10 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
         activeScreen === 'main'
           ? onBack
           : () => {
-            setActiveScreen('main');
-            setDataStatus('idle');
-            setShowRoleHistory(false);
-            setShowTimeline(false);
-          }
+              setActiveScreen('main');
+              setDataStatus('idle');
+              setQueryType(null);
+            }
       }
       className="w-full flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
     >
@@ -100,21 +113,41 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
   const renderQueryTypeSelection = () => (
     <div className="space-y-3 pt-2">
       <button
-        onClick={() => fetchTimelineAndCV('person_id')}
+        onClick={() => fetchCV('person_id')}
         className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
       >
-        <span>{t('cvTimeline.queryPersonalInfo')}</span>
-        <User size={18} />
+        <span className="flex items-center gap-2">
+          <User size={18} />
+          {t('cvTimeline.queryPersonalInfo')}
+        </span>
       </button>
+
       <button
-        onClick={() => fetchTimelineAndCV('hierarchical')}
+        onClick={() => fetchCV('hierarchical')}
         className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
       >
-        <span>{t('cvTimeline.queryHierarchicalInfo')}</span>
-        <GitBranch size={18} />
+        <span className="flex items-center gap-2">
+          <GitBranch size={18} />
+          {t('cvTimeline.queryHierarchicalInfo')}
+        </span>
       </button>
     </div>
   );
+
+  // Flatten all roles from all records for timeline display
+  const getAllRoles = () => {
+    const allRoles = [];
+    cv.forEach(record => {
+      record.roles.forEach(role => {
+        allRoles.push({
+          ...role,
+          department: role.department || record.department
+        });
+      });
+    });
+    // Sort by start date descending (most recent first)
+    return allRoles.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+  };
 
   const renderContent = () => {
     if (dataStatus === 'loading') {
@@ -148,110 +181,103 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
       );
     }
 
+    const allRoles = getAllRoles();
+
     return (
-      <div className="space-y-4">
-        {cv && cv.length > 0 && (
-          <div>
-            <button
-              onClick={() => setShowRoleHistory(!showRoleHistory)}
-              className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-            >
-              <span className="flex items-center gap-2">
-                <User size={18} />
-                {t('cvTimeline.roleHistory')}
-              </span>
-              <ChevronDown
-                size={18}
-                className={showRoleHistory ? 'rotate-180' : ''}
-              />
-            </button>
-            
-            {showRoleHistory && (
-              <div className="mt-3">
-                <div 
-                  ref={roleHistoryRef}
-                  style={{ height: roleHistoryHeight, maxHeight: `${MAX_HEIGHT}px` }}
-                  className="overflow-y-auto custom-scrollbar rounded-md bg-gray-50 p-3"
+      <div>
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-3 px-1">
+          {queryType === 'person_id' ? (
+            <User size={18} className="text-gray-600" />
+          ) : (
+            <GitBranch size={18} className="text-gray-600" />
+          )}
+          <span className="text-sm font-medium text-gray-700">
+            {t('cvTimeline.roleHistory')}
+          </span>
+          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+            {allRoles.length}
+          </span>
+        </div>
+
+        {/* Timeline */}
+        <div
+          ref={contentRef}
+          style={{ maxHeight: `${MAX_HEIGHT}px` }}
+          className="overflow-y-auto custom-scrollbar rounded-md bg-gray-50 p-3"
+        >
+          <div className={`relative ${isRTL ? 'pr-4' : 'pl-4'}`}>
+            {/* Vertical timeline line */}
+            <div
+              className={`absolute top-2 bottom-2 w-0.5 bg-gray-300 ${isRTL ? 'right-[7px]' : 'left-[7px]'}`}
+            />
+
+            {allRoles.map((role, index) => {
+              const roleLanguage = getLanguage(role.role);
+              const isCurrentRole = !role.endDate;
+              const duration = calculateDuration(role.startDate, role.endDate, t);
+
+              return (
+                <div
+                  key={index}
+                  className={`relative mb-4 last:mb-0 ${isRTL ? 'mr-4' : 'ml-4'}`}
                 >
-                  <ul className="text-sm text-gray-700 list-none pl-0 space-y-3">
-                    {cv.map((record, index) => (
-                      <li
-                        key={index}
-                        className="bg-white p-3 rounded-md border border-gray-100"
-                      >
-                        {record.roles.map((role, roleIndex) => {
-                          const roleLanguage = getLanguage(role.role);
-                          return (
-                            <div
-                              key={roleIndex}
-                              className={`${getTextAlignClass(roleLanguage)} ${getFontClass(roleLanguage)}`}
-                              dir={getTextDirection(roleLanguage)}
-                            >
-                              <span className="font-medium text-gray-800">{role.role}</span>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {new Date(role.startDate).toLocaleDateString()} - 
-                                {role.endDate ? new Date(role.endDate).toLocaleDateString() : 'Present'}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        
-        {timeline && timeline.length > 0 && (
-          <div>
-            <button
-              onClick={() => setShowTimeline(!showTimeline)}
-              className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-            >
-              <span className="flex items-center gap-2">
-                <Clock size={18} />
-                {t('cvTimeline.organizationTimeline')}
-              </span>
-              <ChevronDown
-                size={18}
-                className={showTimeline ? 'rotate-180' : ''}
-              />
-            </button>
-            
-            {showTimeline && (
-              <div className="mt-3">
-                <div 
-                  ref={timelineRef}
-                  style={{ height: timelineHeight, maxHeight: `${MAX_HEIGHT}px` }}
-                  className="relative pl-4 rtl:pl-0 rtl:pr-4 overflow-y-auto custom-scrollbar rounded-md bg-gray-50 p-3"
-                >
-                  <div className="absolute left-3 rtl:left-auto rtl:right-3 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                  {timeline.map((entry, index) => (
+                  {/* Timeline dot */}
+                  <div
+                    className={`absolute top-1.5 w-3 h-3 rounded-full border-2 ${
+                      isCurrentRole
+                        ? 'bg-gray-700 border-gray-700'
+                        : 'bg-white border-gray-400'
+                    } ${isRTL ? '-right-[22px]' : '-left-[22px]'}`}
+                  />
+
+                  {/* Role card */}
+                  <div
+                    className={`bg-white p-3 rounded-md border ${
+                      isCurrentRole ? 'border-gray-300 shadow-sm' : 'border-gray-100'
+                    }`}
+                  >
+                    {/* Current role badge */}
+                    {isCurrentRole && (
+                      <span className="inline-block text-xs bg-gray-700 text-white px-2 py-0.5 rounded mb-2">
+                        {t('cvTimeline.current', 'Current')}
+                      </span>
+                    )}
+
+                    {/* Role title */}
                     <div
-                      key={index}
-                      className="mb-4 relative"
+                      className={`${getFontClass(roleLanguage)}`}
+                      dir={isRTL ? 'rtl' : 'ltr'}
                     >
-                      <div className="absolute -left-[13px] rtl:-left-auto rtl:-right-[13px] top-0 w-4 h-4 bg-white rounded-full border-2 border-gray-300" />
-                      <div className="bg-white p-2 rounded-md border border-gray-100 ml-2 rtl:ml-0 rtl:mr-2">
-                        <p className="text-sm font-medium text-gray-800">
-                          {new Date(entry.upload_date).toLocaleDateString()}
-                        </p>
-                        <p className="text-xs text-gray-600">{entry.name}</p>
-                        {entry.nodes_info && entry.nodes_info.map((node, nodeIndex) => (
-                          <p key={nodeIndex} className="text-xs text-gray-500 mt-1">
-                            {node.name}: {node.role} ({node.department})
-                          </p>
-                        ))}
-                      </div>
+                      <span className="font-medium text-gray-800">{role.role}</span>
                     </div>
-                  ))}
+
+                    {/* Department if available */}
+                    {role.department && (
+                      <div className="text-xs text-gray-600 mt-1">
+                        {role.department}
+                      </div>
+                    )}
+
+                    {/* Date and duration */}
+                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                      <span>
+                        {new Date(role.startDate).toLocaleDateString(isRTL ? 'he-IL' : 'en-US')}
+                        {' - '}
+                        {role.endDate
+                          ? new Date(role.endDate).toLocaleDateString(isRTL ? 'he-IL' : 'en-US')
+                          : t('cvTimeline.present', 'Present')}
+                      </span>
+                      <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
+                        {duration}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
     );
   };
@@ -262,17 +288,8 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
         {renderNavigationButton()}
       </div>
 
-      {activeScreen === 'main' && (
-        <div>
-          {renderQueryTypeSelection()}
-        </div>
-      )}
-      
-      {activeScreen === 'data' && (
-        <div>
-          {renderContent()}
-        </div>
-      )}
+      {activeScreen === 'main' && renderQueryTypeSelection()}
+      {activeScreen === 'data' && renderContent()}
     </div>
   );
 };

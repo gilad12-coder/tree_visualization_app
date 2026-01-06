@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { List } from "react-feather";
+import { List, AlertCircle, RefreshCw, Home, Folder } from "react-feather";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useTranslation } from 'react-i18next';
+import html2canvas from 'html2canvas';
 import { useOrgChartContext } from "../context/OrgChartContext";
 import FilterModal from "../modals/FilterModal";
 import TreeNode from "../node/TreeNode";
@@ -17,7 +18,10 @@ import NavigationBar from "../layout/NavigationBar.js";
 import OrgNode from '../node/OrgNode';
 import NodeEditorModal from '../node/NodeEditorModal';
 import NodeContextMenu from '../node/NodeContextMenu';
+import ColorModal from '../modals/ColorModal';
+import ColorLegend from '../common/ColorLegend';
 import { addNode, updateNode, deleteNode } from '../../Utilities/api';
+import { hasColorApplied } from '../../Utilities/colorUtils';
 
 import {
   useDataFetching,
@@ -30,7 +34,7 @@ import {
 } from './hooks';
 
 const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [orgData, setOrgData] = useState(null);
   const [filteredOrgData, setFilteredOrgData] = useState(null);
   const [selectedTableId, setSelectedTableId] = useState(initialTableId);
@@ -54,8 +58,25 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
 
   const {
     expandAll,
-    setExpandAll
+    setExpandAll,
+    nodeColors,
+    applyNodeColor,
+    applyLevelColor,
+    applyBranchColor,
+    removeNodeColor,
+    removeBranchColors,
+    removeLevelColors,
+    resetAllColors,
+    saveLabelForColor,
+    getSavedLabelsForColor,
+    getLegendEntries,
+    updateLabel,
+    loadColorsFromAPI
   } = useOrgChartContext();
+
+  // Color modal state
+  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
+  const [colorModalNode, setColorModalNode] = useState(null);
 
   const {
     transform,
@@ -337,17 +358,131 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     }
   };
 
+  // Color modal handlers
+  const handleSetColor = () => {
+    setColorModalNode(contextMenuNode);
+    setIsColorModalOpen(true);
+    handleCloseContextMenu();
+  };
+
+  const handleCloseColorModal = () => {
+    setIsColorModalOpen(false);
+    setColorModalNode(null);
+  };
+
+  const handleResetColors = () => {
+    if (window.confirm(t('colorModal.confirmReset', 'Reset all node colors? This cannot be undone.'))) {
+      resetAllColors();
+      toast.success(t('colorModal.colorsReset', 'All colors have been reset'));
+    }
+  };
+
+  // Handle export image - direct export without modal
+  const handleExportImage = async () => {
+    const treeContainer = document.getElementById('tree-container');
+
+    if (!treeContainer) {
+      toast.error(t('exportImage.error', 'Could not capture tree'));
+      return;
+    }
+
+    // Show loading toast
+    const loadingToast = toast.loading(t('exportImage.exporting', 'Exporting...'));
+
+    try {
+      // Hide UI elements before capture
+      const elementsToHide = document.querySelectorAll('.export-hide');
+      elementsToHide.forEach(el => {
+        el.style.visibility = 'hidden';
+      });
+
+      // Small delay to ensure DOM updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Capture options
+      const canvas = await html2canvas(treeContainer, {
+        backgroundColor: '#f9fafb',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+      });
+
+      // Restore hidden elements
+      elementsToHide.forEach(el => {
+        el.style.visibility = '';
+      });
+
+      // Build descriptive filename
+      // Get table name from folder structure
+      const currentFolder = folderStructure.find(f => f.id === selectedFolderId);
+      const currentTable = currentFolder?.tables?.find(t => t.id === selectedTableId);
+      const tableName = currentTable?.name || 'tree';
+
+      // Get org/root name from data
+      const rootNode = filteredOrgData || orgData;
+      const orgName = rootNode?.name || rootNode?.organization_name || '';
+
+      // Create filename: tableName_orgName_timestamp
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
+      const sanitize = (str) => str.replace(/[^a-zA-Z0-9\u0590-\u05FF]/g, '_').slice(0, 30);
+
+      let filename = sanitize(tableName);
+      if (orgName) {
+        filename += '_' + sanitize(orgName);
+      }
+      filename += '_' + timestamp + '.png';
+
+      // Create download link
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+
+      toast.dismiss(loadingToast);
+      toast.success(t('exportImage.success', 'Image exported successfully'));
+    } catch (error) {
+      console.error('Export failed:', error);
+      // Restore elements on error
+      document.querySelectorAll('.export-hide').forEach(el => {
+        el.style.visibility = '';
+      });
+      toast.dismiss(loadingToast);
+      toast.error(t('exportImage.error', 'Export failed'));
+    }
+  };
+
+  // Wrapper for handleSelectForSwap to block colored nodes
+  const handleSelectForSwapWrapper = (nodeInfo) => {
+    if (hasColorApplied(nodeInfo.hierarchical_structure, nodeColors)) {
+      toast.warning(t('colorModal.cannotMoveColored', 'Colored nodes cannot be moved. Remove the color first.'));
+      return;
+    }
+    handleSelectForSwap(nodeInfo);
+  };
+
   const handleSaveNode = async (nodeData) => {
     try {
       if (nodeEditorMode === 'add') {
         // Adding a new node
         const parentStructure = parentNodeForAdd?.hierarchical_structure || null;
-        await addNode(selectedTableId, parentStructure, nodeData);
-        toast.success(t('nodeOperations.nodeAddedSuccess'));
+        const response = await addNode(selectedTableId, parentStructure, nodeData);
+        const inheritedFromPersonId = response.data?.inherited_from_person_id;
+        if (inheritedFromPersonId) {
+          toast.success(t('nodeOperations.nodeAddedWithInherit', { personId: inheritedFromPersonId }));
+        } else {
+          toast.success(t('nodeOperations.nodeAddedSuccess'));
+        }
       } else {
         // Editing existing node
-        await updateNode(selectedTableId, selectedNodeForEdit.hierarchical_structure, nodeData);
-        toast.success(t('nodeOperations.nodeUpdatedSuccess'));
+        const response = await updateNode(selectedTableId, selectedNodeForEdit.hierarchical_structure, nodeData);
+        const syncedCount = response.data?.synced_count || 0;
+        const syncedPersonId = response.data?.synced_person_id;
+        if (syncedCount > 0 && syncedPersonId) {
+          toast.success(t('nodeOperations.nodeUpdatedWithSync', { count: syncedCount, personId: syncedPersonId }));
+        } else {
+          toast.success(t('nodeOperations.nodeUpdatedSuccess'));
+        }
       }
 
       // Refresh the tree data
@@ -438,10 +573,17 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     const loadInitialData = async () => {
       await fetchData();
     };
-    
+
     loadInitialData();
   }, [fetchData]);
-  
+
+  // Load colors from API when table changes
+  useEffect(() => {
+    if (selectedTableId) {
+      loadColorsFromAPI(selectedTableId);
+    }
+  }, [selectedTableId, loadColorsFromAPI]);
+
   // No automatic centering effect - centering will only be user-invoked
 
   useEffect(() => {
@@ -667,14 +809,33 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   // Render error state
   if (error) {
     return (
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
-        exit={{ opacity: 0 }} 
-        className="flex flex-col justify-center items-center h-screen"
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="flex flex-col justify-center items-center h-screen bg-gray-50"
       >
-        <p className="text-red-600 text-xl mb-4">{error}</p>
-        <Button onClick={fetchData}>Retry</Button>
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white p-8 shadow-lg border border-gray-200 max-w-md w-full mx-4 text-center"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            className="inline-flex items-center justify-center w-16 h-16 bg-red-50 mb-4"
+          >
+            <AlertCircle size={32} className="text-red-500" />
+          </motion.div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">{t('orgChart.errorTitle', 'Unable to Load Data')}</h2>
+          <p className="text-gray-600 text-sm mb-6">{error}</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={fetchData} icon={RefreshCw}>{t('orgChart.retry', 'Retry')}</Button>
+            <Button onClick={onReturnToLanding} icon={Home} variant="secondary">{t('orgChart.goHome', 'Go Home')}</Button>
+          </div>
+        </motion.div>
       </motion.div>
     );
   }
@@ -686,13 +847,32 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="flex flex-col justify-center items-center h-screen"
+        className="flex flex-col justify-center items-center h-screen bg-gray-50"
       >
-        <p className="text-xl mb-4">No data available. Please open folder view to manage your data.</p>
-        <Button onClick={() => {
-          setTableSelectionMode('view');
-          setIsTableSelectionOpen(true);
-        }} icon={List}>Manage Data</Button>
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white p-8 shadow-lg border border-gray-200 max-w-md w-full mx-4 text-center"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 mb-4"
+          >
+            <Folder size={32} className="text-gray-500" />
+          </motion.div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">{t('orgChart.noDataTitle', 'No Data Available')}</h2>
+          <p className="text-gray-600 text-sm mb-6">{t('orgChart.noDataDescription', 'Please select a table or upload data to get started.')}</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => {
+              setTableSelectionMode('view');
+              setIsTableSelectionOpen(true);
+            }} icon={List}>{t('orgChart.manageData', 'Manage Data')}</Button>
+            <Button onClick={onReturnToLanding} icon={Home} variant="secondary">{t('orgChart.goHome', 'Go Home')}</Button>
+          </div>
+        </motion.div>
       </motion.div>
     );
   }
@@ -863,6 +1043,8 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           onSearch={toggleSearchBar}
           onClearFilter={handleClearFilter}
           onExportExcel={handleExportExcel}
+          onExportImage={handleExportImage}
+          onResetColors={!isOrganizationMode ? handleResetColors : undefined}
           isHierarchyMode={isHierarchyMode}
           isOrganizationMode={isOrganizationMode}
           hideVacancies={hideVacancies}
@@ -918,18 +1100,19 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
   
         <div
           ref={dragRef}
+          id="tree-container"
           className="w-full h-full cursor-move"
           onMouseDown={handleMouseDown}
           onWheel={handleWheel}
           onClick={handleBackgroundClick}
           style={{ overflow: "hidden" }}
         >
-          <div 
-            ref={chartRef} 
-            style={{ 
-              transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, 
-              transition: isDragging ? "none" : "transform 0.3s ease-out", 
-              transformOrigin: "0 0" 
+          <div
+            ref={chartRef}
+            style={{
+              transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+              transition: isDragging ? "none" : "transform 0.3s ease-out",
+              transformOrigin: "0 0"
             }}
           >
             <div className="p-8 pt-20">
@@ -989,9 +1172,10 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
                   settings={settings}
                   onReorder={handleReorderNodes}
                   nodeOrder={nodeOrder}
+                  nodeColors={nodeColors}
                   parentNodeId={null}
                   selectedSwapNode={selectedSwapNode}
-                  onSelectForSwap={handleSelectForSwap}
+                  onSelectForSwap={handleSelectForSwapWrapper}
                   onSwapNodes={handleSwapNodesWithRerender}
                   onCancelSwap={handleCancelSwap}
                   swapKey={swapKey}
@@ -1002,13 +1186,17 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           </div>
         </div>
   
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          settings={settings}
-          onSettingsChange={setSettings}
-        />
-  
+        <AnimatePresence>
+          {isSettingsOpen && (
+            <SettingsModal
+              isOpen={isSettingsOpen}
+              onClose={() => setIsSettingsOpen(false)}
+              settings={settings}
+              onSettingsChange={setSettings}
+            />
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {selectedNode && (
             <EnhancedNodeCard
@@ -1028,81 +1216,128 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
           )}
         </AnimatePresence>
   
-        <FilterModal
-          isOpen={isFilterOpen}
-          onClose={() => setIsFilterOpen(false)}
-          onApplyFilters={handleFilterChange}
-          onSearch={handleSearch}
-          onClearSearch={handleClearSearch}
-          activeFilters={activeFilters}
-          orgData={orgData}
-          folderId={selectedFolderId}
-          tableId={selectedTableId}
-          resetTrigger={filterModalResetTrigger}
-        />
-  
-        <TableSelectionModal
-          isOpen={isTableSelectionOpen}
-          onClose={() => {
-            handleCloseTableSelection();
-            setTableSelectionMode('view');
-            setSelectedFolderForUpload(null);
-          }}
-          onSelectTable={tableSelectionMode === 'view' ? handleTableSelection : undefined}
-          onSelectFolder={tableSelectionMode === 'upload' ? handleFolderSelectedForUpload : undefined}
-          onCreateTable={(folderId) => {
-            setSelectedFolderForUpload(folderId);
-            setIsTableSelectionOpen(false);
-            setIsUploadOpen(true);
-          }}
-          onCurrentItemDeleted={(type, name) => {
-            // Close the modal
-            setIsTableSelectionOpen(false);
-            // Show toast message
-            toast.info(t('chartOperations.currentItemDeleted', {type: type === 'folder' ? t('common.folder') : t('common.table'), name: name}));
-            // Redirect to landing page
-            onReturnToLanding();
-          }}
-          mode={tableSelectionMode}
-          folderStructure={folderStructure}
-          currentFolderId={selectedFolderId}
-          currentTableId={selectedTableId}
-          dbPath={dbPath}
-          onRefresh={fetchFolderStructure}
-        />
+        <AnimatePresence>
+          {isFilterOpen && (
+            <FilterModal
+              isOpen={isFilterOpen}
+              onClose={() => setIsFilterOpen(false)}
+              onApplyFilters={handleFilterChange}
+              onSearch={handleSearch}
+              onClearSearch={handleClearSearch}
+              activeFilters={activeFilters}
+              orgData={orgData}
+              folderId={selectedFolderId}
+              tableId={selectedTableId}
+              resetTrigger={filterModalResetTrigger}
+            />
+          )}
+        </AnimatePresence>
 
-        <FileUploadModal
-          isOpen={isUploadOpen}
-          onClose={() => {
-            setIsUploadOpen(false);
-            setSelectedFolderForUpload(null);
-          }}
-          onUpload={handleFileUpload}
-          dbPath={dbPath}
-          preselectedFolderId={selectedFolderForUpload}
-          folderStructure={folderStructure}
-        />
+        <AnimatePresence>
+          {isTableSelectionOpen && (
+            <TableSelectionModal
+              isOpen={isTableSelectionOpen}
+              onClose={() => {
+                handleCloseTableSelection();
+                setTableSelectionMode('view');
+                setSelectedFolderForUpload(null);
+              }}
+              onSelectTable={tableSelectionMode === 'view' ? handleTableSelection : undefined}
+              onSelectFolder={tableSelectionMode === 'upload' ? handleFolderSelectedForUpload : undefined}
+              onCreateTable={(folderId) => {
+                setSelectedFolderForUpload(folderId);
+                setIsTableSelectionOpen(false);
+                setIsUploadOpen(true);
+              }}
+              onCurrentItemDeleted={(type, name) => {
+                setIsTableSelectionOpen(false);
+                toast.info(t('chartOperations.currentItemDeleted', {type: type === 'folder' ? t('common.folder') : t('common.table'), name: name}));
+                onReturnToLanding();
+              }}
+              mode={tableSelectionMode}
+              folderStructure={folderStructure}
+              currentFolderId={selectedFolderId}
+              currentTableId={selectedTableId}
+              dbPath={dbPath}
+              onRefresh={fetchFolderStructure}
+            />
+          )}
+        </AnimatePresence>
 
-        <NodeEditorModal
-          isOpen={isNodeEditorOpen}
-          onClose={handleCloseNodeEditor}
-          onSave={handleSaveNode}
-          nodeData={selectedNodeForEdit}
-          mode={nodeEditorMode}
-          parentNode={parentNodeForAdd}
-        />
+        <AnimatePresence>
+          {isUploadOpen && (
+            <FileUploadModal
+              isOpen={isUploadOpen}
+              onClose={() => {
+                setIsUploadOpen(false);
+                setSelectedFolderForUpload(null);
+              }}
+              onUpload={handleFileUpload}
+              dbPath={dbPath}
+              preselectedFolderId={selectedFolderForUpload}
+              folderStructure={folderStructure}
+            />
+          )}
+        </AnimatePresence>
 
-        <NodeContextMenu
-          isOpen={contextMenuOpen}
-          position={contextMenuPosition}
-          onClose={handleCloseContextMenu}
-          onAddChild={handleAddChild}
-          onAddSibling={handleAddSibling}
-          onDelete={handleDeleteNode}
-          node={contextMenuNode}
-          canDelete={contextMenuNode?.hierarchical_structure !== '/1'}
-        />
+        <AnimatePresence>
+          {isNodeEditorOpen && (
+            <NodeEditorModal
+              isOpen={isNodeEditorOpen}
+              onClose={handleCloseNodeEditor}
+              onSave={handleSaveNode}
+              nodeData={selectedNodeForEdit}
+              mode={nodeEditorMode}
+              parentNode={parentNodeForAdd}
+            />
+          )}
+        </AnimatePresence>
 
+        <AnimatePresence>
+          {contextMenuOpen && (
+            <NodeContextMenu
+              isOpen={contextMenuOpen}
+              position={contextMenuPosition}
+              onClose={handleCloseContextMenu}
+              onAddChild={handleAddChild}
+              onAddSibling={handleAddSibling}
+              onDelete={handleDeleteNode}
+              onSetColor={!isOrganizationMode ? handleSetColor : undefined}
+              node={contextMenuNode}
+              canDelete={contextMenuNode?.hierarchical_structure !== '/1'}
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isColorModalOpen && (
+            <ColorModal
+              isOpen={isColorModalOpen}
+              onClose={handleCloseColorModal}
+              node={colorModalNode}
+              rootNode={hierarchyModeData || filteredOrgData}
+              nodeColors={nodeColors}
+              onApplyNodeColor={applyNodeColor}
+              onApplyLevelColor={applyLevelColor}
+              onApplyBranchColor={applyBranchColor}
+              onRemoveColor={removeNodeColor}
+              onRemoveBranchColors={removeBranchColors}
+              onRemoveLevelColors={removeLevelColors}
+              getSavedLabelsForColor={getSavedLabelsForColor}
+              onSaveLabel={saveLabelForColor}
+              onUpdateLabel={updateLabel}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Color Legend - only show in hierarchy mode when colors are applied */}
+        {!isOrganizationMode && (
+          <ColorLegend
+            entries={getLegendEntries()}
+            isRTL={i18n.language === 'he'}
+            onUpdateLabel={updateLabel}
+          />
+        )}
 
       </motion.div>
     </>

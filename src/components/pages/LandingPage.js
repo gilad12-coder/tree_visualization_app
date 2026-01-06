@@ -671,36 +671,44 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       </div>
 
       {/* Modals */}
-      <FileUploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => {
-          setIsUploadModalOpen(false);
-          setSelectedFolderForUpload(null);
-        }}
-        onUpload={handleUploadFile}
-        dbPath={dbPath}
-        preselectedFolderId={selectedFolderForUpload}
-        folderStructure={folderStructure}
-      />
-      <TableSelectionModal
-        isOpen={isTableSelectionOpen}
-        onClose={() => {
-          setIsTableSelectionOpen(false);
-          setTableSelectionMode('view');
-          setSelectedFolderForUpload(null);
-        }}
-        onSelectTable={tableSelectionMode === 'view' ? handleTableSelection : undefined}
-        onSelectFolder={tableSelectionMode === 'upload' ? handleFolderSelectedForUpload : undefined}
-        onCreateTable={(folderId) => {
-          setSelectedFolderForUpload(folderId);
-          setIsTableSelectionOpen(false);
-          setIsUploadModalOpen(true);
-        }}
-        mode={tableSelectionMode}
-        folderStructure={folderStructure}
-        dbPath={dbPath}
-        onRefresh={() => fetchFolderStructure(dbPath)}
-      />
+      <AnimatePresence>
+        {isUploadModalOpen && (
+          <FileUploadModal
+            isOpen={isUploadModalOpen}
+            onClose={() => {
+              setIsUploadModalOpen(false);
+              setSelectedFolderForUpload(null);
+            }}
+            onUpload={handleUploadFile}
+            dbPath={dbPath}
+            preselectedFolderId={selectedFolderForUpload}
+            folderStructure={folderStructure}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isTableSelectionOpen && (
+          <TableSelectionModal
+            isOpen={isTableSelectionOpen}
+            onClose={() => {
+              setIsTableSelectionOpen(false);
+              setTableSelectionMode('view');
+              setSelectedFolderForUpload(null);
+            }}
+            onSelectTable={tableSelectionMode === 'view' ? handleTableSelection : undefined}
+            onSelectFolder={tableSelectionMode === 'upload' ? handleFolderSelectedForUpload : undefined}
+            onCreateTable={(folderId) => {
+              setSelectedFolderForUpload(folderId);
+              setIsTableSelectionOpen(false);
+              setIsUploadModalOpen(true);
+            }}
+            mode={tableSelectionMode}
+            folderStructure={folderStructure}
+            dbPath={dbPath}
+            onRefresh={() => fetchFolderStructure(dbPath)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

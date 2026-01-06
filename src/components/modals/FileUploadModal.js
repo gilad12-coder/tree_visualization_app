@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   X,
   Upload,
@@ -150,6 +150,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
           treeName: treeName,
           nodes: nodes,
           folderName: folderName,
+          uploadDate: formatDateForAPI(convertToUTCDate(uploadDate)),
         }, {
           params: { db_path: dbPath }
         });
@@ -178,22 +179,24 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
   const isUploadDisabled = !selectedFile || !uploadDate || !preselectedFolderId;
   const isBuildDisabled = !treeName || !uploadDate || !folderName;
 
+  // No early return or internal AnimatePresence - parent handles exit animations
+
   return (
-    <>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
-            onClick={(e) => e.target === e.currentTarget && onClose()}
-          >
-            <motion.div
-              className="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2, delay: 0.05 }}
+        className="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
               {/* Header */}
               <div className="flex justify-between items-center p-4 border-b border-gray-100">
                 <div className="flex-grow"></div>
@@ -404,11 +407,8 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
                   )}
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+      </motion.div>
+    </motion.div>
   );
 };
 

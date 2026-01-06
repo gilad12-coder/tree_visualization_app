@@ -158,7 +158,7 @@ const useNodeInteractions = (
         console.error('ERROR: One or both nodes not found in order array!');
         console.error('This indicates the node order hasn\'t been properly initialized.');
         console.error('Cannot perform swap - order would be incorrect.');
-        toast.error('Cannot swap: node order not initialized');
+        toast.error(t('chartOperations.swapNotInitialized'));
         return prevOrder; // Return unchanged
       }
 

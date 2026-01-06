@@ -239,9 +239,7 @@ const EnhancedFilterModal = ({
     );
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  // No early return - let AnimatePresence from parent handle exit animations
 
   console.log("Rendering EnhancedFilterModal with:", {
     isOpen,
@@ -265,8 +263,7 @@ const EnhancedFilterModal = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-100">
-          <div className="text-lg font-medium text-gray-800">{t('filterModal.searchResults')}</div>
+        <div className="flex justify-end items-center p-4 border-b border-gray-100">
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
             <X size={20} />
           </button>

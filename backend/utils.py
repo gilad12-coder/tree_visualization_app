@@ -320,22 +320,22 @@ def insert_data_entries(session, table_id, df):
         raise ValueError("table_id cannot be None")
 
     upload_date = datetime.now().date()
-    
+
     # Convert all column names to lowercase for case-insensitive matching
     df.columns = df.columns.str.lower()
-    
+
     # Ensure required columns are present (case-insensitive)
     required_columns = ['hierarchical_structure', 'name', 'role']
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         raise ValueError(f"Required column(s) {', '.join(missing_columns)} are missing from the DataFrame")
-    
+
     # Convert birth_date to datetime if the column exists
     for col in df.columns:
         df[col] = df[col].astype(str)
-            
+
     df['birth_date'] = pd.to_datetime(df['birth_date'], errors='coerce').dt.date
-    
+
     # Define a mapping of expected column names to DataEntry attribute names
     column_mapping = {
         'person_id': 'person_id',
@@ -351,20 +351,43 @@ def insert_data_entries(session, table_id, df):
         'is_dead': 'is_dead',
         'organization_name': 'organization_name'
     }
-    
+
+    # Track first occurrence of each person_id for syncing personal info
+    person_id_first_occurrence = {}  # {person_id: {name, birth_date, personal_information, is_dead}}
+
     for _, row in df.iterrows():
         # Prepare a dictionary with all fields
         data_entry_dict = {
             'table_id': table_id,
             'upload_date': upload_date
         }
-        
+
         # Populate the dictionary using the column mapping
         for df_col, entry_attr in column_mapping.items():
             if df_col in df.columns:
                 value = row[df_col]
                 data_entry_dict[entry_attr] = value if pd.notna(value) else None
-        
+
+        # Sync personal info for duplicate person_ids (first occurrence is source of truth)
+        person_id = data_entry_dict.get('person_id')
+        if person_id and pd.notna(person_id) and person_id != 'nan':
+            if person_id not in person_id_first_occurrence:
+                # Store first occurrence's personal info
+                person_id_first_occurrence[person_id] = {
+                    'name': data_entry_dict.get('name'),
+                    'birth_date': data_entry_dict.get('birth_date'),
+                    'personal_information': data_entry_dict.get('personal_information'),
+                    'is_dead': data_entry_dict.get('is_dead')
+                }
+            else:
+                # Sync to first occurrence's personal info
+                first = person_id_first_occurrence[person_id]
+                data_entry_dict['name'] = first['name']
+                data_entry_dict['birth_date'] = first['birth_date']
+                data_entry_dict['personal_information'] = first['personal_information']
+                data_entry_dict['is_dead'] = first['is_dead']
+                logger.info(f"Synced personal info for duplicate person_id: {person_id}")
+
         # Create the DataEntry object with the prepared dictionary
         data_entry = DataEntry(**data_entry_dict)
         session.add(data_entry)

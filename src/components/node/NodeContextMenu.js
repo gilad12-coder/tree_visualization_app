@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { UserPlus, Trash2, GitBranch } from 'react-feather';
+import { motion } from 'framer-motion';
+import { UserPlus, Trash2, GitBranch, Droplet } from 'react-feather';
 import { useTranslation } from 'react-i18next';
 
 const NodeContextMenu = ({
@@ -10,6 +10,7 @@ const NodeContextMenu = ({
   onAddChild,
   onAddSibling,
   onDelete,
+  onSetColor,
   node,
   canDelete = true
 }) => {
@@ -43,8 +44,6 @@ const NodeContextMenu = ({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen || !position) return null;
-
   // Check if node is root by counting segments in hierarchical_structure
   // Root nodes have only one segment (e.g., /1, /CEO, /Root)
   // Non-root nodes have multiple segments (e.g., /1/2, /CEO/Manager)
@@ -71,6 +70,17 @@ const NodeContextMenu = ({
     });
   }
 
+  // Add color option if handler is provided (only in hierarchy mode)
+  if (onSetColor) {
+    menuItems.push({
+      icon: Droplet,
+      label: t('contextMenu.setColor', 'Set Color'),
+      action: onSetColor,
+      hoverBg: 'hover:bg-blue-50',
+      color: 'text-blue-600'
+    });
+  }
+
   if (canDelete) {
     menuItems.push({
       icon: Trash2,
@@ -82,42 +92,43 @@ const NodeContextMenu = ({
     });
   }
 
+  // Don't render if no position (needed for AnimatePresence exit animation to work)
+  if (!position) return null;
+
   return (
-    <AnimatePresence>
-      <motion.div
-        ref={menuRef}
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.15 }}
-        className="fixed bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50 min-w-[180px]"
-        style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`
-        }}
-      >
-        {menuItems.map((item, index) => (
-          <React.Fragment key={index}>
-            {item.divider && <div className="my-1 border-t border-gray-100" />}
-            <button
-              onClick={() => {
-                item.action();
-                onClose();
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${item.hoverBg}`}
-            >
-              <item.icon
-                size={16}
-                className={item.color || 'text-gray-600'}
-              />
-              <span className="text-sm text-gray-700">
-                {item.label}
-              </span>
-            </button>
-          </React.Fragment>
-        ))}
-      </motion.div>
-    </AnimatePresence>
+    <motion.div
+      ref={menuRef}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.15 }}
+      className="fixed bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50 min-w-[180px]"
+      style={{
+        left: `${position.x}px`,
+        top: `${position.y}px`
+      }}
+    >
+      {menuItems.map((item, index) => (
+        <React.Fragment key={index}>
+          {item.divider && <div className="my-1 border-t border-gray-100" />}
+          <button
+            onClick={() => {
+              item.action();
+              onClose();
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${item.hoverBg}`}
+          >
+            <item.icon
+              size={16}
+              className={item.color || 'text-gray-600'}
+            />
+            <span className="text-sm text-gray-700">
+              {item.label}
+            </span>
+          </button>
+        </React.Fragment>
+      ))}
+    </motion.div>
   );
 };
 

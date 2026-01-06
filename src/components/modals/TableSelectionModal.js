@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, File, ChevronRight, Search, X, ArrowUp, ArrowDown, ArrowLeft, Filter, Edit2, Trash2, Plus } from 'lucide-react';
+import { Folder, File, ChevronRight, ChevronLeft, Search, X, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Filter, Edit2, Trash2, Plus } from 'lucide-react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { format, parseISO } from 'date-fns';
@@ -21,7 +21,7 @@ const THEME = {
   borderColor: '#E5E7EB'
 };
 
-const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onStartEdit, onSaveEdit, onCancelEdit, onNameChange, onDelete, hideActions }) => {
+const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onStartEdit, onSaveEdit, onCancelEdit, onNameChange, onDelete, hideActions, isRTL }) => {
   if (!folder) return null;
 
   const handleDelete = (e) => {
@@ -60,8 +60,8 @@ const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onSt
       onClick={isEditing ? undefined : onClick}
       transition={{ duration: 0.1 }}
     >
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+      <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex items-center gap-3 flex-1 min-w-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
           <Folder size={20} className="text-gray-500 flex-shrink-0" />
           {isEditing ? (
             <input
@@ -77,7 +77,7 @@ const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onSt
             <span className="text-base font-medium text-gray-800 truncate">{folder.name}</span>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className={`flex items-center gap-2 flex-shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
           {!isEditing && <span className="text-sm text-gray-600">{tablesCount} {t('tableSelection.tables')}</span>}
           {!hideActions && (
             <>
@@ -116,19 +116,19 @@ const FolderCard = ({ folder, onClick, tablesCount, t, isEditing, editName, onSt
                   >
                     <Trash2 size={16} className="text-red-600" />
                   </button>
-                  <ChevronRight size={18} className="text-gray-500" />
+                  {isRTL ? <ChevronLeft size={18} className="text-gray-500" /> : <ChevronRight size={18} className="text-gray-500" />}
                 </>
               )}
             </>
           )}
-          {hideActions && <ChevronRight size={18} className="text-gray-500" />}
+          {hideActions && (isRTL ? <ChevronLeft size={18} className="text-gray-500" /> : <ChevronRight size={18} className="text-gray-500" />)}
         </div>
       </div>
     </motion.div>
   );
 };
 
-const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate, onStartEdit, onSaveEdit, onCancelEdit, onNameChange, onDateChange, onDelete }) => {
+const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate, onStartEdit, onSaveEdit, onCancelEdit, onNameChange, onDateChange, onDelete, isRTL }) => {
   if (!table) return null;
 
   const handleDelete = (e) => {
@@ -173,7 +173,7 @@ const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate,
       style={{ backgroundColor: isActive && !isEditing ? THEME.primary : undefined }}
     >
       {isEditing ? (
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`} onClick={(e) => e.stopPropagation()}>
           <File size={20} className="text-gray-500 flex-shrink-0" />
           <input
             type="text"
@@ -213,12 +213,12 @@ const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate,
           </button>
         </div>
       ) : (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+          <div className={`flex items-center gap-3 flex-1 min-w-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
             <File size={20} className={isActive ? "text-white flex-shrink-0" : "text-gray-500 flex-shrink-0"} />
             <span className="text-base font-medium truncate">{table.name}</span>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+          <div className={`flex items-center gap-2 flex-shrink-0 ${isRTL ? 'mr-2 flex-row-reverse' : 'ml-2'}`}>
             <span className="text-sm whitespace-nowrap">
               {table.upload_date ? format(parseISO(table.upload_date), 'MMM dd, yyyy') : 'N/A'}
             </span>
@@ -248,7 +248,8 @@ const TableCard = ({ table, onClick, isActive, t, isEditing, editName, editDate,
 };
 
 const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, onCreateTable, onCurrentItemDeleted, mode = 'view', folderStructure = [], currentFolderId, isComparingMode, currentTableId, dbPath, onRefresh }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
   const [step, setStep] = useState('folder');
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -517,10 +518,11 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
           onNameChange={setEditName}
           onDelete={handleDeleteFolder}
           hideActions={mode === 'upload'}
+          isRTL={isRTL}
         />
       </div>
     );
-  }, [filteredFolders, handleFolderSelect, t, editMode, editItem, editName, handleEditFolder, handleSaveEdit, handleCancelEdit, handleDeleteFolder, mode]);
+  }, [filteredFolders, handleFolderSelect, t, editMode, editItem, editName, handleEditFolder, handleSaveEdit, handleCancelEdit, handleDeleteFolder, mode, isRTL]);
 
   const renderTable = useCallback(({ index, style }) => {
     const table = filteredTables[index];
@@ -542,15 +544,16 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
           onNameChange={setEditName}
           onDateChange={setEditDate}
           onDelete={handleDeleteTable}
+          isRTL={isRTL}
         />
       </div>
     );
-  }, [filteredTables, handleTableSelect, currentTableId, t, editMode, editItem, editName, editDate, handleEditTable, handleSaveEdit, handleCancelEdit, handleDeleteTable]);
+  }, [filteredTables, handleTableSelect, currentTableId, t, editMode, editItem, editName, editDate, handleEditTable, handleSaveEdit, handleCancelEdit, handleDeleteTable, isRTL]);
 
   const pageVariants = {
-    initial: { opacity: 0, x: '-100%' },
+    initial: { opacity: 0, x: isRTL ? '100%' : '-100%' },
     in: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: '100%' }
+    exit: { opacity: 0, x: isRTL ? '-100%' : '100%' }
   };
 
   const pageTransition = {
@@ -559,21 +562,21 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
     duration: 0.3
   };
 
-  if (!isOpen) return null;
+  // No early return - let AnimatePresence from parent handle exit animations
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2 }}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
-        onClick={(e) => e.target === e.currentTarget && onClose()}
-      >
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
         <motion.div
           className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
+          dir={isRTL ? 'rtl' : 'ltr'}
         >
           <div className="flex justify-end items-center p-4 border-b border-gray-100">
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
@@ -602,7 +605,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
                       }}
                       className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm"
                     >
-                      <ArrowLeft size={16} />
+                      {isRTL ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
                       <span className="font-medium">{t('tableSelection.backToFolders')}</span>
                     </button>
                     <motion.button
@@ -770,8 +773,7 @@ const TableSelectionModal = ({ isOpen, onClose, onSelectTable, onSelectFolder, o
             </motion.div>
           </AnimatePresence>
         </motion.div>
-      </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 };
 

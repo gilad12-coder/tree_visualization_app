@@ -5,7 +5,7 @@ import Select from 'react-select';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
-import { getLanguage, getFontClass, getTextDirection } from '../../../Utilities/languageUtils';
+import { getLanguage, getFontClass } from '../../../Utilities/languageUtils';
 import '../../../styles/datepicker.css';
 import '../../../styles/scrollbar.css';
 import '../../../styles/fonts.css';
@@ -431,7 +431,7 @@ const UpdateHierarchicalInfoSection = ({ node, onBack, folderId, tableId, onUpda
           value={newRole}
           onChange={(e) => setNewRole(e.target.value)}
           className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${getFontClass(language)}`}
-          dir={getTextDirection(language)}
+          dir={isRTL ? 'rtl' : 'ltr'}
           placeholder="Enter the new role"
         />
       </motion.div>

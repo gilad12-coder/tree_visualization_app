@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, AlertCircle, XCircle, Users, Move, X, ExternalLink, MoreHorizontal } from 'react-feather';
-import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
-
-const DEFAULT_NODE_COLOR = '#F5F7FA'; 
+import { ChevronDown, ChevronRight, ChevronLeft, AlertCircle, XCircle, Users, Move, X, ExternalLink, MoreHorizontal } from 'react-feather';
+import { useTranslation } from 'react-i18next';
+import { getLanguage, getFontClass } from '../../Utilities/languageUtils';
+import { calculateNodeColor, DEFAULT_NODE_COLOR } from '../../Utilities/colorUtils'; 
 
 const expandedNodesMap = new Map();
 
@@ -31,6 +31,7 @@ const TreeNode = ({
   settings = {},
   onReorder,
   nodeOrder,
+  nodeColors = null,
   parentNodeId,
   selectedSwapNode = null,
   onSelectForSwap = null,
@@ -39,6 +40,9 @@ const TreeNode = ({
   swapKey = 0,
   onContextMenu
 }) => {
+  const { i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
+
   const nodeKey = node?.hierarchical_structure || `${depth}-${parentNodeId}-${node?.name}`;
   const [isExpanded, setIsExpanded] = useState(() => {
     return expandedNodesMap.has(nodeKey) ? expandedNodesMap.get(nodeKey) : false;
@@ -71,13 +75,13 @@ const TreeNode = ({
         e.stopPropagation();
         onClick(e);
       }}
-      className="p-1 rounded-full bg-white hover:bg-white border border-gray-200 
-                 shadow-sm hover:shadow transition-all duration-200 opacity-80 
+      className="export-hide p-1 rounded-full bg-white hover:bg-white border border-gray-200
+                 shadow-sm hover:shadow transition-all duration-200 opacity-80
                  group-hover:opacity-100 z-50 cursor-pointer"
     >
-      <ExternalLink 
-        size={16} 
-        className="text-gray-500 hover:text-gray-700 transition-colors duration-200" 
+      <ExternalLink
+        size={16}
+        className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
       />
     </motion.div>
   ), []);
@@ -91,8 +95,20 @@ const TreeNode = ({
   
   const hasChildren = node?.children && Array.isArray(node.children) && node.children.length > 0;
   const isSingleChild = hasChildren && node.children.length === 1;
-  
-  const nodeColor = settings.nodeColor || DEFAULT_NODE_COLOR;
+
+  // Calculate node color using cascade logic (only in hierarchy mode)
+  const { color: nodeColor } = useMemo(() => {
+    // In organization mode, use default color (org mode has its own coloring)
+    if (isOrganizationMode) {
+      return { color: DEFAULT_NODE_COLOR, status: 'default' };
+    }
+    // Use cascade color calculation if nodeColors is provided
+    if (nodeColors) {
+      return calculateNodeColor(node, nodeColors);
+    }
+    // Fallback to settings or default
+    return { color: settings.nodeColor || DEFAULT_NODE_COLOR, status: 'default' };
+  }, [node, nodeColors, isOrganizationMode, settings.nodeColor]);
   
   const primaryField = settings.primaryField || 'name';
   const secondaryField = settings.secondaryField || 'role';
@@ -501,6 +517,7 @@ const TreeNode = ({
             ? 'pointer' 
             : (isSelectedForSwap ? 'not-allowed' : 'pointer')
         }}
+        dir={isRTL ? 'rtl' : 'ltr'}
         className={`rounded-xl shadow-sm p-4 w-72 relative overflow-visible group
           ${isCurrentSearchResult ? 'ring-4 ring-orange-500 shadow-lg' : ''}
           ${isDead ? 'opacity-70 grayscale' : ''}
@@ -521,14 +538,14 @@ const TreeNode = ({
         }}
       >
         {(isSelectedForSwap || canSwapWith) && (
-          <div className="absolute top-1/2 left-2 -translate-y-1/2 opacity-100 transition-opacity z-20">
+          <div className={`absolute top-1/2 ${isRTL ? 'right-2' : 'left-2'} -translate-y-1/2 opacity-100 transition-opacity z-20`}>
             <Move size={16} className={`${isSelectedForSwap ? 'text-blue-500' : 'text-green-500'}`} />
           </div>
         )}
-        
+
         {isSelectedForSwap && (
-          <div 
-            className="absolute top-2 right-2 bg-red-100 rounded-full p-1 cursor-pointer z-50 hover:bg-red-200"
+          <div
+            className={`absolute top-2 ${isRTL ? 'left-2' : 'right-2'} bg-red-100 rounded-full p-1 cursor-pointer z-50 hover:bg-red-200`}
             onClick={cancelSwap}
           >
             <X size={14} className="text-red-600" />
@@ -536,7 +553,7 @@ const TreeNode = ({
         )}
 
         {!isSelectedForSwap && (
-          <div className="absolute top-2 right-2 flex gap-1">
+          <div className={`absolute top-2 ${isRTL ? 'left-2' : 'right-2'} flex gap-1`}>
             {isStatusUnknown && (
               <AlertCircle size={18} className="text-yellow-600" />
             )}
@@ -576,10 +593,9 @@ const TreeNode = ({
           </motion.div>
         )}
         
-        <div className={`flex justify-between items-center mb-2 ${primaryLanguage !== 'default' ? 'flex-row-reverse' : 'flex-row'}`}>
-          <h3 
+        <div className="flex justify-between items-center mb-2">
+          <h3
             className={`text-lg font-bold ${isDead ? 'text-gray-700 line-through' : 'text-black'} ${getFontClass(primaryLanguage)}`}
-            dir={getTextDirection(primaryLanguage)}
           >
             {highlightText(primaryValue, searchTerm)}
           </h3>
@@ -592,7 +608,8 @@ const TreeNode = ({
             </div>
             {hasChildren && (
               <motion.div
-                animate={{ rotate: isExpanded ? 90 : 0 }}
+                className="export-hide"
+                animate={{ rotate: isExpanded ? (isRTL ? -90 : 90) : 0 }}
                 transition={{ duration: 0.3 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -602,15 +619,14 @@ const TreeNode = ({
                 {isExpanded ? (
                   <ChevronDown size={20} className="text-black" />
                 ) : (
-                  <ChevronRight size={20} className="text-black" />
+                  isRTL ? <ChevronLeft size={20} className="text-black" /> : <ChevronRight size={20} className="text-black" />
                 )}
               </motion.div>
             )}
           </div>
         </div>
-        <div 
+        <div
           className={`text-sm font-medium ${isDead ? 'text-gray-700' : 'text-black'} ${getFontClass(secondaryLanguage)} text-center`}
-          dir={getTextDirection(secondaryLanguage)}
         >
           {highlightText(secondaryValue, searchTerm)}
         </div>
@@ -637,6 +653,7 @@ const TreeNode = ({
         <AnimatePresence>
           {isHovered && !isSelectedForSwap && !canSwapWith && (
             <motion.div
+              className="export-hide"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
@@ -728,6 +745,7 @@ const TreeNode = ({
                       settings={settings}
                       onReorder={onReorder}
                       nodeOrder={nodeOrder}
+                      nodeColors={nodeColors}
                       parentNodeId={node.hierarchical_structure}
                       selectedSwapNode={selectedSwapNode}
                       onSelectForSwap={onSelectForSwap}

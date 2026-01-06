@@ -110,8 +110,8 @@ const OrgNode = ({
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
       onClick={onClick}
-      className={`p-1 rounded-full bg-white hover:bg-white border border-gray-200 
-                 shadow-sm hover:shadow transition-all duration-200 opacity-80 
+      className={`export-hide p-1 rounded-full bg-white hover:bg-white border border-gray-200
+                 shadow-sm hover:shadow transition-all duration-200 opacity-80
                  group-hover:opacity-100 z-50 cursor-pointer relative ${className}`}
     >
       <Icon 
@@ -219,7 +219,7 @@ const OrgNode = ({
                 animate={{ rotate: isExpanded ? 90 : 0 }}
                 transition={{ duration: 0.3 }}
                 onClick={handleToggleExpand}
-                className="cursor-pointer p-1 hover:bg-gray-100 rounded"
+                className="export-hide cursor-pointer p-1 hover:bg-gray-100 rounded"
               >
                 {isExpanded ? (
                   <ChevronDown size={18} className="text-gray-600" />

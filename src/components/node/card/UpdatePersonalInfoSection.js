@@ -15,9 +15,10 @@ import {
   BookOpen,
   Heart,
   FileText,
-  Table
+  Table,
+  Hash
 } from 'lucide-react';
-import { getLanguage, getFontClass, getTextDirection } from '../../../Utilities/languageUtils';
+import { getLanguage, getFontClass } from '../../../Utilities/languageUtils';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -48,6 +49,7 @@ const formatDateForAPI = (date) => date ? date.toISOString().split('T')[0] : nul
 // Field icon mapping
 const FIELD_ICONS = {
   name: User,
+  person_id: Hash,
   role: Briefcase,
   department: Users,
   rank: Award,
@@ -137,6 +139,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
   const isRTL = i18n.language === 'he';
   const [formData, setFormData] = useState({
     name: node.name || '',
+    person_id: node.person_id || '',
     role: node.role || '',
     department: node.department || '',
     rank: node.rank || '',
@@ -326,7 +329,23 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
               value={formData.name || ''}
               onChange={handleInputChange}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.name))}`}
-              dir={getTextDirection(getLanguage(formData.name))}
+              dir={isRTL ? 'rtl' : 'ltr'}
+            />
+          </div>
+
+          {/* Person ID field */}
+          <div className="bg-white rounded-md p-3 border border-gray-200 hover:border-gray-300">
+            <label htmlFor="person_id" className="block text-xs font-medium text-gray-500 mb-1">
+              {t('updatePersonalInfo.personId')}
+            </label>
+            <input
+              type="text"
+              id="person_id"
+              name="person_id"
+              value={formData.person_id || ''}
+              onChange={handleInputChange}
+              className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.person_id))}`}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
           </div>
 
@@ -357,7 +376,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
               onChange={handleInputChange}
               rows={4}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.personal_information))}`}
-              dir={getTextDirection(getLanguage(formData.personal_information))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             ></textarea>
           </div>
         </div>
@@ -386,7 +405,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
               value={formData.role || ''}
               onChange={handleInputChange}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role))}`}
-              dir={getTextDirection(getLanguage(formData.role))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
           </div>
 
@@ -402,7 +421,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
               value={formData.department || ''}
               onChange={handleInputChange}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.department))}`}
-              dir={getTextDirection(getLanguage(formData.department))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
           </div>
 
@@ -418,7 +437,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
               value={formData.rank || ''}
               onChange={handleInputChange}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.rank))}`}
-              dir={getTextDirection(getLanguage(formData.rank))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
           </div>
 
@@ -434,7 +453,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
               value={formData.organization_id || ''}
               onChange={handleInputChange}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_id))}`}
-              dir={getTextDirection(getLanguage(formData.organization_id))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
           </div>
 
@@ -450,7 +469,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
               onChange={handleInputChange}
               rows={4}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role_information))}`}
-              dir={getTextDirection(getLanguage(formData.role_information))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             ></textarea>
           </div>
         </div>
@@ -542,7 +561,7 @@ const UpdatePersonalInfoSection = ({ node, onBack, folderId, onUpdateComplete })
   // Render changes tab content for review
   const renderChangesContent = () => {
     const fieldsToCompare = [
-      'name', 'role', 'department', 'rank', 'birth_date', 
+      'name', 'person_id', 'role', 'department', 'rank', 'birth_date',
       'organization_id', 'personal_information', 'role_information', 'is_dead'
     ];
     

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, ArrowRight, User, Edit, ArrowLeft, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
+import { getLanguage, getFontClass } from '../../Utilities/languageUtils';
 import CVTimelineSection from './card/CVTimelineSection';
 import UpdatePersonalInfoSection from './card/UpdatePersonalInfoSection.js';
 import NodeInformation from './card/NodeInformation.js';
@@ -95,7 +95,7 @@ const EnhancedNodeCard = ({
                     <div className="text-sm text-gray-500 mb-1">{t('nodeCard.role')}</div>
                     <div
                       className={`text-gray-800 font-medium ${getFontClass(roleLanguage)}`}
-                      dir={getTextDirection(roleLanguage)}
+                      dir={isRTL ? 'rtl' : 'ltr'}
                     >
                       {node?.role || t('nodeCard.notSpecified')}
                     </div>
@@ -106,7 +106,7 @@ const EnhancedNodeCard = ({
                     <div className="text-sm text-gray-500 mb-1">{t('nodeCard.department')}</div>
                     <div
                       className={`text-gray-800 ${getFontClass(departmentLanguage)}`}
-                      dir={getTextDirection(departmentLanguage)}
+                      dir={isRTL ? 'rtl' : 'ltr'}
                     >
                       {node?.department || t('nodeCard.notSpecified')}
                     </div>

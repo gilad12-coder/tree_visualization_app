@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, User, BookOpen, Briefcase, Heart, Calendar, BadgeInfo, Award, Building } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getLanguage, getFontClass, getTextDirection } from '../../../Utilities/languageUtils';
+import { getLanguage, getFontClass } from '../../../Utilities/languageUtils';
 import DOMPurify from 'dompurify';
 import '../../../styles/fonts.css';
 import '../../../styles/scrollbar.css';
@@ -300,7 +300,7 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
                 </h3>
                 <div
                   className={`${getFontClass(roleInfoLanguage)} overflow-y-auto max-h-60 rounded-md bg-white p-3 border border-gray-100 custom-scrollbar`}
-                  dir={getTextDirection(roleInfoLanguage)}
+                  dir={isRTL ? 'rtl' : 'ltr'}
                   ref={contentRef}
                 >
                   <div
@@ -332,7 +332,7 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
                 </h3>
                 <div
                   className={`${getFontClass(personalInfoLanguage)} overflow-y-auto max-h-60 rounded-md bg-white p-3 border border-gray-100 custom-scrollbar`}
-                  dir={getTextDirection(personalInfoLanguage)}
+                  dir={isRTL ? 'rtl' : 'ltr'}
                 >
                   <div
                     dangerouslySetInnerHTML={{ __html: formattedPersonalInfo }}

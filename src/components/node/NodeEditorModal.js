@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, Save, User, Briefcase, Heart } from 'react-feather';
 import { useTranslation } from 'react-i18next';
-import { getLanguage, getFontClass, getTextDirection } from '../../Utilities/languageUtils';
+import { getLanguage, getFontClass } from '../../Utilities/languageUtils';
 import '../../styles/radio.css';
 import '../../styles/scrollbar.css';
 
@@ -23,7 +23,8 @@ const NodeEditorModal = ({
   mode = 'add',
   parentNode = null
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
 
   const [formData, setFormData] = useState({
     name: '',
@@ -102,7 +103,7 @@ const NodeEditorModal = ({
     }
   };
 
-  if (!isOpen) return null;
+  // No early return - let AnimatePresence from parent handle exit animations
 
   const tabs = [
     {
@@ -144,7 +145,7 @@ const NodeEditorModal = ({
               onChange={handleInputChange}
               autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.name || ''))}`}
-              dir={getTextDirection(getLanguage(formData.name || ''))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
             {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
           </div>
@@ -194,7 +195,7 @@ const NodeEditorModal = ({
               autoComplete="off"
               rows={4}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.personal_information || ''))}`}
-              dir={getTextDirection(getLanguage(formData.personal_information || ''))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             ></textarea>
           </div>
         </div>
@@ -224,7 +225,7 @@ const NodeEditorModal = ({
               onChange={handleInputChange}
               autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role || ''))}`}
-              dir={getTextDirection(getLanguage(formData.role || ''))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
             {errors.role && <p className="text-xs text-red-600 mt-1">{errors.role}</p>}
           </div>
@@ -242,7 +243,7 @@ const NodeEditorModal = ({
               onChange={handleInputChange}
               autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.department || ''))}`}
-              dir={getTextDirection(getLanguage(formData.department || ''))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
           </div>
 
@@ -259,7 +260,7 @@ const NodeEditorModal = ({
               onChange={handleInputChange}
               autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.rank || ''))}`}
-              dir={getTextDirection(getLanguage(formData.rank || ''))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
           </div>
 
@@ -276,7 +277,7 @@ const NodeEditorModal = ({
               onChange={handleInputChange}
               autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_id || ''))}`}
-              dir={getTextDirection(getLanguage(formData.organization_id || ''))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
           </div>
 
@@ -293,7 +294,7 @@ const NodeEditorModal = ({
               onChange={handleInputChange}
               autoComplete="off"
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.organization_name || ''))}`}
-              dir={getTextDirection(getLanguage(formData.organization_name || ''))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             />
           </div>
 
@@ -310,7 +311,7 @@ const NodeEditorModal = ({
               autoComplete="off"
               rows={4}
               className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${getFontClass(getLanguage(formData.role_information || ''))}`}
-              dir={getTextDirection(getLanguage(formData.role_information || ''))}
+              dir={isRTL ? 'rtl' : 'ltr'}
             ></textarea>
           </div>
         </div>
@@ -380,21 +381,22 @@ const NodeEditorModal = ({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
-          onClick={(e) => e.target === e.currentTarget && onClose()}
-        >
-          <motion.div
-            className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden flex flex-col"
-            style={{ maxHeight: "90vh" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2, delay: 0.05 }}
+        className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden flex flex-col"
+        style={{ maxHeight: "90vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
             {/* Header - Close Button */}
             <div className="flex justify-end items-center p-4 border-b border-gray-100">
               <button
@@ -465,10 +467,8 @@ const NodeEditorModal = ({
                 </button>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      </motion.div>
+    </motion.div>
   );
 };
 
