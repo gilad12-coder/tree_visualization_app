@@ -213,6 +213,11 @@
   text-align: right;
 }
 
+/* Label text alignment for RTL */
+[dir="rtl"] label {
+  text-align: right;
+}
+
 /* Specific spacing utilities - space-x should work in RTL */
 [dir="rtl"] .space-x-1 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-x-reverse: 0;

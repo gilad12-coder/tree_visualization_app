@@ -666,7 +666,7 @@ const ColorModal = ({
                           <div className="flex-1 relative">
                             <input
                               type="text"
-                              dir="auto"
+                              dir={isRTL ? 'rtl' : 'ltr'}
                               value={label}
                               onChange={(e) => setLabel(e.target.value)}
                               placeholder={t('colorModal.labelPlaceholder', 'Enter a label for this color...')}

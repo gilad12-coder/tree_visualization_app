@@ -7,40 +7,9 @@ import io
 import logging
 from datetime import datetime
 from sqlalchemy import func
-from datetime import datetime
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-def check_continuation(folder_id, file_content, file_extension):
-    session = get_session()
-    try:
-        # Get the most recent table for the folder
-        previous_table = session.query(Table).filter_by(folder_id=folder_id).order_by(Table.upload_date.desc()).first()
-
-        # If there's no previous table, it's a valid continuation (initial upload)
-        if not previous_table:
-            return True
-
-        # Get the data from the previous table
-        previous_data = session.query(DataEntry).filter_by(table_id=previous_table.id).all()
-        previous_df = pd.DataFrame([entry.__dict__ for entry in previous_data])
-        previous_df = previous_df.drop('_sa_instance_state', axis=1, errors='ignore')
-
-        # Parse the new file
-        if file_extension == 'csv':
-            new_df = pd.read_csv(io.BytesIO(file_content))
-        else:  # xlsx
-            new_df = pd.read_excel(io.BytesIO(file_content))
-
-        # Check if the new data is a valid continuation of the previous one
-        return is_valid_continuation(new_df, previous_df)
-
-    except Exception as e:
-        logger.error(f"Error in continuation check: {str(e)}")
-        return False
-    finally:
-        session.close()
 
 def parse_org_data(df):
     df = df.sort_values('hierarchical_structure')
@@ -455,7 +424,6 @@ def export_excel_data(session, table_id):
             "Birth Date": entry.birth_date,
             "Rank": entry.rank,
             "Organization ID": entry.organization_id,
-            "Hierarchical Structure": entry.hierarchical_structure,
             "Hierarchical Structure": entry.hierarchical_structure,
             "Personal Information": entry.personal_information,
             "Role Information": entry.role_information,
