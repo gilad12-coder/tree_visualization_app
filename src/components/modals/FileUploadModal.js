@@ -169,7 +169,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
 
   const handleDownloadGuide = () => {
     const link = document.createElement("a");
-    link.href = process.env.PUBLIC_URL + "מדריך מפורט להעלאת נתונים.pdf";
+    link.href = "/מדריך מפורט להעלאת נתונים.pdf";
     link.download = "be-net_file_upload_guide.pdf";
     document.body.appendChild(link);
     link.click();
