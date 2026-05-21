@@ -55,100 +55,27 @@ For detailed information about the internationalization setup, see [LANGUAGE_SET
 
 ### Development Setup
 
-#### Step 1: Clone the Repository
-
-**Windows (Command Prompt or PowerShell):**
-```cmd
-git clone https://github.com/gilad12-coder/tree_visualization_app.git
+```bash
+git clone https://github.com/hexdrift/tree_visualization_app.git
 cd tree_visualization_app
-```
 
-**macOS/Linux:**
-```bash
-git clone https://github.com/gilad12-coder/tree_visualization_app.git
-cd tree_visualization_app
-```
-
-#### Step 2: Install Backend Dependencies
-
-**Windows:**
-```cmd
 pip install -r requirements.txt
-```
-
-**macOS/Linux:**
-```bash
-pip install -r requirements.txt
-# or
-pip3 install -r requirements.txt
-```
-
-#### Step 3: Install Frontend Dependencies
-
-**Windows:**
-```cmd
 npm install
-```
-
-**macOS/Linux:**
-```bash
-npm install
-```
-
-#### Step 4: Build the Frontend
-
-**Windows:**
-```cmd
 npm run build
-```
-
-**macOS/Linux:**
-```bash
-npm run build
-```
-
-#### Step 5: Start the Development Server
-
-**Windows:**
-```cmd
 python main.py
 ```
 
-**macOS/Linux:**
-```bash
-python main.py
-# or
-python3 main.py
+The app opens automatically at **http://localhost:5001**. If it doesn't, navigate there manually.
+
+> Make sure port 5001 isn't already in use. On Windows, use `python` / `pip`; on macOS/Linux you may need `python3` / `pip3`.
+
+### Automated Build (Windows)
+
+```cmd
+build.bat
 ```
 
-#### Step 6: Access the Application
-
-The application will automatically open in your default web browser. If it doesn't, manually navigate to:
-
-**http://localhost:5001**
-
-> **Note:** The application runs on port 5001. Make sure this port is not in use by another application.
-
-### Quick Start for Windows Users (After Git Clone)
-
-If you've just cloned the repository on Windows and want to get started quickly:
-
-1. **Open Command Prompt or PowerShell** in the project directory
-2. **Run the automated build script:**
-   ```cmd
-   build.bat
-   ```
-   This will install all dependencies and build the executable automatically.
-
-3. **Or run in development mode:**
-   ```cmd
-   pip install -r requirements.txt
-   npm install
-   npm run build
-   python main.py
-   ```
-
-4. **Access the app** at `http://localhost:5001`
+Installs dependencies and builds the standalone executable in one step.
 
 ### Running as a Standalone Application
 
@@ -487,6 +414,6 @@ See [LANGUAGE_SETUP.md](LANGUAGE_SETUP.md) for detailed instructions.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+Released under the MIT License.
 
 </div>
