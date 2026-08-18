@@ -1,0 +1,77 @@
+name: Build Windows executable
+
+# Mirrors build.bat on a Windows runner so the .exe can be produced without a
+# local Windows machine. The artifact is attached to the run; releases are cut
+# manually from it.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "main.py"
+      - "app.spec"
+      - "pyi_rth_backend.py"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.mjs"
+      - "requirements.txt"
+      - ".github/workflows/build-windows.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build React frontend
+        run: npm run build
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build executable
+        run: pyinstaller app.spec
+
+      - name: Smoke-check the executable
+        shell: pwsh
+        run: |
+          $exe = "dist\TreeVisualizationApp.exe"
+          if (-not (Test-Path $exe)) { throw "exe not produced" }
+          $size = (Get-Item $exe).Length
+          Write-Host "exe size: $size bytes"
+          if ($size -lt 20MB) { throw "exe suspiciously small" }
+          $proc = Start-Process -FilePath $exe -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5001/ -TimeoutSec 5
+              if ($r.StatusCode -eq 200 -and $r.Content -match "<div id=""root""") { $ok = $true; break }
+            } catch {}
+          }
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          Get-Process -Name TreeVisualizationApp -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $ok) { throw "exe started but never served the app on :5001" }
+          Write-Host "exe served the app on :5001"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TreeVisualizationApp-windows
+          path: dist/TreeVisualizationApp.exe
+          if-no-files-found: error
