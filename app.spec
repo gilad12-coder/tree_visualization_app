@@ -26,13 +26,16 @@ if not os.path.exists(build_dir):
     print("="*80 + "\n")
     sys.exit(1)
 
-# Verify critical React files exist
-required_files = ['index.html', 'static']
-for file in required_files:
-    if not os.path.exists(os.path.join(build_dir, file)):
-        print(f"ERROR: Required file/folder '{file}' not found in build/")
-        print("Please run 'npm run build' to create the React build.")
-        sys.exit(1)
+# Verify critical React files exist. Vite emits bundles under assets/;
+# the pre-migration CRA build used static/. Accept either.
+if not os.path.exists(os.path.join(build_dir, 'index.html')):
+    print("ERROR: Required file 'index.html' not found in build/")
+    print("Please run 'npm run build' to create the React build.")
+    sys.exit(1)
+if not any(os.path.isdir(os.path.join(build_dir, d)) for d in ('assets', 'static')):
+    print("ERROR: Neither 'assets/' nor 'static/' found in build/")
+    print("Please run 'npm run build' to create the React build.")
+    sys.exit(1)
 
 print(f"[OK] Found React build directory: {build_dir}")
 print(f"[OK] Entry point: main.py")
