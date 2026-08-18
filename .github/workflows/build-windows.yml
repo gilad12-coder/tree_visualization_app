@@ -65,10 +65,49 @@ jobs:
               if ($r.StatusCode -eq 200 -and $r.Content -match "<div id=""root""") { $ok = $true; break }
             } catch {}
           }
+          $err = $null
+          if ($ok) {
+            # End-to-end: create DB -> create folder -> upload CSV -> read the org chart back,
+            # using the same requests the React upload dialog sends (folder_id, not folder_name).
+            try {
+              $base = "http://127.0.0.1:5001"
+              $work = Join-Path $env:RUNNER_TEMP "tva-smoke"
+              New-Item -ItemType Directory -Force -Path $work | Out-Null
+              $csv = Join-Path $work "org.csv"
+              @(
+                "person_id,name,role,hierarchical_structure,department,birth_date,rank,organization_id,organization_name",
+                "1,Dana Levi,CEO,/CEO,Management,1975-03-02,10,ORG1,Be-net",
+                "2,Yossi Cohen,CTO,/CEO/CTO,Tech,1980-07-14,9,ORG1,Be-net",
+                "3,Omer Bar,Dev Lead,/CEO/CTO/Dev Lead,Tech,1990-01-20,7,ORG1,Be-net"
+              ) | Set-Content -Path $csv -Encoding utf8
+              $db = Invoke-RestMethod -Method Post -Uri "$base/create_new_db" -ContentType "application/json" `
+                -Body (@{ db_path = $work; db_name = "orgchart.db" } | ConvertTo-Json)
+              $dbPath = $db.db_path
+              Write-Host "created db: $dbPath"
+              $folder = Invoke-RestMethod -Method Post -Uri "$base/folder?db_path=$([uri]::EscapeDataString($dbPath))" `
+                -ContentType "application/json" -Body (@{ name = "test" } | ConvertTo-Json)
+              Write-Host "created folder id: $($folder.folder_id)"
+              $up = Invoke-RestMethod -Method Post -Uri "$base/upload" -Form @{
+                file = Get-Item $csv
+                folder_id = "$($folder.folder_id)"
+                is_new_folder = "false"
+                table_name = "smoke"
+                upload_date = "2026-01-01"
+                db_path = $dbPath
+              }
+              Write-Host "upload -> table_id $($up.table_id) folder_id $($up.folder_id)"
+              if (-not $up.table_id) { throw "upload response has no table_id: $($up | ConvertTo-Json -Compress)" }
+              $org = Invoke-RestMethod -Method Get -Uri "$base/org_data?table_id=$($up.table_id)"
+              $json = $org | ConvertTo-Json -Depth 20 -Compress
+              if ($json -notmatch "Dana Levi" -or $json -notmatch "Omer Bar") { throw "org_data missing uploaded people: $json" }
+              Write-Host "org_data returned the uploaded chart"
+            } catch { $err = $_ }
+          }
           Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
           Get-Process -Name TreeVisualizationApp -ErrorAction SilentlyContinue | Stop-Process -Force
           if (-not $ok) { throw "exe started but never served the app on :5001" }
-          Write-Host "exe served the app on :5001"
+          if ($err) { throw "end-to-end upload through the exe failed: $err" }
+          Write-Host "exe served the app on :5001 and completed an upload end-to-end"
 
       - uses: actions/upload-artifact@v4
         with:
