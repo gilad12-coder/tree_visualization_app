@@ -318,19 +318,33 @@ def create_new_db_route() -> Any:
     }), 200
 
 @app.route("/upload", methods=["POST"])
-@validate_input(folder_name=str, upload_date=datetime)
-def upload_file(folder_name: str, upload_date: datetime) -> Any:
+@validate_input(upload_date=datetime)
+def upload_file(upload_date: datetime) -> Any:
     """
     Upload a file and process its contents.
 
+    The target folder is identified by ``folder_id`` (what the upload modal
+    sends) or, for older clients, by ``folder_name`` (created if missing).
+    An optional ``table_name`` overrides the uploaded file's name.
+
     Parameters:
-        folder_name (str): The name of the folder to upload the file to.
         upload_date (datetime): The date the file is being uploaded.
 
     Returns:
         JSON response with the status of the upload.
     """
-    logger.info(f"Starting upload process for folder: {folder_name}")
+    folder_id = request.form.get("folder_id")
+    folder_name = request.form.get("folder_name")
+    table_name = (request.form.get("table_name") or "").strip()
+    if not folder_id and not folder_name:
+        return jsonify({"error": "folder_id or folder_name is required"}), 400
+    if folder_id:
+        try:
+            folder_id = int(folder_id)
+        except ValueError:
+            return jsonify({"error": "Invalid folder_id"}), 400
+
+    logger.info(f"Starting upload process for folder: id={folder_id} name={folder_name}")
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
     file = request.files["file"]
@@ -346,21 +360,27 @@ def upload_file(folder_name: str, upload_date: datetime) -> Any:
     new_folder_id = None
     with session_scope() as session:
         try:
-            logger.info(f"Checking for existing folder: {folder_name}")
-            folder = session.query(Folder).filter_by(name=folder_name).first()
-            if not folder:
-                logger.info(f"Folder {folder_name} not found. Creating new folder.")
-                folder = Folder(name=folder_name)
-                session.add(folder)
-                session.flush()  # Flush to get the folder ID
-                new_folder_created = True
-                new_folder_id = folder.id
+            if folder_id:
+                folder = session.query(Folder).get(folder_id)
+                if not folder:
+                    return jsonify({"error": f"Folder with id {folder_id} not found"}), 404
+            else:
+                logger.info(f"Checking for existing folder: {folder_name}")
+                folder = session.query(Folder).filter_by(name=folder_name).first()
+                if not folder:
+                    logger.info(f"Folder {folder_name} not found. Creating new folder.")
+                    folder = Folder(name=folder_name)
+                    session.add(folder)
+                    session.flush()  # Flush to get the folder ID
+                    new_folder_created = True
+                    new_folder_id = folder.id
+            folder_name = folder.name
             logger.info(f"Using folder: {folder.name} (ID: {folder.id}), new folder created: {new_folder_created}")
 
             file_content = file.read()
             logger.info(f"File content read, size: {len(file_content)} bytes")
 
-            table = Table(name=file.filename, folder_id=folder.id, upload_date=upload_date)
+            table = Table(name=table_name or file.filename, folder_id=folder.id, upload_date=upload_date)
             session.add(table)
             session.flush()  # Flush to get the table ID
             logger.info(f"Table created: {table.name} (ID: {table.id})")
