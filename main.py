@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Tree Visualization App - Main Entry Point
+be-net - Main Entry Point
 
-This script serves as the main entry point for the Tree Visualization application.
+This script serves as the main entry point for be-net.
 It initializes the Flask server and opens a browser window for the user.
 When the browser closes, the application will automatically exit.
 """
@@ -129,7 +129,7 @@ def monitor_browser() -> None:
 
 def main() -> None:
     """
-    Main entry point for the Tree Visualization application.
+    Main entry point for be-net.
     
     Initializes and starts the Flask server, opens the default web browser,
     and sets up monitoring to automatically exit when the browser closes.

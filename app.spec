@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for Tree Visualization App
+PyInstaller spec file for be-net
 This builds a standalone executable with embedded React frontend
 """
 
@@ -186,7 +186,7 @@ is_macos = sys.platform == 'darwin'
 icon_path = None
 if is_windows:
     # Windows uses .ico files
-    ico_path = os.path.join(project_root, 'public', 'Be-net_icon.ico')
+    ico_path = os.path.join(project_root, 'public', 'be-net-icon.ico')
     if os.path.exists(ico_path):
         icon_path = ico_path
         print(f"[OK] Using Windows icon: {ico_path}")
@@ -194,7 +194,7 @@ if is_windows:
         print("WARNING: Windows icon not found, executable will use default icon")
 elif is_macos:
     # macOS uses .icns files
-    icns_path = os.path.join(project_root, 'TreeVisualizationApp.icns')
+    icns_path = os.path.join(project_root, 'be-net.icns')
     if os.path.exists(icns_path):
         icon_path = icns_path
         print(f"[OK] Using macOS icon: {icns_path}")
@@ -209,7 +209,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='TreeVisualizationApp',
+    name='be-net',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -232,18 +232,18 @@ if is_windows:
     print("Platform: Windows")
     print("Mode: Standalone .exe file")
     print("Run: pyinstaller app.spec")
-    print("Output will be: dist/TreeVisualizationApp.exe")
+    print("Output will be: dist/be-net.exe")
     print("You can run it directly or distribute the .exe file")
 elif is_macos:
     print("Platform: macOS")
     print("Mode: Standalone executable (run create_app_bundle.py to create .app bundle)")
     print("Run: pyinstaller app.spec")
     print("Then run: python3 create_app_bundle.py")
-    print("Output will be: dist/TreeVisualizationApp.app")
+    print("Output will be: dist/be-net.app")
     print("Users can drag this to Applications or pin to Dock")
 else:
     print(f"Platform: {sys.platform}")
     print("Mode: Standalone executable")
     print("Run: pyinstaller app.spec")
-    print("Output will be: dist/TreeVisualizationApp")
+    print("Output will be: dist/be-net")
 print("="*80 + "\n")

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Build script for Tree Visualization App
+# Build script for be-net
 # Creates standalone executable with all dependencies
 
 set -e  # Exit on error
 
 echo "=========================================="
-echo "Tree Visualization App - Build Script"
+echo "be-net - Build Script"
 echo "=========================================="
 echo ""
 
@@ -49,21 +49,21 @@ echo "=========================================="
 echo ""
 echo "Your executable is located at:"
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    echo "  dist/TreeVisualizationApp.app (macOS app bundle)"
+    echo "  dist/be-net.app (macOS app bundle)"
     echo ""
     echo "To run the application:"
-    echo "  open dist/TreeVisualizationApp.app"
+    echo "  open dist/be-net.app"
     echo "  Or double-click the .app file in Finder"
 elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    echo "  dist/TreeVisualizationApp.exe"
+    echo "  dist/be-net.exe"
     echo ""
     echo "To run the application:"
-    echo "  dist/TreeVisualizationApp.exe"
+    echo "  dist/be-net.exe"
     echo "  Or double-click the .exe file in Windows Explorer"
 else
-    echo "  dist/TreeVisualizationApp"
+    echo "  dist/be-net"
     echo ""
     echo "To run the application:"
-    echo "  ./dist/TreeVisualizationApp"
+    echo "  ./dist/be-net"
 fi
 echo ""

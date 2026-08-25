@@ -6,7 +6,7 @@ import { render, screen } from '@testing-library/react';
 // the component they exercise, not here.
 describe('test harness', () => {
   it('renders DOM nodes', () => {
-    render(<h1>Be-net</h1>);
-    expect(screen.getByText('Be-net')).toBeInTheDocument();
+    render(<h1>be-net</h1>);
+    expect(screen.getByText('be-net')).toBeInTheDocument();
   });
 });

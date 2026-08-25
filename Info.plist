@@ -5,17 +5,17 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Tree Visualization App</string>
+    <string>be-net</string>
     <key>CFBundleExecutable</key>
-    <string>TreeVisualizationApp</string>
+    <string>be-net</string>
     <key>CFBundleIconFile</key>
-    <string>TreeVisualizationApp</string>
+    <string>be-net</string>
     <key>CFBundleIdentifier</key>
-    <string>com.treevisualization.app</string>
+    <string>com.be-net.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>TreeVisualizationApp</string>
+    <string>be-net</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -31,10 +31,9 @@
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
     <key>NSHumanReadableCopyright</key>
-    <string>Copyright © 2024 Tree Visualization App. All rights reserved.</string>
+    <string>Copyright © 2024 be-net. All rights reserved.</string>
 </dict>
 </plist>
-
 
 
 
