@@ -284,6 +284,11 @@ def process_excel_data(file_content, file_extension):
     return df
 
 
+def parse_optional_date(value):
+    parsed_date = pd.to_datetime(value, errors='coerce')
+    return parsed_date.date() if pd.notna(parsed_date) else None
+
+
 def insert_data_entries(session, table_id, df):
     if table_id is None:
         raise ValueError("table_id cannot be None")
@@ -303,7 +308,10 @@ def insert_data_entries(session, table_id, df):
     for col in df.columns:
         df[col] = df[col].astype(str)
 
-    df['birth_date'] = pd.to_datetime(df['birth_date'], errors='coerce').dt.date
+    if 'birth_date' in df.columns:
+        df['birth_date'] = df['birth_date'].map(parse_optional_date)
+    else:
+        df['birth_date'] = None
 
     # Define a mapping of expected column names to DataEntry attribute names
     column_mapping = {

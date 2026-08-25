@@ -54,6 +54,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
       setTableName("");
       setUploadDate(null);
       setTreeName("");
+      setFolderName("");
 
       // Look up folder name from folder ID
       if (preselectedFolderId && folderStructure.length > 0) {
@@ -105,12 +106,16 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
 
   const handleTableNameChange = (event) => setTableName(event.target.value);
   const handleUploadDateChange = (date) => setUploadDate(date);
+  const selectedFolder = Array.isArray(folderStructure)
+    ? folderStructure.find(folder => folder.id === preselectedFolderId)
+    : null;
 
   const handleUpload = async () => {
-    if (selectedFile && preselectedFolderId && uploadDate) {
+    if (selectedFile && selectedFolder && uploadDate) {
       const formData = new FormData();
       formData.append("file", selectedFile);
-      formData.append("folder_id", preselectedFolderId);
+      formData.append("folder_id", selectedFolder.id);
+      formData.append("folder_name", selectedFolder.name);
       formData.append("is_new_folder", "false");
       if (tableName) {
         formData.append("table_name", tableName);
@@ -176,7 +181,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
     document.body.removeChild(link);
   };
 
-  const isUploadDisabled = !selectedFile || !uploadDate || !preselectedFolderId;
+  const isUploadDisabled = !selectedFile || !uploadDate || !selectedFolder;
   const isBuildDisabled = !treeName || !uploadDate || !folderName;
 
   // No early return or internal AnimatePresence - parent handles exit animations

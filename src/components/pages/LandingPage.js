@@ -100,16 +100,22 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
     }
   }, []);
 
-  const fetchDbInfo = useCallback(async () => {
-    if (!dbPath) return;
+  const fetchDbInfo = useCallback(async (path) => {
+    if (!path) return;
 
     try {
       setIsLoading(true);
+      setDbInfo(null);
+      setFolderStructure([]);
+      setSelectedFolderForUpload(null);
+      setIsUploadModalOpen(false);
+      setIsTableSelectionOpen(false);
       const response = await axios.post(`${API_BASE_URL}/check_existing_db`, {
-        db_path: dbPath,
+        db_path: path,
       });
       console.log("Database check response:", response.data);
       if (response.data.exists) {
+        setDbPath(response.data.path);
         setDbInfo({
           path: response.data.path,
           exists: true,
@@ -134,26 +140,20 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [dbPath, fetchFolderStructure]);
+  }, [fetchFolderStructure]);
 
   useEffect(() => {
-    fetchDbInfo();
-  }, [fetchDbInfo]);
+    if (currentDbPath) {
+      fetchDbInfo(currentDbPath);
+    }
+  }, [currentDbPath, fetchDbInfo]);
 
   const handleUseExistingDB = async (existingDbPath) => {
     try {
-      setIsLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/check_existing_db`, {
-        db_path: existingDbPath,
-      });
-      console.log("Use existing DB response:", response.data);
-      setDbPath(response.data.path);
-      await fetchDbInfo();
+      await fetchDbInfo(existingDbPath);
     } catch (error) {
       console.error("Error checking existing DB:", error);
       alert("Error checking existing DB. Please try again.");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -167,8 +167,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
       if (response.data.error) {
         alert(response.data.error);
       } else {
-        setDbPath(response.data.db_path);
-        setStep("upload");
+        await fetchDbInfo(response.data.db_path);
       }
     } catch (error) {
       console.error("Error creating new DB:", error);
@@ -181,7 +180,7 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
   const handleUploadFile = async (uploadedData) => {
     try {
       console.log("File uploaded:", uploadedData);
-      await fetchDbInfo();
+      await fetchDbInfo(dbPath);
       onDatabaseReady(dbPath, uploadedData.table_id, uploadedData.folder_id);
     } catch (error) {
       console.error("Error after file upload:", error);
@@ -199,8 +198,9 @@ const LandingPage = ({ onDatabaseReady, currentDbPath }) => {
     }
   };
 
-  const handleOpenTableSelection = () => {
+  const handleOpenTableSelection = async () => {
     console.log("Opening table selection modal with folder structure:", folderStructure);
+    await fetchFolderStructure(dbPath);
     setTableSelectionMode('view');
     setIsTableSelectionOpen(true);
   };
