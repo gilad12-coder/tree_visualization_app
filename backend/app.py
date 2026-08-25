@@ -23,6 +23,7 @@ try:
         Table,
         DataEntry,
         get_session,
+        get_db_path,
         dispose_db,
         create_new_db,
         init_db,
@@ -46,6 +47,7 @@ except ModuleNotFoundError:
         Table,
         DataEntry,
         get_session,
+        get_db_path,
         dispose_db,
         create_new_db,
         init_db,
@@ -206,6 +208,25 @@ def check_if_db_has_data() -> bool:
                 return True
     return False
 
+
+def activate_database_path(database_path: Optional[str]) -> Optional[Tuple[Any, int]]:
+    """Activate the database explicitly supplied by a request."""
+    if not database_path:
+        return None
+    if not os.path.exists(database_path):
+        return jsonify({"error": "Database file does not exist"}), 404
+    if not is_valid_sqlite_db(database_path):
+        return jsonify({"error": "Invalid SQLite database file"}), 400
+    current_database_path = get_db_path()
+    if current_database_path and os.path.abspath(current_database_path) == os.path.abspath(database_path):
+        return None
+
+    dispose_db()
+    set_db_path(database_path)
+    init_db()
+    return None
+
+
 @app.route("/open_file_explorer", methods=["GET"])
 def open_file_explorer() -> Any:
     """
@@ -333,6 +354,10 @@ def upload_file(upload_date: datetime) -> Any:
     Returns:
         JSON response with the status of the upload.
     """
+    database_error = activate_database_path(request.form.get("db_path"))
+    if database_error:
+        return database_error
+
     folder_id = request.form.get("folder_id")
     folder_name = request.form.get("folder_name")
     table_name = (request.form.get("table_name") or "").strip()
@@ -361,7 +386,7 @@ def upload_file(upload_date: datetime) -> Any:
     with session_scope() as session:
         try:
             if folder_id:
-                folder = session.query(Folder).get(folder_id)
+                folder = session.get(Folder, folder_id)
                 if not folder:
                     return jsonify({"error": f"Folder with id {folder_id} not found"}), 404
             else:
@@ -425,6 +450,10 @@ def fetch_folder_structure() -> Any:
     Returns:
         JSON response with the folder structure.
     """
+    database_error = activate_database_path(request.args.get("db_path"))
+    if database_error:
+        return database_error
+
     with session_scope() as session:
         folders = session.query(Folder).all()
         folder_structure = []

@@ -45,6 +45,9 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Run upload regression tests
+        run: python -m unittest tests.test_upload_workflow
+
       - name: Build executable
         run: pyinstaller app.spec
 
