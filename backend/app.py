@@ -2380,7 +2380,7 @@ def backend_status():
     """Simple backend status endpoint"""
     return {
         "status": "running",
-        "message": "TreeVisualizationApp Backend is running",
+        "message": "be-net backend is running",
         "version": "1.0.0",
         "endpoints": {
             "status": "/",

@@ -51,7 +51,7 @@ jobs:
       - name: Smoke-check the executable
         shell: pwsh
         run: |
-          $exe = "dist\TreeVisualizationApp.exe"
+          $exe = "dist\be-net.exe"
           if (-not (Test-Path $exe)) { throw "exe not produced" }
           $size = (Get-Item $exe).Length
           Write-Host "exe size: $size bytes"
@@ -71,14 +71,14 @@ jobs:
             # using the same requests the React upload dialog sends (folder_id, not folder_name).
             try {
               $base = "http://127.0.0.1:5001"
-              $work = Join-Path $env:RUNNER_TEMP "tva-smoke"
+              $work = Join-Path $env:RUNNER_TEMP "be-net-smoke"
               New-Item -ItemType Directory -Force -Path $work | Out-Null
               $csv = Join-Path $work "org.csv"
               @(
                 "person_id,name,role,hierarchical_structure,department,birth_date,rank,organization_id,organization_name",
-                "1,Dana Levi,CEO,/CEO,Management,1975-03-02,10,ORG1,Be-net",
-                "2,Yossi Cohen,CTO,/CEO/CTO,Tech,1980-07-14,9,ORG1,Be-net",
-                "3,Omer Bar,Dev Lead,/CEO/CTO/Dev Lead,Tech,1990-01-20,7,ORG1,Be-net"
+                "1,Dana Levi,CEO,/CEO,Management,1975-03-02,10,ORG1,be-net",
+                "2,Yossi Cohen,CTO,/CEO/CTO,Tech,1980-07-14,9,ORG1,be-net",
+                "3,Omer Bar,Dev Lead,/CEO/CTO/Dev Lead,Tech,1990-01-20,7,ORG1,be-net"
               ) | Set-Content -Path $csv -Encoding utf8
               $db = Invoke-RestMethod -Method Post -Uri "$base/create_new_db" -ContentType "application/json" `
                 -Body (@{ db_path = $work; db_name = "orgchart.db" } | ConvertTo-Json)
@@ -104,13 +104,13 @@ jobs:
             } catch { $err = $_ }
           }
           Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-          Get-Process -Name TreeVisualizationApp -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process -Name be-net -ErrorAction SilentlyContinue | Stop-Process -Force
           if (-not $ok) { throw "exe started but never served the app on :5001" }
           if ($err) { throw "end-to-end upload through the exe failed: $err" }
           Write-Host "exe served the app on :5001 and completed an upload end-to-end"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: TreeVisualizationApp-windows
-          path: dist/TreeVisualizationApp.exe
+          name: be-net-windows
+          path: dist/be-net.exe
           if-no-files-found: error

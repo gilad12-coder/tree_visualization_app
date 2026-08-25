@@ -1,8 +1,8 @@
-# OrgChart Visualizer
+# be-net
 
 <div align="center">
 
-![OrgChart Visualizer Logo](public/Be-net_icon.ico)
+![be-net logo](public/be-net-icon.ico)
 
 **Transform your organizational data into interactive, insightful visualizations**
 
@@ -15,7 +15,7 @@
 
 ## 📋 Overview
 
-OrgChart Visualizer is a powerful full-stack application designed to help organizations of all sizes visualize, analyze, and manage their organizational structures. With an intuitive interface and powerful features, it transforms complex hierarchical data into clear, interactive visualizations that provide valuable insights into your organization.
+be-net is a powerful full-stack application designed to help organizations of all sizes visualize, analyze, and manage their organizational structures. With an intuitive interface and powerful features, it transforms complex hierarchical data into clear, interactive visualizations that provide valuable insights into your organization.
 
 ## ✨ Key Features
 
@@ -56,8 +56,8 @@ For detailed information about the internationalization setup, see [LANGUAGE_SET
 ### Development Setup
 
 ```bash
-git clone https://github.com/hexdrift/tree_visualization_app.git
-cd tree_visualization_app
+git clone https://github.com/hexdrift/be-net.git
+cd be-net
 
 pip install -r requirements.txt
 npm install
@@ -83,8 +83,8 @@ For end users, the application can be run as a standalone executable:
 
 1. Download the latest release from the releases page
 2. Extract the zip file to a location of your choice
-3. **Windows:** Double-click `TreeVisualizationApp.exe`
-4. **macOS:** Double-click `TreeVisualizationApp.app` (or drag to Applications folder)
+3. **Windows:** Double-click `be-net.exe`
+4. **macOS:** Double-click `be-net.app` (or drag to Applications folder)
 
 ## 🛠️ Building Standalone Executables
 
@@ -173,29 +173,29 @@ If you prefer to build manually:
 
    **Windows:**
    ```
-   dist\TreeVisualizationApp.exe
+   dist\be-net.exe
    ```
    Double-click the `.exe` file to run, or run from command line:
    ```cmd
-   dist\TreeVisualizationApp.exe
+   dist\be-net.exe
    ```
 
    **macOS:**
    ```
-   dist/TreeVisualizationApp.app
+   dist/be-net.app
    ```
    Double-click the `.app` bundle to run, or use:
    ```bash
-   open dist/TreeVisualizationApp.app
+   open dist/be-net.app
    ```
 
    **Linux:**
    ```
-   dist/TreeVisualizationApp
+   dist/be-net
    ```
    Run with:
    ```bash
-   ./dist/TreeVisualizationApp
+   ./dist/be-net
    ```
 
 ### What's Included
@@ -212,31 +212,31 @@ The standalone executable includes:
 ### Distribution
 
 **Windows:**
-- Distribute the single `TreeVisualizationApp.exe` file
+- Distribute the single `be-net.exe` file
 - Users can run it directly - no installation needed
 - File size: ~150-200 MB
 
 **macOS:**
-- Distribute the `TreeVisualizationApp.app` bundle
+- Distribute the `be-net.app` bundle
 - Users can drag it to Applications folder
 - File size: ~100-150 MB
 
 **Windows (PowerShell):**
 ```powershell
 cd dist
-Compress-Archive -Path TreeVisualizationApp.exe -DestinationPath TreeVisualizationApp-v1.0-windows.zip
+Compress-Archive -Path be-net.exe -DestinationPath be-net-v1.0-windows.zip
 ```
 
 **Windows (Command Prompt with 7-Zip or WinRAR):**
 ```cmd
 cd dist
-"C:\Program Files\7-Zip\7z.exe" a TreeVisualizationApp-v1.0-windows.zip TreeVisualizationApp.exe
+"C:\Program Files\7-Zip\7z.exe" a be-net-v1.0-windows.zip be-net.exe
 ```
 
 **macOS/Linux:**
 ```bash
 cd dist
-zip -r TreeVisualizationApp-v1.0-macos.zip TreeVisualizationApp.app
+zip -r be-net-v1.0-macos.zip be-net.app
 ```
 
 **Note**: The executable is self-contained with all dependencies included. No Python or Node.js installation required on the target machine.
@@ -393,7 +393,7 @@ Seamlessly switch between languages:
 
 ## 🤝 Contributing
 
-We welcome contributions to OrgChart Visualizer! Please feel free to submit issues, feature requests, or pull requests.
+We welcome contributions to be-net! Please feel free to submit issues, feature requests, or pull requests.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)

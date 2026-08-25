@@ -12,8 +12,8 @@ def create_app_bundle():
     """Create macOS .app bundle from the built executable."""
     project_root = os.path.abspath('.')
     dist_dir = os.path.join(project_root, 'dist')
-    exe_path = os.path.join(dist_dir, 'TreeVisualizationApp')
-    app_bundle_path = os.path.join(dist_dir, 'TreeVisualizationApp.app')
+    exe_path = os.path.join(dist_dir, 'be-net')
+    app_bundle_path = os.path.join(dist_dir, 'be-net.app')
     
     if not os.path.exists(exe_path):
         print(f"ERROR: Executable not found at {exe_path}")
@@ -29,12 +29,12 @@ def create_app_bundle():
     os.makedirs(os.path.join(app_bundle_path, 'Contents', 'MacOS'), exist_ok=True)
     os.makedirs(os.path.join(app_bundle_path, 'Contents', 'Resources'), exist_ok=True)
     
-    shutil.copy2(exe_path, os.path.join(app_bundle_path, 'Contents', 'MacOS', 'TreeVisualizationApp'))
-    os.chmod(os.path.join(app_bundle_path, 'Contents', 'MacOS', 'TreeVisualizationApp'), 0o755)
+    shutil.copy2(exe_path, os.path.join(app_bundle_path, 'Contents', 'MacOS', 'be-net'))
+    os.chmod(os.path.join(app_bundle_path, 'Contents', 'MacOS', 'be-net'), 0o755)
     
-    icon_path = os.path.join(project_root, 'TreeVisualizationApp.icns')
+    icon_path = os.path.join(project_root, 'be-net.icns')
     if os.path.exists(icon_path):
-        shutil.copy2(icon_path, os.path.join(app_bundle_path, 'Contents', 'Resources', 'TreeVisualizationApp.icns'))
+        shutil.copy2(icon_path, os.path.join(app_bundle_path, 'Contents', 'Resources', 'be-net.icns'))
         print("✓ Icon copied to app bundle")
     else:
         print("WARNING: Icon file not found, app will use default icon")
@@ -50,17 +50,17 @@ def create_app_bundle():
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Tree Visualization App</string>
+    <string>be-net</string>
     <key>CFBundleExecutable</key>
-    <string>TreeVisualizationApp</string>
+    <string>be-net</string>
     <key>CFBundleIconFile</key>
-    <string>TreeVisualizationApp</string>
+    <string>be-net</string>
     <key>CFBundleIdentifier</key>
-    <string>com.treevisualization.app</string>
+    <string>com.be-net.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>TreeVisualizationApp</string>
+    <string>be-net</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -74,7 +74,7 @@ def create_app_bundle():
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
     <key>NSHumanReadableCopyright</key>
-    <string>Copyright © 2024 Tree Visualization App. All rights reserved.</string>
+    <string>Copyright © 2024 be-net. All rights reserved.</string>
 </dict>
 </plist>'''
         with open(os.path.join(app_bundle_path, 'Contents', 'Info.plist'), 'w') as f:
@@ -86,7 +86,6 @@ def create_app_bundle():
 
 if __name__ == "__main__":
     create_app_bundle()
-
 
 
 

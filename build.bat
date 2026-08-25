@@ -1,9 +1,9 @@
 @echo off
-REM Build script for Tree Visualization App (Windows)
+REM Build script for be-net (Windows)
 REM Creates standalone executable with all dependencies
 
 echo ==========================================
-echo Tree Visualization App - Build Script
+echo be-net - Build Script
 echo ==========================================
 echo.
 
@@ -59,10 +59,10 @@ echo Build completed successfully!
 echo ==========================================
 echo.
 echo Your executable is located at:
-echo   dist\TreeVisualizationApp.exe
+echo   dist\be-net.exe
 echo.
 echo To run the application:
-echo   dist\TreeVisualizationApp.exe
+echo   dist\be-net.exe
 echo.
 echo Or double-click the .exe file in Windows Explorer
 echo.
