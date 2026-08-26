@@ -271,6 +271,7 @@
     "uploadFile": "העלה קובץ",
     "buildTree": "בנה עץ",
     "downloadGuide": "הורד מדריך",
+    "downloadReference": "הורד קובץ ייחוס",
     "failedToFetchFolders": "נכשל בטעינת תיקיות. נסה שוב.",
     "failedToUpload": "נכשל להעלות קובץ. נסה שוב.",
     "treeCreatedSuccess": "העץ נוצר בהצלחה!",

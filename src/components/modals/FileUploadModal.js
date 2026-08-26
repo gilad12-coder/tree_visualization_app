@@ -33,6 +33,14 @@ const THEME = {
 const convertToUTCDate = (date) =>
   new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 const formatDateForAPI = (date) => date.toISOString().split("T")[0];
+const downloadAsset = (href, filename) => {
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
 const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderId, folderStructure = [] }) => {
   const { t } = useTranslation();
@@ -173,12 +181,17 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
   };
 
   const handleDownloadGuide = () => {
-    const link = document.createElement("a");
-    link.href = "/מדריך מפורט להעלאת נתונים.pdf";
-    link.download = "be-net-file-upload-guide.pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadAsset(
+      "/מדריך מפורט להעלאת נתונים.pdf",
+      "be-net-file-upload-guide.pdf"
+    );
+  };
+
+  const handleDownloadReference = () => {
+    downloadAsset(
+      "/be-net-reference-upload.xlsx",
+      "be-net-reference-upload.xlsx"
+    );
   };
 
   const isUploadDisabled = !selectedFile || !uploadDate || !selectedFolder;
@@ -386,9 +399,23 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
+                        onClick={handleDownloadReference}
+                        className="px-3 py-2.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                        title={t('fileUpload.downloadReference')}
+                        aria-label={t('fileUpload.downloadReference')}
+                      >
+                        <FileText size={18} />
+                        <span className="text-sm font-medium">
+                          {t('fileUpload.downloadReference')}
+                        </span>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={handleDownloadGuide}
                         className="px-3 py-2.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                         title={t('fileUpload.downloadGuide')}
+                        aria-label={t('fileUpload.downloadGuide')}
                       >
                         <HelpCircle size={18} />
                       </motion.button>

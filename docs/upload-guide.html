@@ -32,7 +32,6 @@
         --green: #15803d;
         --green-soft: #f0fdf4;
         --red: #b91c1c;
-        --red-soft: #fef2f2;
       }
 
       * {
@@ -67,28 +66,8 @@
         page-break-after: auto;
       }
 
-      .brand {
-        direction: ltr;
-        display: inline-flex;
-        align-items: center;
-        gap: 3mm;
-        color: var(--ink);
-        font-size: 14pt;
-        font-weight: 700;
-      }
-
-      .brand-mark {
-        display: inline-flex;
-        width: 10mm;
-        height: 10mm;
-        align-items: center;
-        justify-content: center;
-        background: var(--ink);
-        color: white;
-      }
-
       h1 {
-        margin: 18mm 0 3mm;
+        margin: 0 0 3mm;
         font-size: 29pt;
         line-height: 1.12;
         letter-spacing: -0.025em;
@@ -210,8 +189,7 @@
 
       .note,
       .warning,
-      .success,
-      .error {
+      .success {
         margin: 5mm 0;
         padding: 4mm 5mm;
         border: 1px solid;
@@ -230,11 +208,6 @@
       .success {
         border-color: var(--green);
         background: var(--green-soft);
-      }
-
-      .error {
-        border-color: var(--red);
-        background: var(--red-soft);
       }
 
       .kicker {
@@ -410,17 +383,6 @@
   </head>
   <body>
     <section class="page">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="3" y="3" width="7" height="7"></rect>
-            <rect x="14" y="3" width="7" height="7"></rect>
-            <rect x="8.5" y="14" width="7" height="7"></rect>
-            <path d="M6.5 10v2.5h11V10M12 12.5V14"></path>
-          </svg>
-        </span>
-        <span>be-net</span>
-      </div>
       <h1>מדריך העלאת נתונים</h1>
       <p class="lead">
         כך יוצרים מסד נתונים מקומי, מעלים קובץ תקין ובונים עץ ארגוני בגרסת Windows.
@@ -687,13 +649,6 @@
             שנבחרה את הקובץ <code>orgchart.db</code>; ייתכן שסייר הקבצים מסתיר סיומות.
           </p>
         </div>
-      </div>
-
-      <div class="error">
-        <strong>לפני ששולחים דיווח תקלה:</strong> נסו פעם אחת את קובץ הייחוס ללא שינוי,
-        עם מסד נתונים חדש ותיקייה לוגית חדשה. אם הוא עובד, הבעיה נמצאת בפורמט של הקובץ
-        האחר. אם גם הוא נכשל, צרפו צילום מסך של השגיאה והנתיב שבו נוצר
-        <code>orgchart.db</code>.
       </div>
 
       <h3 style="margin-top: 6mm">בדיקה אחרונה לפני העלאה</h3>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import FileUploadModal from './FileUploadModal';
 
@@ -15,6 +15,10 @@ vi.mock('../common/DatePickerWrapper', () => ({
     </button>
   ),
 }));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('FileUploadModal', () => {
   it('does not submit a folder id missing from the active database', () => {
@@ -38,5 +42,33 @@ describe('FileUploadModal', () => {
       name: 'fileUpload.uploadFile',
     });
     expect(uploadButtons.some(button => button.disabled)).toBe(true);
+  });
+
+  it('downloads the verified reference workbook', () => {
+    const downloaded = {};
+    vi.spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function captureDownload() {
+        downloaded.href = this.getAttribute('href');
+        downloaded.filename = this.getAttribute('download');
+      });
+
+    render(
+      <FileUploadModal
+        isOpen
+        onClose={() => {}}
+        onUpload={() => {}}
+        dbPath="/tmp/reference.db"
+        folderStructure={[]}
+      />
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'fileUpload.downloadReference' })
+    );
+
+    expect(downloaded).toEqual({
+      href: '/be-net-reference-upload.xlsx',
+      filename: 'be-net-reference-upload.xlsx',
+    });
   });
 });

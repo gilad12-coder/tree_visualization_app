@@ -271,6 +271,7 @@
     "uploadFile": "Upload File",
     "buildTree": "Build Tree",
     "downloadGuide": "Download Guide",
+    "downloadReference": "Download Reference Workbook",
     "failedToFetchFolders": "Failed to fetch folders. Please try again.",
     "failedToUpload": "Failed to upload file. Please try again.",
     "treeCreatedSuccess": "Tree created successfully!",
