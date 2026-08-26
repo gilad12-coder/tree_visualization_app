@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   Upload,
+  Download,
   File,
-  HelpCircle,
   FileText,
   Edit3,
 } from "react-feather";
@@ -51,7 +51,9 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
   const [isDragging, setIsDragging] = useState(false);
   const [treeName, setTreeName] = useState("");
   const [folderName, setFolderName] = useState(""); // Store folder name for create-tree
+  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
   const fileInputRef = useRef(null);
+  const downloadMenuRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && dbPath) {
@@ -63,6 +65,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
       setUploadDate(null);
       setTreeName("");
       setFolderName("");
+      setIsDownloadMenuOpen(false);
 
       // Look up folder name from folder ID
       if (preselectedFolderId && folderStructure.length > 0) {
@@ -73,6 +76,38 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
       }
     }
   }, [isOpen, dbPath, preselectedFolderId, folderStructure]);
+
+  useEffect(() => {
+    if (!isDownloadMenuOpen) {
+      return undefined;
+    }
+
+    const closeMenu = (event) => {
+      if (
+        event.type === "keydown" &&
+        event.key !== "Escape"
+      ) {
+        return;
+      }
+
+      if (
+        event.type === "mousedown" &&
+        downloadMenuRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+
+      setIsDownloadMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", closeMenu);
+    document.addEventListener("keydown", closeMenu);
+
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", closeMenu);
+    };
+  }, [isDownloadMenuOpen]);
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -181,6 +216,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
   };
 
   const handleDownloadGuide = () => {
+    setIsDownloadMenuOpen(false);
     downloadAsset(
       "/מדריך מפורט להעלאת נתונים.pdf",
       "be-net-file-upload-guide.pdf"
@@ -188,6 +224,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
   };
 
   const handleDownloadReference = () => {
+    setIsDownloadMenuOpen(false);
     downloadAsset(
       "/be-net-reference-upload.xlsx",
       "be-net-reference-upload.xlsx"
@@ -378,7 +415,7 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 pt-2">
+                <div className="flex items-end gap-3 pt-2">
                   {creationMethod === "upload" ? (
                     <>
                       <motion.button
@@ -396,29 +433,66 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
                         <Upload size={18} />
                         <span>{t('fileUpload.uploadFile')}</span>
                       </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleDownloadReference}
-                        className="px-3 py-2.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                        title={t('fileUpload.downloadReference')}
-                        aria-label={t('fileUpload.downloadReference')}
-                      >
-                        <FileText size={18} />
-                        <span className="text-sm font-medium">
-                          {t('fileUpload.downloadReference')}
-                        </span>
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleDownloadGuide}
-                        className="px-3 py-2.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                        title={t('fileUpload.downloadGuide')}
-                        aria-label={t('fileUpload.downloadGuide')}
-                      >
-                        <HelpCircle size={18} />
-                      </motion.button>
+                      <div ref={downloadMenuRef} className="relative shrink-0">
+                        <button
+                          onClick={() => setIsDownloadMenuOpen((isOpen) => !isOpen)}
+                          className={`flex items-center gap-1.5 px-3 py-2.5 rounded-md transition-colors hover:bg-gray-100 border ${
+                            isDownloadMenuOpen
+                              ? "bg-blue-50 text-blue-600 border-blue-200"
+                              : "text-gray-600 border-transparent"
+                          }`}
+                          aria-haspopup="menu"
+                          aria-expanded={isDownloadMenuOpen}
+                          aria-label={t('fileUpload.downloadFiles')}
+                        >
+                          <Download size={18} />
+                          <span className="text-sm font-medium">
+                            {t('fileUpload.downloadFiles')}
+                          </span>
+                        </button>
+
+                        <AnimatePresence>
+                          {isDownloadMenuOpen && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 5 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute bottom-full mb-2 right-0 rtl:right-auto rtl:left-0 bg-white rounded-md shadow-lg py-1 min-w-[240px] z-50 border border-gray-200"
+                              role="menu"
+                            >
+                              <ul className="py-1">
+                                <li>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={handleDownloadGuide}
+                                    className="w-full text-left rtl:text-right px-4 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 transition-colors text-gray-700"
+                                  >
+                                    <span className="text-gray-500">
+                                      <FileText size={16} />
+                                    </span>
+                                    {t('fileUpload.downloadGuide')}
+                                  </button>
+                                </li>
+                                <li>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={handleDownloadReference}
+                                    className="w-full text-left rtl:text-right px-4 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 transition-colors text-gray-700"
+                                  >
+                                    <span className="text-gray-500">
+                                      <File size={16} />
+                                    </span>
+                                    {t('fileUpload.downloadReference')}
+                                  </button>
+                                </li>
+                              </ul>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </>
                   ) : (
                     <motion.button

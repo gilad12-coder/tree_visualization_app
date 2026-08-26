@@ -62,13 +62,47 @@ describe('FileUploadModal', () => {
       />
     );
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'fileUpload.downloadReference' })
-    );
+    fireEvent.click(screen.getByRole('button', {
+      name: 'fileUpload.downloadFiles',
+    }));
+    fireEvent.click(screen.getByRole('menuitem', {
+      name: 'fileUpload.downloadReference',
+    }));
 
     expect(downloaded).toEqual({
       href: '/be-net-reference-upload.xlsx',
       filename: 'be-net-reference-upload.xlsx',
+    });
+  });
+
+  it('downloads the Hebrew upload guide from the download menu', () => {
+    const downloaded = {};
+    vi.spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function captureDownload() {
+        downloaded.href = this.getAttribute('href');
+        downloaded.filename = this.getAttribute('download');
+      });
+
+    render(
+      <FileUploadModal
+        isOpen
+        onClose={() => {}}
+        onUpload={() => {}}
+        dbPath="/tmp/guide.db"
+        folderStructure={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'fileUpload.downloadFiles',
+    }));
+    fireEvent.click(screen.getByRole('menuitem', {
+      name: 'fileUpload.downloadGuide',
+    }));
+
+    expect(downloaded).toEqual({
+      href: '/מדריך מפורט להעלאת נתונים.pdf',
+      filename: 'be-net-file-upload-guide.pdf',
     });
   });
 });
