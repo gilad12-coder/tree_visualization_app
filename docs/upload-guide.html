@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
   <head>
     <meta charset="utf-8" />
-    <title>מדריך העלאת נתונים — be-net</title>
+    <title>מדריך העלאת נתונים | be-net</title>
     <style>
       @font-face {
         font-family: "Rubik";
@@ -385,17 +385,17 @@
     <section class="page">
       <h1>מדריך העלאת נתונים</h1>
       <p class="lead">
-        כך יוצרים מסד נתונים מקומי, מעלים קובץ תקין ובונים עץ ארגוני בגרסת Windows.
-        המדריך תואם לפורמט שהאפליקציה מקבלת בפועל.
+        כך יוצרים מסד נתונים מקומי, מעלים קובץ ובונים ממנו עץ ארגוני ב־be-net ל־Windows.
+        ההוראות מתאימות לגרסה הנוכחית של האפליקציה.
       </p>
 
       <div class="hero">
         <div>
-          <div class="kicker">המסלול המומלץ</div>
-          <h3>קובץ Excel לדוגמה ← מסד נתונים חדש ← תיקייה באפליקציה ← העלאה</h3>
+          <div class="kicker">שלבי ההעלאה</div>
+          <h3>הורידו את קובץ הדוגמה, צרו מסד נתונים ותיקייה באפליקציה, ואז העלו את הקובץ</h3>
           <p>
-            קובץ הייחוס המצורף, <code>be-net-reference-upload.xlsx</code>, נבדק בהעלאה
-            מלאה ובקריאה חוזרת של כל שמונה הרשומות.
+            את <code>be-net-reference-upload.xlsx</code> אפשר להוריד מתוך חלון העלאת
+            הקובץ. בדקנו אותו בהעלאה מלאה וקראנו בחזרה את כל שמונה הרשומות.
           </p>
         </div>
         <div class="org-preview" aria-hidden="true">
@@ -412,50 +412,53 @@
 
       <div class="steps">
         <div class="step">
-          <h3><span class="number">1</span>סגירה והפעלה</h3>
+          <h3><span class="number">1</span>לפני שמתחילים</h3>
           <p>
-            לפני החלפת גרסה, סגרו את כל חלונות האפליקציה. אם נותר תהליך ישן, סיימו
-            במנהל המשימות גם <code>be-net.exe</code> וגם
-            <code>TreeVisualizationApp.exe</code>, ואז הפעילו את הקובץ החדש.
+            לפני החלפת גרסה, סגרו את כל חלונות האפליקציה. אם נשאר תהליך פתוח, סיימו
+            במנהל המשימות את <code>be-net.exe</code> וגם תהליכים של גרסאות קודמות.
+            רק אז הפעילו את הקובץ החדש.
           </p>
         </div>
         <div class="step">
           <h3><span class="number">2</span>יצירת מסד נתונים</h3>
           <p>
             בחרו תיקיית Windows קיימת שיש אליה הרשאת כתיבה. האפליקציה תיצור בתוכה
-            קובץ פיזי בשם <code>orgchart.db</code>.
+            קובץ בשם <code>orgchart.db</code>.
           </p>
         </div>
         <div class="step">
           <h3><span class="number">3</span>יצירת תיקייה באפליקציה</h3>
           <p>
-            לאחר פתיחת מסד הנתונים, צרו או בחרו תיקייה מתוך הממשק. זו תיקייה לוגית
-            בתוך מסד הנתונים — לא תיקייה חדשה במערכת הקבצים של Windows.
+            לאחר פתיחת מסד הנתונים, צרו או בחרו תיקייה בממשק. התיקייה נשמרת בתוך
+            מסד הנתונים, ולכן לא תופיע כתיקייה חדשה ב־Windows.
           </p>
         </div>
         <div class="step">
           <h3><span class="number">4</span>העלאת הקובץ</h3>
           <p>
             בחרו קובץ <code>.xlsx</code> או <code>.csv</code>, תנו שם לעץ והעלו אותו
-            לתיקייה שנבחרה. מומלץ להתחיל מקובץ הייחוס ולשנות רק את הנתונים.
+            לתיקייה שנבחרה. בהעלאה הראשונה, השתמשו בקובץ הדוגמה. אחר כך אפשר לשכפל
+            אותו ולהחליף את הנתונים.
           </p>
         </div>
       </div>
 
       <div class="note">
-        <strong>חשוב:</strong> בחירת נתיב אינה יוצרת תיקיית Windows חדשה. בוחרים תיקייה
-        קיימת, ובתוכה אמור להופיע הקובץ הנסתר-לעיתים <code>orgchart.db</code>.
+        <strong>חשוב:</strong> כשמגדירים מסד נתונים, בוחרים תיקיית Windows קיימת.
+        האפליקציה שומרת בתוכה קובץ בשם <code>orgchart.db</code>. ייתכן שסייר הקבצים
+        יסתיר את הסיומת.
       </div>
 
       <div class="footer"><span>מדריך העלאת נתונים</span><span>1 / 4</span></div>
     </section>
 
     <section class="page">
-      <div class="kicker">חוזה הקובץ</div>
-      <h2>שמות העמודות חייבים להיות מדויקים</h2>
+      <div class="kicker">מבנה הקובץ</div>
+      <h2>העתיקו את שמות העמודות בדיוק</h2>
       <p>
-        שורת הכותרות חייבת להיות השורה הראשונה בגיליון. יש להשתמש באותיות קטנות
-        ובקו תחתון בדיוק כפי שמופיע כאן; שמות מקוצרים או כותרות עם רווחים אינם נתמכים.
+        שורת הכותרות צריכה להיות השורה הראשונה בגיליון. העתיקו את שמות העמודות כפי
+        שהם מופיעים כאן, כולל האותיות הקטנות והקווים התחתונים. כותרות עם רווחים או
+        קיצורים לא יעבדו.
       </p>
 
       <table class="schema">
@@ -485,7 +488,7 @@
           </tr>
           <tr>
             <td>birth_date</td>
-            <td><span class="optional">רשות.</span> תא תאריך אמיתי ב־Excel או טקסט בתבנית <code>YYYY-MM-DD</code>.</td>
+            <td><span class="optional">רשות.</span> תא תאריך של Excel או טקסט בתבנית <code>YYYY-MM-DD</code>.</td>
           </tr>
           <tr>
             <td>rank</td>
@@ -501,7 +504,7 @@
           </tr>
           <tr>
             <td>personal_information</td>
-            <td><span class="optional">רשות.</span> מידע אישי חופשי.</td>
+            <td><span class="optional">רשות.</span> טקסט חופשי על האדם.</td>
           </tr>
           <tr>
             <td>role_information</td>
@@ -509,14 +512,14 @@
           </tr>
           <tr>
             <td>is_dead</td>
-            <td><span class="optional">רשות.</span> סטטוס חיים; בקובץ הייחוס נעשה שימוש ב־<code>alive</code>.</td>
+            <td><span class="optional">רשות.</span> בקובץ הדוגמה מופיע הערך <code>alive</code>.</td>
           </tr>
         </tbody>
       </table>
 
       <div class="format-grid" style="margin-top: 5mm">
         <div class="card">
-          <h3>Excel — מומלץ</h3>
+          <h3>Excel</h3>
           <ul>
             <li>סיומת <code>.xlsx</code>.</li>
             <li>הנתונים בגיליון הראשון.</li>
@@ -527,27 +530,26 @@
           <h3>CSV</h3>
           <ul>
             <li>קידוד UTF-8.</li>
-            <li>מפריד פסיק בלבד.</li>
-            <li>CSV עם נקודה־פסיק כמפריד לא ייקרא נכון.</li>
+            <li>השתמשו בפסיק כמפריד, לא בנקודה־פסיק.</li>
           </ul>
         </div>
       </div>
 
       <div class="warning">
-        <strong>תאריכים:</strong> אל תערבבו תבניות מקומיות שונות באותה עמודה. הבחירה
-        הבטוחה היא תאי תאריך אמיתיים ב־Excel או <code>YYYY-MM-DD</code> באופן עקבי.
+        <strong>תאריכים:</strong> בעמודת <code>birth_date</code> השתמשו בתאי תאריך של
+        Excel או בתבנית <code>YYYY-MM-DD</code>. אל תערבבו בין התבניות באותו קובץ.
       </div>
 
       <div class="footer"><span>מדריך העלאת נתונים</span><span>2 / 4</span></div>
     </section>
 
     <section class="page">
-      <div class="kicker">קובץ ייחוס מאומת</div>
-      <h2>דוגמה שעובדת בגרסה הנוכחית</h2>
+      <div class="kicker">קובץ לדוגמה</div>
+      <h2>קובץ שנבדק בגרסה הנוכחית</h2>
       <p>
         הטבלה הבאה מציגה את עמודות החובה ועמודת התאריך מתוך
-        <code>be-net-reference-upload.xlsx</code>. בקובץ המלא קיימות גם כל עמודות הרשות
-        המפורטות בעמוד הקודם.
+        <code>be-net-reference-upload.xlsx</code>. הקובץ המלא כולל גם את כל עמודות
+        הרשות שמופיעות בעמוד הקודם.
       </p>
 
       <table class="sample">
@@ -573,19 +575,19 @@
       </table>
 
       <div class="success">
-        <strong>מה אומת:</strong> הקובץ המדויק הועלה גם דרך שרת הבדיקה וגם דרך אפליקציית
-        <span class="ltr">be-net</span> הארוזה. נוצר קובץ מסד נתונים פיזי, נוצרה תיקייה
-        לוגית, נוצרה טבלה, וכל שמונה הרשומות נקראו בחזרה — כולל הראשונה והאחרונה.
+        בדקנו את הקובץ גם בשרת הבדיקה וגם בקובץ ההפעלה של
+        <span class="ltr">be-net</span> ל־Windows. ההעלאה יצרה מסד נתונים, תיקייה וטבלה, וכל
+        שמונה הרשומות נקראו בחזרה, כולל הראשונה והאחרונה.
       </div>
 
-      <h3 style="margin-top: 6mm">כיצד בנוי נתיב היררכי?</h3>
+      <h3 style="margin-top: 6mm">מבנה הנתיב ההיררכי</h3>
       <div class="format-grid">
         <div class="card">
           <ul class="ltr" style="text-align: left">
-            <li><code>/1</code> — שורש</li>
-            <li><code>/1/1</code> — ילד של השורש</li>
-            <li><code>/1/1/1</code> — נכד</li>
-            <li><code>/1/1/1/1</code> — דור נוסף</li>
+            <li><code>/1</code>: שורש</li>
+            <li><code>/1/1</code>: ילד של השורש</li>
+            <li><code>/1/1/1</code>: נכד</li>
+            <li><code>/1/1/1/1</code>: דור נוסף</li>
           </ul>
         </div>
         <div class="card">
@@ -593,14 +595,14 @@
             <li>כל נתיב חייב להיות ייחודי באותו עץ.</li>
             <li>יש לכלול בקובץ גם את שורת ההורה.</li>
             <li>הנתיב חייב להתחיל בתו <code>/</code>.</li>
-            <li>אין להשאיר חורים בין רמות ההיררכיה.</li>
+            <li>אין לדלג על רמת הורה.</li>
           </ul>
         </div>
       </div>
 
       <div class="note">
-        הדרך הבטוחה ביותר ליצור קובץ חדש היא לשכפל את קובץ הייחוס, להשאיר את שורת
-        הכותרות ללא שינוי ולהחליף את שורות הנתונים בלבד.
+        כדי להכין קובץ חדש, שכפלו את קובץ הדוגמה, השאירו את שורת הכותרות ללא שינוי
+        והחליפו רק את שורות הנתונים.
       </div>
 
       <div class="footer"><span>מדריך העלאת נתונים</span><span>3 / 4</span></div>
@@ -612,20 +614,20 @@
 
       <div class="trouble-grid">
         <div class="card">
-          <h3><span class="ltr">can only use .dt accessor…</span></h3>
+          <h3><span class="ltr">can only use .dt accessor...</span></h3>
           <p>
-            שגיאה זו אינה אמורה להופיע במייבא הנוכחי. הסיבה הסבירה לאחר החלפת קובץ
-            ההפעלה היא שתהליך ישן עדיין מחזיק את השרת המקומי.
+            אם השגיאה מופיעה אחרי החלפת קובץ ההפעלה, כנראה שתהליך מהגרסה הקודמת
+            עדיין מריץ את השרת המקומי.
           </p>
           <ol>
             <li>סגרו את חלון האפליקציה.</li>
-            <li>במנהל המשימות סיימו את שני שמות התהליך המופיעים בעמוד 1.</li>
-            <li>הפעילו מחדש את <code>be-net.exe</code> ונסו את קובץ הייחוס.</li>
+            <li>במנהל המשימות סיימו את <code>be-net.exe</code> וגם תהליכים של גרסאות קודמות.</li>
+            <li>הפעילו מחדש את <code>be-net.exe</code> ונסו את קובץ הדוגמה.</li>
           </ol>
         </div>
 
         <div class="card">
-          <h3><span class="ltr">Required column(s)… missing</span></h3>
+          <h3><span class="ltr">Required column(s)... missing</span></h3>
           <p>האפליקציה לא מצאה אחת מעמודות החובה.</p>
           <ul>
             <li>השוו את שמות העמודות לעמוד 2, תו אחר תו.</li>
@@ -635,18 +637,18 @@
         </div>
 
         <div class="card">
-          <h3><span class="ltr">Folder with id … not found</span></h3>
+          <h3><span class="ltr">Folder with id ... not found</span></h3>
           <p>
-            התיקייה שנבחרה שייכת למצב ישן או למסד נתונים אחר. פתחו מחדש את מסד
-            הנתונים הרצוי, צרו או בחרו בו תיקייה, ורק לאחר מכן העלו את הקובץ.
+            נבחרה תיקייה ממסד נתונים אחר, או תיקייה שכבר נמחקה. פתחו מחדש את מסד
+            הנתונים הרצוי, צרו או בחרו בו תיקייה, ורק אז העלו את הקובץ.
           </p>
         </div>
 
         <div class="card">
           <h3>לא רואים תיקייה חדשה ב־Windows</h3>
           <p>
-            זו ההתנהגות התקינה: התיקייה בממשק היא רשומה לוגית. חפשו בתיקיית Windows
-            שנבחרה את הקובץ <code>orgchart.db</code>; ייתכן שסייר הקבצים מסתיר סיומות.
+            התיקייה נוצרת בתוך מסד הנתונים. בתיקיית Windows שבחרתם אמור להופיע
+            הקובץ <code>orgchart.db</code>. ייתכן שסייר הקבצים מסתיר סיומות.
           </p>
         </div>
       </div>
@@ -656,7 +658,7 @@
         <li>אין תהליך ישן שרץ ברקע.</li>
         <li>נבחרה תיקיית Windows קיימת וניתנת לכתיבה.</li>
         <li>מסד הנתונים הרצוי פתוח.</li>
-        <li>נבחרה תיקייה לוגית מתוך אותו מסד.</li>
+        <li>נבחרה תיקייה מתוך מסד הנתונים הפתוח.</li>
         <li>הכותרות מדויקות ושורת הכותרות ראשונה.</li>
         <li>כל נתיבי ההיררכיה ייחודיים ומתחילים ב־<code>/</code>.</li>
         <li>תאריכים הם תאי Excel או <code>YYYY-MM-DD</code>.</li>
@@ -664,11 +666,10 @@
       </ul>
 
       <div class="success" style="margin-top: 8mm">
-        <strong>נקודת מוצא בטוחה:</strong> אם יש ספק, התחילו תמיד מ־
-        <code>be-net-reference-upload.xlsx</code> המאומת.
+        אם קובץ אחר לא נטען, נסו תחילה את <code>be-net-reference-upload.xlsx</code>.
       </div>
 
-      <div class="footer"><span>מדריך העלאת נתונים · עודכן באוגוסט 2026</span><span>4 / 4</span></div>
+      <div class="footer"><span>מדריך העלאת נתונים</span><span>4 / 4</span></div>
     </section>
   </body>
 </html>
