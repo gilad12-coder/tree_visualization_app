@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>מדריך העלאת נתונים — be-net</title>
+    <style>
+      @font-face {
+        font-family: "Rubik";
+        src: url("../src/styles/fonts/Rubik/Rubik-Regular.ttf") format("truetype");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Rubik";
+        src: url("../src/styles/fonts/Rubik/Rubik-Bold.ttf") format("truetype");
+        font-weight: 700;
+      }
+
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      :root {
+        --ink: #1f2937;
+        --muted: #4b5563;
+        --subtle: #6b7280;
+        --line: #e5e7eb;
+        --line-strong: #d1d5db;
+        --surface: #f9fafb;
+        --surface-strong: #f3f4f6;
+        --green: #15803d;
+        --green-soft: #f0fdf4;
+        --red: #b91c1c;
+        --red-soft: #fef2f2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        color: var(--ink);
+        font-family: "Rubik", Arial, sans-serif;
+        font-size: 10.4pt;
+        line-height: 1.48;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      body {
+        background: white;
+      }
+
+      .page {
+        width: 210mm;
+        height: 297mm;
+        padding: 13mm 14mm 12mm;
+        position: relative;
+        page-break-after: always;
+      }
+
+      .page:last-child {
+        page-break-after: auto;
+      }
+
+      .brand {
+        direction: ltr;
+        display: inline-flex;
+        align-items: center;
+        gap: 3mm;
+        color: var(--ink);
+        font-size: 14pt;
+        font-weight: 700;
+      }
+
+      .brand-mark {
+        display: inline-flex;
+        width: 10mm;
+        height: 10mm;
+        align-items: center;
+        justify-content: center;
+        background: var(--ink);
+        color: white;
+      }
+
+      h1 {
+        margin: 18mm 0 3mm;
+        font-size: 29pt;
+        line-height: 1.12;
+        letter-spacing: -0.025em;
+      }
+
+      h2 {
+        margin: 0 0 4mm;
+        font-size: 20pt;
+        line-height: 1.18;
+      }
+
+      h3 {
+        margin: 0 0 2mm;
+        font-size: 13pt;
+      }
+
+      p {
+        margin: 0 0 3mm;
+      }
+
+      .lead {
+        max-width: 150mm;
+        color: var(--muted);
+        font-size: 13pt;
+        line-height: 1.55;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 1fr 57mm;
+        gap: 7mm;
+        align-items: center;
+        margin-top: 13mm;
+        padding: 7mm;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        box-shadow: 0 1px 2px rgba(31, 41, 55, 0.05);
+      }
+
+      .org-preview {
+        direction: ltr;
+        padding: 4mm;
+        border: 1px solid var(--line);
+        background: white;
+      }
+
+      .org-node {
+        padding: 2mm 1mm;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 8pt;
+        font-weight: 700;
+        text-align: center;
+      }
+
+      .org-node.root {
+        width: 24mm;
+        margin: 0 auto;
+      }
+
+      .org-trunk {
+        width: 1px;
+        height: 4mm;
+        margin: 0 auto;
+        background: var(--line-strong);
+      }
+
+      .org-branch {
+        height: 1px;
+        margin: 0 9mm;
+        background: var(--line-strong);
+      }
+
+      .org-children {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2mm;
+        margin-top: 4mm;
+        position: relative;
+      }
+
+      .org-children::before {
+        content: "";
+        position: absolute;
+        top: -4mm;
+        right: 50%;
+        width: 1px;
+        height: 4mm;
+        background: var(--line-strong);
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4mm;
+        margin-top: 7mm;
+      }
+
+      .step {
+        min-height: 34mm;
+        padding: 5mm;
+        border: 1px solid var(--line);
+        background: white;
+        box-shadow: 0 1px 2px rgba(31, 41, 55, 0.04);
+      }
+
+      .number {
+        display: inline-flex;
+        width: 8mm;
+        height: 8mm;
+        margin-left: 2mm;
+        align-items: center;
+        justify-content: center;
+        background: var(--ink);
+        color: white;
+        font-weight: 700;
+      }
+
+      .note,
+      .warning,
+      .success,
+      .error {
+        margin: 5mm 0;
+        padding: 4mm 5mm;
+        border: 1px solid;
+      }
+
+      .note {
+        border-color: var(--line);
+        background: var(--surface);
+      }
+
+      .warning {
+        border-color: var(--line-strong);
+        background: var(--surface-strong);
+      }
+
+      .success {
+        border-color: var(--green);
+        background: var(--green-soft);
+      }
+
+      .error {
+        border-color: var(--red);
+        background: var(--red-soft);
+      }
+
+      .kicker {
+        margin-bottom: 2mm;
+        color: var(--subtle);
+        font-size: 9pt;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+
+      .ltr,
+      code {
+        direction: ltr;
+        unicode-bidi: isolate;
+      }
+
+      code {
+        display: inline-block;
+        padding: 0.4mm 1.2mm;
+        background: var(--surface-strong);
+        color: var(--ink);
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 8.5pt;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      th,
+      td {
+        padding: 2.2mm 2.6mm;
+        border: 1px solid var(--line);
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--surface-strong);
+        font-weight: 700;
+      }
+
+      .schema th:first-child,
+      .schema td:first-child {
+        width: 47%;
+      }
+
+      .schema th,
+      .schema td {
+        padding: 1.65mm 2.4mm;
+        font-size: 9.5pt;
+        line-height: 1.35;
+      }
+
+      .schema td:first-child {
+        direction: ltr;
+        text-align: left;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 8.6pt;
+      }
+
+      .required {
+        color: var(--red);
+        font-weight: 700;
+      }
+
+      .optional {
+        color: var(--green);
+        font-weight: 700;
+      }
+
+      .format-grid,
+      .trouble-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4mm;
+      }
+
+      .card {
+        padding: 4.5mm;
+        border: 1px solid var(--line);
+        background: white;
+        box-shadow: 0 1px 2px rgba(31, 41, 55, 0.04);
+      }
+
+      ul,
+      ol {
+        margin: 1mm 0 0;
+        padding-right: 5.5mm;
+      }
+
+      li {
+        margin-bottom: 1.4mm;
+      }
+
+      .sample {
+        direction: ltr;
+        font-size: 7.5pt;
+      }
+
+      .sample th,
+      .sample td {
+        padding: 1.7mm 1.8mm;
+        text-align: left;
+        word-break: break-word;
+      }
+
+      .sample th:nth-child(1),
+      .sample td:nth-child(1) {
+        width: 14%;
+      }
+
+      .sample th:nth-child(2),
+      .sample td:nth-child(2) {
+        width: 21%;
+      }
+
+      .sample th:nth-child(3),
+      .sample td:nth-child(3) {
+        width: 32%;
+      }
+
+      .sample th:nth-child(4),
+      .sample td:nth-child(4) {
+        width: 20%;
+      }
+
+      .sample th:nth-child(5),
+      .sample td:nth-child(5) {
+        width: 13%;
+      }
+
+      .checklist {
+        columns: 2;
+        column-gap: 10mm;
+        list-style: none;
+        padding: 0;
+      }
+
+      .checklist li {
+        break-inside: avoid;
+        padding-right: 7mm;
+        position: relative;
+      }
+
+      .checklist li::before {
+        content: "✓";
+        position: absolute;
+        right: 0;
+        color: var(--green);
+        font-weight: 700;
+      }
+
+      .footer {
+        position: absolute;
+        right: 14mm;
+        bottom: 12mm;
+        left: 14mm;
+        display: flex;
+        justify-content: space-between;
+        padding-top: 3mm;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 8.5pt;
+      }
+
+      .footer span:last-child {
+        direction: ltr;
+        unicode-bidi: isolate;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="page">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="8.5" y="14" width="7" height="7"></rect>
+            <path d="M6.5 10v2.5h11V10M12 12.5V14"></path>
+          </svg>
+        </span>
+        <span>be-net</span>
+      </div>
+      <h1>מדריך העלאת נתונים</h1>
+      <p class="lead">
+        כך יוצרים מסד נתונים מקומי, מעלים קובץ תקין ובונים עץ ארגוני בגרסת Windows.
+        המדריך תואם לפורמט שהאפליקציה מקבלת בפועל.
+      </p>
+
+      <div class="hero">
+        <div>
+          <div class="kicker">המסלול המומלץ</div>
+          <h3>קובץ Excel לדוגמה ← מסד נתונים חדש ← תיקייה באפליקציה ← העלאה</h3>
+          <p>
+            קובץ הייחוס המצורף, <code>be-net-reference-upload.xlsx</code>, נבדק בהעלאה
+            מלאה ובקריאה חוזרת של כל שמונה הרשומות.
+          </p>
+        </div>
+        <div class="org-preview" aria-hidden="true">
+          <div class="org-node root">CEO</div>
+          <div class="org-trunk"></div>
+          <div class="org-branch"></div>
+          <div class="org-children">
+            <div class="org-node">CTO</div>
+            <div class="org-node">CFO</div>
+            <div class="org-node">COO</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <h3><span class="number">1</span>סגירה והפעלה</h3>
+          <p>
+            לפני החלפת גרסה, סגרו את כל חלונות האפליקציה. אם נותר תהליך ישן, סיימו
+            במנהל המשימות גם <code>be-net.exe</code> וגם
+            <code>TreeVisualizationApp.exe</code>, ואז הפעילו את הקובץ החדש.
+          </p>
+        </div>
+        <div class="step">
+          <h3><span class="number">2</span>יצירת מסד נתונים</h3>
+          <p>
+            בחרו תיקיית Windows קיימת שיש אליה הרשאת כתיבה. האפליקציה תיצור בתוכה
+            קובץ פיזי בשם <code>orgchart.db</code>.
+          </p>
+        </div>
+        <div class="step">
+          <h3><span class="number">3</span>יצירת תיקייה באפליקציה</h3>
+          <p>
+            לאחר פתיחת מסד הנתונים, צרו או בחרו תיקייה מתוך הממשק. זו תיקייה לוגית
+            בתוך מסד הנתונים — לא תיקייה חדשה במערכת הקבצים של Windows.
+          </p>
+        </div>
+        <div class="step">
+          <h3><span class="number">4</span>העלאת הקובץ</h3>
+          <p>
+            בחרו קובץ <code>.xlsx</code> או <code>.csv</code>, תנו שם לעץ והעלו אותו
+            לתיקייה שנבחרה. מומלץ להתחיל מקובץ הייחוס ולשנות רק את הנתונים.
+          </p>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>חשוב:</strong> בחירת נתיב אינה יוצרת תיקיית Windows חדשה. בוחרים תיקייה
+        קיימת, ובתוכה אמור להופיע הקובץ הנסתר-לעיתים <code>orgchart.db</code>.
+      </div>
+
+      <div class="footer"><span>מדריך העלאת נתונים</span><span>1 / 4</span></div>
+    </section>
+
+    <section class="page">
+      <div class="kicker">חוזה הקובץ</div>
+      <h2>שמות העמודות חייבים להיות מדויקים</h2>
+      <p>
+        שורת הכותרות חייבת להיות השורה הראשונה בגיליון. יש להשתמש באותיות קטנות
+        ובקו תחתון בדיוק כפי שמופיע כאן; שמות מקוצרים או כותרות עם רווחים אינם נתמכים.
+      </p>
+
+      <table class="schema">
+        <thead>
+          <tr><th>שם עמודה</th><th>משמעות וכללים</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>hierarchical_structure</td>
+            <td><span class="required">חובה.</span> נתיב ייחודי שמתחיל ב־<code>/</code>, למשל <code>/1/2</code>.</td>
+          </tr>
+          <tr>
+            <td>name</td>
+            <td><span class="required">חובה.</span> שם האדם או היחידה שיוצגו בעץ.</td>
+          </tr>
+          <tr>
+            <td>role</td>
+            <td><span class="required">חובה.</span> תפקיד האדם או היחידה.</td>
+          </tr>
+          <tr>
+            <td>person_id</td>
+            <td><span class="optional">רשות.</span> מזהה חיצוני ייחודי.</td>
+          </tr>
+          <tr>
+            <td>department</td>
+            <td><span class="optional">רשות.</span> מחלקה או תחום.</td>
+          </tr>
+          <tr>
+            <td>birth_date</td>
+            <td><span class="optional">רשות.</span> תא תאריך אמיתי ב־Excel או טקסט בתבנית <code>YYYY-MM-DD</code>.</td>
+          </tr>
+          <tr>
+            <td>rank</td>
+            <td><span class="optional">רשות.</span> דרגה או רמה ארגונית.</td>
+          </tr>
+          <tr>
+            <td>organization_id</td>
+            <td><span class="optional">רשות.</span> מזהה הארגון.</td>
+          </tr>
+          <tr>
+            <td>organization_name</td>
+            <td><span class="optional">רשות.</span> שם הארגון.</td>
+          </tr>
+          <tr>
+            <td>personal_information</td>
+            <td><span class="optional">רשות.</span> מידע אישי חופשי.</td>
+          </tr>
+          <tr>
+            <td>role_information</td>
+            <td><span class="optional">רשות.</span> מידע נוסף על התפקיד.</td>
+          </tr>
+          <tr>
+            <td>is_dead</td>
+            <td><span class="optional">רשות.</span> סטטוס חיים; בקובץ הייחוס נעשה שימוש ב־<code>alive</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="format-grid" style="margin-top: 5mm">
+        <div class="card">
+          <h3>Excel — מומלץ</h3>
+          <ul>
+            <li>סיומת <code>.xlsx</code>.</li>
+            <li>הנתונים בגיליון הראשון.</li>
+            <li>אין להוסיף כותרת מסמך או שורות הסבר מעל שורת העמודות.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>CSV</h3>
+          <ul>
+            <li>קידוד UTF-8.</li>
+            <li>מפריד פסיק בלבד.</li>
+            <li>CSV עם נקודה־פסיק כמפריד לא ייקרא נכון.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="warning">
+        <strong>תאריכים:</strong> אל תערבבו תבניות מקומיות שונות באותה עמודה. הבחירה
+        הבטוחה היא תאי תאריך אמיתיים ב־Excel או <code>YYYY-MM-DD</code> באופן עקבי.
+      </div>
+
+      <div class="footer"><span>מדריך העלאת נתונים</span><span>2 / 4</span></div>
+    </section>
+
+    <section class="page">
+      <div class="kicker">קובץ ייחוס מאומת</div>
+      <h2>דוגמה שעובדת בגרסה הנוכחית</h2>
+      <p>
+        הטבלה הבאה מציגה את עמודות החובה ועמודת התאריך מתוך
+        <code>be-net-reference-upload.xlsx</code>. בקובץ המלא קיימות גם כל עמודות הרשות
+        המפורטות בעמוד הקודם.
+      </p>
+
+      <table class="sample">
+        <thead>
+          <tr>
+            <th>person_id</th>
+            <th>name</th>
+            <th>role</th>
+            <th>hierarchical_structure</th>
+            <th>birth_date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>EMP-001</td><td>Dana Levi</td><td>Chief Executive Officer</td><td>/1</td><td>1975-03-15</td></tr>
+          <tr><td>EMP-002</td><td>Ronit Cohen</td><td>Chief Technology Officer</td><td>/1/1</td><td>1980-07-22</td></tr>
+          <tr><td>EMP-003</td><td>Moshe Avraham</td><td>Chief Financial Officer</td><td>/1/2</td><td>1978-11-08</td></tr>
+          <tr><td>EMP-004</td><td>Sarah Israeli</td><td>Chief Operating Officer</td><td>/1/3</td><td>1982-01-30</td></tr>
+          <tr><td>EMP-005</td><td>Yossi Golan</td><td>Development Manager</td><td>/1/1/1</td><td>1988-05-12</td></tr>
+          <tr><td>EMP-006</td><td>Michal Dvir</td><td>Backend Engineer</td><td>/1/1/1/1</td><td>1990-09-25</td></tr>
+          <tr><td>EMP-007</td><td>Avi Rosen</td><td>Accounting Manager</td><td>/1/2/1</td><td>1985-12-03</td></tr>
+          <tr><td>EMP-008</td><td>Noa Shemesh</td><td>Accountant</td><td>/1/2/1/1</td><td>1992-04-18</td></tr>
+        </tbody>
+      </table>
+
+      <div class="success">
+        <strong>מה אומת:</strong> הקובץ המדויק הועלה גם דרך שרת הבדיקה וגם דרך אפליקציית
+        <span class="ltr">be-net</span> הארוזה. נוצר קובץ מסד נתונים פיזי, נוצרה תיקייה
+        לוגית, נוצרה טבלה, וכל שמונה הרשומות נקראו בחזרה — כולל הראשונה והאחרונה.
+      </div>
+
+      <h3 style="margin-top: 6mm">כיצד בנוי נתיב היררכי?</h3>
+      <div class="format-grid">
+        <div class="card">
+          <ul class="ltr" style="text-align: left">
+            <li><code>/1</code> — שורש</li>
+            <li><code>/1/1</code> — ילד של השורש</li>
+            <li><code>/1/1/1</code> — נכד</li>
+            <li><code>/1/1/1/1</code> — דור נוסף</li>
+          </ul>
+        </div>
+        <div class="card">
+          <ul>
+            <li>כל נתיב חייב להיות ייחודי באותו עץ.</li>
+            <li>יש לכלול בקובץ גם את שורת ההורה.</li>
+            <li>הנתיב חייב להתחיל בתו <code>/</code>.</li>
+            <li>אין להשאיר חורים בין רמות ההיררכיה.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note">
+        הדרך הבטוחה ביותר ליצור קובץ חדש היא לשכפל את קובץ הייחוס, להשאיר את שורת
+        הכותרות ללא שינוי ולהחליף את שורות הנתונים בלבד.
+      </div>
+
+      <div class="footer"><span>מדריך העלאת נתונים</span><span>3 / 4</span></div>
+    </section>
+
+    <section class="page">
+      <div class="kicker">פתרון תקלות</div>
+      <h2>אם ההעלאה נכשלת</h2>
+
+      <div class="trouble-grid">
+        <div class="card">
+          <h3><span class="ltr">can only use .dt accessor…</span></h3>
+          <p>
+            שגיאה זו אינה אמורה להופיע במייבא הנוכחי. הסיבה הסבירה לאחר החלפת קובץ
+            ההפעלה היא שתהליך ישן עדיין מחזיק את השרת המקומי.
+          </p>
+          <ol>
+            <li>סגרו את חלון האפליקציה.</li>
+            <li>במנהל המשימות סיימו את שני שמות התהליך המופיעים בעמוד 1.</li>
+            <li>הפעילו מחדש את <code>be-net.exe</code> ונסו את קובץ הייחוס.</li>
+          </ol>
+        </div>
+
+        <div class="card">
+          <h3><span class="ltr">Required column(s)… missing</span></h3>
+          <p>האפליקציה לא מצאה אחת מעמודות החובה.</p>
+          <ul>
+            <li>השוו את שמות העמודות לעמוד 2, תו אחר תו.</li>
+            <li>ודאו ששורת הכותרות היא השורה הראשונה.</li>
+            <li>בקובץ CSV ודאו שהמפריד הוא פסיק.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3><span class="ltr">Folder with id … not found</span></h3>
+          <p>
+            התיקייה שנבחרה שייכת למצב ישן או למסד נתונים אחר. פתחו מחדש את מסד
+            הנתונים הרצוי, צרו או בחרו בו תיקייה, ורק לאחר מכן העלו את הקובץ.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>לא רואים תיקייה חדשה ב־Windows</h3>
+          <p>
+            זו ההתנהגות התקינה: התיקייה בממשק היא רשומה לוגית. חפשו בתיקיית Windows
+            שנבחרה את הקובץ <code>orgchart.db</code>; ייתכן שסייר הקבצים מסתיר סיומות.
+          </p>
+        </div>
+      </div>
+
+      <div class="error">
+        <strong>לפני ששולחים דיווח תקלה:</strong> נסו פעם אחת את קובץ הייחוס ללא שינוי,
+        עם מסד נתונים חדש ותיקייה לוגית חדשה. אם הוא עובד, הבעיה נמצאת בפורמט של הקובץ
+        האחר. אם גם הוא נכשל, צרפו צילום מסך של השגיאה והנתיב שבו נוצר
+        <code>orgchart.db</code>.
+      </div>
+
+      <h3 style="margin-top: 6mm">בדיקה אחרונה לפני העלאה</h3>
+      <ul class="checklist">
+        <li>אין תהליך ישן שרץ ברקע.</li>
+        <li>נבחרה תיקיית Windows קיימת וניתנת לכתיבה.</li>
+        <li>מסד הנתונים הרצוי פתוח.</li>
+        <li>נבחרה תיקייה לוגית מתוך אותו מסד.</li>
+        <li>הכותרות מדויקות ושורת הכותרות ראשונה.</li>
+        <li>כל נתיבי ההיררכיה ייחודיים ומתחילים ב־<code>/</code>.</li>
+        <li>תאריכים הם תאי Excel או <code>YYYY-MM-DD</code>.</li>
+        <li>קובץ CSV הוא UTF-8 ומופרד בפסיקים.</li>
+      </ul>
+
+      <div class="success" style="margin-top: 8mm">
+        <strong>נקודת מוצא בטוחה:</strong> אם יש ספק, התחילו תמיד מ־
+        <code>be-net-reference-upload.xlsx</code> המאומת.
+      </div>
+
+      <div class="footer"><span>מדריך העלאת נתונים · עודכן באוגוסט 2026</span><span>4 / 4</span></div>
+    </section>
+  </body>
+</html>
