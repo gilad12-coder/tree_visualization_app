@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def parse_org_data(df):
-    df = df.sort_values('hierarchical_structure')
+    df = df.sort_values('hierarchical_structure', na_position='last')
     nodes = {}
     roots = []
     log = {
@@ -82,27 +82,32 @@ def parse_org_data(df):
     def count_descendants(node):
         return len(node['children']) + sum(count_descendants(child) for child in node['children'])
 
+    def spreadsheet_row_number(index):
+        return int(index) + 2
+
     def process_node(row):
         structure = row['hierarchical_structure']
         name = row.get('name', '')
         if not structure:
             add_error('missing_structure', {
                 "name": name,
-                "row": int(row.name),
+                "row": spreadsheet_row_number(row.name),
+                "structure": None,
                 "message": "Missing hierarchical structure"
             })
             return None
 
         if structure in nodes:
             add_error('duplicated_nodes', {
+                "row": spreadsheet_row_number(row.name),
                 "structure": structure,
                 "existing_node": {
                     "name": nodes[structure]['name'],
-                    "row": int(nodes[structure]['row'])
+                    "row": nodes[structure]['row']
                 },
                 "duplicate_node": {
                     "name": name,
-                    "row": int(row.name)
+                    "row": spreadsheet_row_number(row.name)
                 },
                 "message": f"Duplicate hierarchical structure: '{structure}'. This node duplicates the existing node '{nodes[structure]['name']}' at row {nodes[structure]['row']}."
             })
@@ -121,22 +126,24 @@ def parse_org_data(df):
             "is_dead": row.get('is_dead', 'unknown'),
             "upload_date": datetime.now().date().isoformat(),
             "children": [],
-            "row": row.name,
+            "row": spreadsheet_row_number(row.name),
             "hierarchical_structure": row.hierarchical_structure,
             "organization_name": row.get('organization_name', '')
         }
 
-        if new_node['birth_date']:
-            try:
-                birth_date = pd.to_datetime(new_node['birth_date']).date()
+        birth_date_value = new_node['birth_date']
+        if pd.notna(birth_date_value) and str(birth_date_value).strip():
+            birth_date = pd.to_datetime(birth_date_value, errors='coerce')
+            if pd.notna(birth_date):
                 upload_date = pd.to_datetime(new_node['upload_date']).date()
+                birth_date = birth_date.date()
                 new_node['age'] = (upload_date - birth_date).days // 365
-            except ValueError as e:
+            else:
                 add_error('invalid_date', {
                     "name": name,
-                    "row": int(row.name),
+                    "row": spreadsheet_row_number(row.name),
                     "structure": structure,
-                    "message": str(e)
+                    "message": f"Invalid birth date: {birth_date_value}"
                 })
                 new_node['age'] = None
 
@@ -158,10 +165,18 @@ def parse_org_data(df):
     for _, row in df.iterrows():
         structure = row['hierarchical_structure']
         name = row.get('name', '')
+        if pd.isna(structure) or not str(structure).strip():
+            add_error('missing_structure', {
+                "name": name,
+                "row": spreadsheet_row_number(_),
+                "structure": None,
+                "message": "Missing hierarchical structure"
+            })
+            continue
         if not isinstance(structure, str) or not structure.startswith('/'):
             add_error('invalid_structure', {
                 "name": name,
-                "row": int(_),
+                "row": spreadsheet_row_number(_),
                 "structure": str(structure),
                 "message": "Structure must start with a slash"
             })
@@ -181,7 +196,7 @@ def parse_org_data(df):
 
         # Identify excluded nodes
         for structure in nodes.keys():
-            if not structure.startswith(main_root):
+            if structure != main_root and not structure.startswith(f"{main_root}/"):
                 excluded_nodes.add(structure)
     else:
         add_error('missing_root', {"message": "No root nodes found"})
@@ -197,7 +212,7 @@ def parse_org_data(df):
         for node in sorted(only_disconnected):
             add_error('disconnected_nodes', {
                 "name": nodes[node]['name'],
-                "row": int(nodes[node]['row']),
+                "row": nodes[node]['row'],
                 "node": node,
                 "expected_parent": disconnected_nodes[node]
             })
@@ -206,7 +221,7 @@ def parse_org_data(df):
         for node in sorted(only_excluded):
             add_error('excluded_nodes', {
                 "name": nodes[node]['name'],
-                "row": int(nodes[node]['row']),
+                "row": nodes[node]['row'],
                 "node": node,
                 "main_root": main_root
             })
@@ -215,7 +230,7 @@ def parse_org_data(df):
         for node in sorted(disconnected_and_excluded):
             add_error('disconnected_and_excluded', {
                 "name": nodes[node]['name'],
-                "row": int(nodes[node]['row']),
+                "row": nodes[node]['row'],
                 "node": node,
                 "expected_parent": disconnected_nodes[node]
             })
@@ -231,21 +246,60 @@ def parse_org_data(df):
             return current_depth
         return max(calculate_max_depth(child, current_depth + 1) for child in node['children'])
 
+    def collect_tree_rows(node):
+        if not node:
+            return set()
+        rows = {node['row']}
+        for child in node.get('children', []):
+            rows.update(collect_tree_rows(child))
+        return rows
+
+    imported_rows = collect_tree_rows(result)
+    total_rows = log["metadata"]["total_rows_processed"]
+
     # Update summary statistics
-    log["summary"]["total_nodes_created"] = len(nodes)
+    log["summary"]["total_nodes_created"] = len(imported_rows)
     log["summary"]["total_roots_found"] = len(roots)
+    log["summary"]["total_rows_imported"] = len(imported_rows)
+    log["summary"]["total_rows_skipped"] = total_rows - len(imported_rows)
     if result:
         log["summary"]["max_tree_depth"] = calculate_max_depth(result)
 
     # Remove empty error categories
     log["errors"] = {k: v for k, v in log["errors"].items() if v}
 
+    rejection_types = [
+        "missing_structure",
+        "invalid_structure",
+        "duplicated_nodes",
+        "disconnected_nodes",
+        "excluded_nodes",
+        "disconnected_and_excluded",
+    ]
+    rejected_rows = []
+    rejected_row_numbers = set()
+    for error_type in rejection_types:
+        for error in log["errors"].get(error_type, []):
+            row_number = error.get("row")
+            if row_number is None or row_number in imported_rows or row_number in rejected_row_numbers:
+                continue
+            rejected_row_numbers.add(row_number)
+            rejected_rows.append({
+                "row": row_number,
+                "error_type": error_type,
+                "hierarchical_structure": error.get("structure", error.get("node")),
+                "message": error.get("message", log["error_descriptions"][error_type]),
+            })
+    log["rejected_rows"] = sorted(rejected_rows, key=lambda item: item["row"])
+
     # Add quick stats for better visibility
     if log["summary"]["total_errors"] > 0:
+        success_rate = (len(imported_rows) / total_rows * 100) if total_rows else 0
         log["quick_stats"] = {
-            "success_rate": f"{((log['summary']['total_nodes_created'] - log['summary']['total_errors']) / log['metadata']['total_rows_processed'] * 100):.2f}%",
+            "success_rate": f"{success_rate:.2f}%",
             "nodes_with_errors": log["summary"]["total_errors"],
-            "nodes_successfully_processed": log["summary"]["total_nodes_created"] - log["summary"]["total_errors"]
+            "nodes_successfully_processed": len(imported_rows),
+            "rows_skipped": log["summary"]["total_rows_skipped"],
         }
 
     # Return the parsing log only if there were errors
@@ -289,6 +343,14 @@ def parse_optional_date(value):
     return parsed_date.date() if pd.notna(parsed_date) else None
 
 
+def normalize_optional_text(value):
+    if pd.isna(value):
+        return None
+
+    normalized_value = str(value).strip()
+    return normalized_value or None
+
+
 def insert_data_entries(session, table_id, df):
     if table_id is None:
         raise ValueError("table_id cannot be None")
@@ -299,14 +361,30 @@ def insert_data_entries(session, table_id, df):
     df.columns = df.columns.str.lower()
 
     # Ensure required columns are present (case-insensitive)
-    required_columns = ['hierarchical_structure', 'name', 'role']
+    required_columns = ['hierarchical_structure']
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         raise ValueError(f"Required column(s) {', '.join(missing_columns)} are missing from the DataFrame")
 
-    # Convert birth_date to datetime if the column exists
+    df = df.reset_index(drop=True).copy()
+
+    # Normalize values before structural validation so type mismatches can be logged per row.
     for col in df.columns:
-        df[col] = df[col].astype(str)
+        if col != 'birth_date':
+            df[col] = df[col].map(normalize_optional_text)
+
+    parsed_tree, parsing_log = parse_org_data(df)
+
+    def collect_import_indices(node):
+        if not node:
+            return set()
+        indices = {node['row'] - 2}
+        for child in node.get('children', []):
+            indices.update(collect_import_indices(child))
+        return indices
+
+    import_indices = collect_import_indices(parsed_tree)
+    df = df[df.index.isin(import_indices)].copy()
 
     if 'birth_date' in df.columns:
         df['birth_date'] = df['birth_date'].map(parse_optional_date)
@@ -347,7 +425,7 @@ def insert_data_entries(session, table_id, df):
 
         # Sync personal info for duplicate person_ids (first occurrence is source of truth)
         person_id = data_entry_dict.get('person_id')
-        if person_id and pd.notna(person_id) and person_id != 'nan':
+        if person_id:
             if person_id not in person_id_first_occurrence:
                 # Store first occurrence's personal info
                 person_id_first_occurrence[person_id] = {
@@ -368,6 +446,13 @@ def insert_data_entries(session, table_id, df):
         # Create the DataEntry object with the prepared dictionary
         data_entry = DataEntry(**data_entry_dict)
         session.add(data_entry)
+
+    total_rows = parsing_log["metadata"]["total_rows_processed"] if parsing_log else len(df)
+    return {
+        "inserted_count": len(df),
+        "skipped_count": total_rows - len(df),
+        "log": parsing_log,
+    }
 
 def get_org_chart(table_id):
     session = get_session()

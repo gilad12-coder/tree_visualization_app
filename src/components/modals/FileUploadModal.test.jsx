@@ -1,8 +1,15 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import axios from 'axios';
 
 import FileUploadModal from './FileUploadModal';
+
+vi.mock('axios', () => ({
+  default: {
+    post: vi.fn(),
+  },
+}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: key => key }),
@@ -17,8 +24,25 @@ vi.mock('../common/DatePickerWrapper', () => ({
 }));
 
 afterEach(() => {
+  axios.post.mockReset();
   vi.restoreAllMocks();
 });
+
+const chooseUploadFileAndDate = (container) => {
+  fireEvent.change(container.querySelector('input[type="file"]'), {
+    target: { files: [new File(['data'], 'org.csv', { type: 'text/csv' })] },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'choose-date' }));
+};
+
+const clickEnabledUploadButton = () => {
+  const uploadButtons = screen.getAllByRole('button', {
+    name: 'fileUpload.uploadFile',
+  });
+  const uploadButton = uploadButtons[uploadButtons.length - 1];
+  expect(uploadButton.disabled).toBe(false);
+  fireEvent.click(uploadButton);
+};
 
 describe('FileUploadModal', () => {
   it('does not submit a folder id missing from the active database', () => {
@@ -33,10 +57,7 @@ describe('FileUploadModal', () => {
       />
     );
 
-    fireEvent.change(container.querySelector('input[type="file"]'), {
-      target: { files: [new File(['data'], 'org.csv', { type: 'text/csv' })] },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'choose-date' }));
+    chooseUploadFileAndDate(container);
 
     const uploadButtons = screen.getAllByRole('button', {
       name: 'fileUpload.uploadFile',
@@ -104,5 +125,92 @@ describe('FileUploadModal', () => {
       href: '/מדריך מפורט להעלאת נתונים.pdf',
       filename: 'be-net-file-upload-guide.pdf',
     });
+  });
+
+  it('downloads the parsing log when invalid rows are skipped', async () => {
+    const downloaded = {};
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:parsing-log'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function captureDownload() {
+        downloaded.href = this.getAttribute('href');
+        downloaded.filename = this.getAttribute('download');
+      });
+    const onUpload = vi.fn();
+    axios.post.mockResolvedValue({
+      data: {
+        table_id: 42,
+        folder_id: 7,
+        log: { rejected_rows: [{ row: 3, error_type: 'missing_structure' }] },
+      },
+    });
+
+    const { container } = render(
+      <FileUploadModal
+        isOpen
+        onClose={() => {}}
+        onUpload={onUpload}
+        dbPath="/tmp/reference.db"
+        preselectedFolderId={7}
+        folderStructure={[{ id: 7, name: 'Reference' }]}
+      />
+    );
+
+    chooseUploadFileAndDate(container);
+    clickEnabledUploadButton();
+
+    await waitFor(() => expect(onUpload).toHaveBeenCalled());
+    expect(downloaded).toEqual({
+      href: 'blob:parsing-log',
+      filename: 'parsing_log_table_42.json',
+    });
+  });
+
+  it('downloads the parsing log when every row is rejected', async () => {
+    const downloaded = {};
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:error-log'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function captureDownload() {
+        downloaded.href = this.getAttribute('href');
+        downloaded.filename = this.getAttribute('download');
+      });
+    axios.post.mockRejectedValue({
+      response: {
+        data: {
+          error: 'No valid rows were found.',
+          log: { rejected_rows: [{ row: 2, error_type: 'invalid_structure' }] },
+        },
+      },
+    });
+
+    const { container } = render(
+      <FileUploadModal
+        isOpen
+        onClose={() => {}}
+        onUpload={() => {}}
+        dbPath="/tmp/reference.db"
+        preselectedFolderId={7}
+        folderStructure={[{ id: 7, name: 'Reference' }]}
+      />
+    );
+
+    chooseUploadFileAndDate(container);
+    clickEnabledUploadButton();
+
+    await waitFor(() => expect(downloaded.filename).toBe('parsing_log_upload.json'));
+    expect(downloaded.href).toBe('blob:error-log');
   });
 });

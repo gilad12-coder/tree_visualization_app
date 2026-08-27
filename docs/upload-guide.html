@@ -472,15 +472,15 @@
           </tr>
           <tr>
             <td>name</td>
-            <td><span class="required">חובה.</span> שם האדם או היחידה שיוצגו בעץ.</td>
+            <td><span class="optional">רשות.</span> שם האדם או היחידה שיוצגו בעץ.</td>
           </tr>
           <tr>
             <td>role</td>
-            <td><span class="required">חובה.</span> תפקיד האדם או היחידה.</td>
+            <td><span class="optional">רשות.</span> תפקיד האדם או היחידה.</td>
           </tr>
           <tr>
             <td>person_id</td>
-            <td><span class="optional">רשות.</span> מזהה חיצוני ייחודי.</td>
+            <td><span class="optional">רשות.</span> מזהה קבוע של אדם. השאירו ריק למשרה שאינה מאוישת.</td>
           </tr>
           <tr>
             <td>department</td>
@@ -537,7 +537,8 @@
 
       <div class="warning">
         <strong>תאריכים:</strong> בעמודת <code>birth_date</code> השתמשו בתאי תאריך של
-        Excel או בתבנית <code>YYYY-MM-DD</code>. אל תערבבו בין התבניות באותו קובץ.
+        Excel או בתבנית <code>YYYY-MM-DD</code>. ערך שלא ניתן לקרוא יישמר ריק ויירשם
+        ביומן הפענוח, בלי למחוק את שאר נתוני השורה.
       </div>
 
       <div class="footer"><span>מדריך העלאת נתונים</span><span>2 / 4</span></div>
@@ -547,9 +548,9 @@
       <div class="kicker">קובץ לדוגמה</div>
       <h2>קובץ שנבדק בגרסה הנוכחית</h2>
       <p>
-        הטבלה הבאה מציגה את עמודות החובה ועמודת התאריך מתוך
-        <code>be-net-reference-upload.xlsx</code>. הקובץ המלא כולל גם את כל עמודות
-        הרשות שמופיעות בעמוד הקודם.
+        הטבלה הבאה מציגה את עמודת החובה לצד כמה עמודות רשות מתוך
+        <code>be-net-reference-upload.xlsx</code>. הקובץ המלא כולל את כל העמודות
+        שמופיעות בעמוד הקודם.
       </p>
 
       <table class="sample">
@@ -595,8 +596,9 @@
       </div>
 
       <div class="note">
-        כדי להכין קובץ חדש, שכפלו את קובץ הדוגמה, השאירו את שורת הכותרות ללא שינוי
-        והחליפו רק את שורות הנתונים.
+        שורה בלי נתיב תקין, עם נתיב כפול או בלי שורת הורה לא תישמר. שאר השורות
+        ימשיכו להיטען כרגיל, ובסיום יירד יומן פענוח מסוג <code>JSON</code> עם מספר
+        השורה והסיבה לדילוג.
       </div>
 
       <div class="footer"><span>מדריך העלאת נתונים</span><span>3 / 4</span></div>
@@ -604,7 +606,7 @@
 
     <section class="page">
       <div class="kicker">פתרון תקלות</div>
-      <h2>אם ההעלאה נכשלת</h2>
+      <h2>אם מופיעה הודעה או יורד יומן פענוח</h2>
 
       <div class="trouble-grid">
         <div class="card">
@@ -622,7 +624,7 @@
 
         <div class="card">
           <h3><span class="ltr">Required column(s)... missing</span></h3>
-          <p>האפליקציה לא מצאה אחת מעמודות החובה.</p>
+          <p>האפליקציה לא מצאה את העמודה <code>hierarchical_structure</code>.</p>
           <ul>
             <li>השוו את שמות העמודות לעמוד 2, תו אחר תו.</li>
             <li>ודאו ששורת הכותרות היא השורה הראשונה.</li>
@@ -660,7 +662,8 @@
       </ul>
 
       <div class="success" style="margin-top: 8mm">
-        אם קובץ אחר לא נטען, נסו תחילה את <code>be-net-reference-upload.xlsx</code>.
+        אם ירד קובץ <code>parsing_log...</code>, פתחו אותו כדי לראות אילו שורות
+        דולגו ולמה. אם קובץ אחר לא נטען, נסו את <code>be-net-reference-upload.xlsx</code>.
       </div>
 
       <div class="footer"><span>מדריך העלאת נתונים</span><span>4 / 4</span></div>

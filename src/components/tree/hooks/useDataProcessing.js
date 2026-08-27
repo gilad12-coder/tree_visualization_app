@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 
+export const isVacantPosition = node => !node?.person_id || node.person_id === 'nan';
+
 const useDataProcessing = () => {
   const filterOrgData = useCallback((node, filters) => {
     const matchesFilter = (n) => {
@@ -66,7 +68,7 @@ const useDataProcessing = () => {
   const removeVacantPositions = useCallback((node) => {
     if (!node) return null;
     
-    const isVacant = node.person_id === "nan";
+    const isVacant = isVacantPosition(node);
     
     if (isVacant) return null;
     

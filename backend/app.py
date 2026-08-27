@@ -411,17 +411,31 @@ def upload_file(upload_date: datetime) -> Any:
             logger.info(f"Table created: {table.name} (ID: {table.id})")
 
             df = process_excel_data(file_content, file_extension)
-            insert_data_entries(session, table.id, df)
+            import_result = insert_data_entries(session, table.id, df)
+
+            if import_result["inserted_count"] == 0:
+                session.rollback()
+                return jsonify({
+                    "error": "No valid rows were found. Review the downloaded parsing log.",
+                    "log": import_result["log"],
+                }), 400
             
             logger.info(f"File processed and data inserted successfully for table ID: {table.id}")
             session.commit()
             logger.info(f"Upload completed successfully for folder: {folder_name}, table ID: {table.id}")
             
-            return jsonify({
+            response = {
                 "message": "File uploaded and processed successfully",
                 "table_id": table.id,
-                "folder_id": folder.id
-            }), 200
+                "folder_id": folder.id,
+                "import_summary": {
+                    "inserted_count": import_result["inserted_count"],
+                    "skipped_count": import_result["skipped_count"],
+                },
+            }
+            if import_result["log"]:
+                response["log"] = import_result["log"]
+            return jsonify(response), 200
 
         except Exception as e:
             logger.error(f"Error during file upload: {str(e)}")
@@ -440,7 +454,8 @@ def upload_file(upload_date: datetime) -> Any:
                 except Exception as delete_error:
                     logger.error(f"Error while attempting to delete folder: {str(delete_error)}")
             
-            return jsonify({"error": str(e)}), 500
+            status_code = 400 if isinstance(e, ValueError) else 500
+            return jsonify({"error": str(e)}), status_code
 
 @app.route("/folder_structure", methods=["GET"])
 def fetch_folder_structure() -> Any:
@@ -1074,34 +1089,44 @@ def compare_org_data(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str
         "reporting_line_changes": {}
     }
     
-    data1_dict = {entry.person_id: entry for entry in data1}
-    data2_dict = {entry.person_id: entry for entry in data2}
+    def entry_identity(entry: DataEntry) -> str:
+        if entry.person_id and entry.person_id != "nan":
+            return f"person:{entry.person_id}"
+        return f"structure:{entry.hierarchical_structure}"
+
+    data1_dict = {entry_identity(entry): entry for entry in data1}
+    data2_dict = {entry_identity(entry): entry for entry in data2}
     
-    for person_id, entry2 in data2_dict.items():
-        if person_id not in data1_dict:
+    for identity, entry2 in data2_dict.items():
+        change_key = (
+            entry2.person_id
+            if entry2.person_id and entry2.person_id != "nan"
+            else entry2.hierarchical_structure
+        )
+        if identity not in data1_dict:
             changes["added"].append(entry_to_dict(entry2))
         else:
-            entry1 = data1_dict[person_id]
+            entry1 = data1_dict[identity]
             if entry1.department != entry2.department:
-                changes["department_changes"][person_id] = {
+                changes["department_changes"][change_key] = {
                     "name": entry2.name,
                     "old": entry1.department,
                     "new": entry2.department
                 }
             if entry1.role != entry2.role:
-                changes["role_changes"][person_id] = {
+                changes["role_changes"][change_key] = {
                     "name": entry2.name,
                     "old": entry1.role,
                     "new": entry2.role
                 }
             if entry1.rank != entry2.rank:
-                changes["rank_changes"][person_id] = {
+                changes["rank_changes"][change_key] = {
                     "name": entry2.name,
                     "old": entry1.rank,
                     "new": entry2.rank
                 }
             if entry1.hierarchical_structure != entry2.hierarchical_structure:
-                changes["reporting_line_changes"][person_id] = {
+                changes["reporting_line_changes"][change_key] = {
                     "name": entry2.name,
                     "old": entry1.hierarchical_structure,
                     "new": entry2.hierarchical_structure
@@ -1113,7 +1138,7 @@ def compare_org_data(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str
                 entry1.hierarchical_structure != entry2.hierarchical_structure
             ]):
                 changes["changed"].append({
-                    "person_id": person_id,
+                    "person_id": entry2.person_id,
                     "name": entry2.name,
                     "changes": {
                         "department": (entry1.department, entry2.department),
@@ -1123,8 +1148,8 @@ def compare_org_data(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str
                     }
                 })
     
-    for person_id, entry1 in data1_dict.items():
-        if person_id not in data2_dict:
+    for identity, entry1 in data1_dict.items():
+        if identity not in data2_dict:
             changes["removed"].append(entry_to_dict(entry1))
     
     return changes
