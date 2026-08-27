@@ -411,17 +411,31 @@ def upload_file(upload_date: datetime) -> Any:
             logger.info(f"Table created: {table.name} (ID: {table.id})")
 
             df = process_excel_data(file_content, file_extension)
-            insert_data_entries(session, table.id, df)
+            import_result = insert_data_entries(session, table.id, df)
+
+            if import_result["inserted_count"] == 0:
+                session.rollback()
+                return jsonify({
+                    "error": "No valid rows were found. Review the downloaded parsing log.",
+                    "log": import_result["log"],
+                }), 400
             
             logger.info(f"File processed and data inserted successfully for table ID: {table.id}")
             session.commit()
             logger.info(f"Upload completed successfully for folder: {folder_name}, table ID: {table.id}")
             
-            return jsonify({
+            response = {
                 "message": "File uploaded and processed successfully",
                 "table_id": table.id,
-                "folder_id": folder.id
-            }), 200
+                "folder_id": folder.id,
+                "import_summary": {
+                    "inserted_count": import_result["inserted_count"],
+                    "skipped_count": import_result["skipped_count"],
+                },
+            }
+            if import_result["log"]:
+                response["log"] = import_result["log"]
+            return jsonify(response), 200
 
         except Exception as e:
             logger.error(f"Error during file upload: {str(e)}")
@@ -440,7 +454,8 @@ def upload_file(upload_date: datetime) -> Any:
                 except Exception as delete_error:
                     logger.error(f"Error while attempting to delete folder: {str(delete_error)}")
             
-            return jsonify({"error": str(e)}), 500
+            status_code = 400 if isinstance(e, ValueError) else 500
+            return jsonify({"error": str(e)}), status_code
 
 @app.route("/folder_structure", methods=["GET"])
 def fetch_folder_structure() -> Any:

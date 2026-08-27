@@ -127,12 +127,96 @@ class DataImportTests(unittest.TestCase):
             )
 
     def test_hierarchical_structure_value_is_required(self):
-        with self.assertRaisesRegex(ValueError, "hierarchical_structure"):
-            insert_data_entries(
-                RecordingSession(),
-                1,
-                pd.DataFrame({"hierarchical_structure": ["   "]}),
-            )
+        session = RecordingSession()
+
+        result = insert_data_entries(
+            session,
+            1,
+            pd.DataFrame(
+                {
+                    "hierarchical_structure": ["/1", "   ", "/1/1"],
+                    "name": ["Root", "Missing structure", "Child"],
+                }
+            ),
+        )
+
+        self.assertEqual(
+            [entry.hierarchical_structure for entry in session.entries],
+            ["/1", "/1/1"],
+        )
+        self.assertEqual(result["inserted_count"], 2)
+        self.assertEqual(result["skipped_count"], 1)
+        self.assertEqual(
+            result["log"]["rejected_rows"],
+            [
+                {
+                    "row": 3,
+                    "error_type": "missing_structure",
+                    "hierarchical_structure": None,
+                    "message": "Missing hierarchical structure",
+                }
+            ],
+        )
+
+    def test_structurally_invalid_rows_are_skipped_and_logged(self):
+        session = RecordingSession()
+        frame = pd.DataFrame(
+            {
+                "hierarchical_structure": [
+                    "/1",
+                    "1/2",
+                    "/1/1",
+                    "/1/1",
+                    "/1/9/1",
+                    "/10",
+                ],
+                "name": [
+                    "Root",
+                    "Invalid",
+                    "Child",
+                    "Duplicate",
+                    "Orphan",
+                    "Other root",
+                ],
+            }
+        )
+
+        result = insert_data_entries(session, 1, frame)
+
+        self.assertEqual(
+            [entry.hierarchical_structure for entry in session.entries],
+            ["/1", "/1/1"],
+        )
+        self.assertEqual(result["inserted_count"], 2)
+        self.assertEqual(result["skipped_count"], 4)
+        self.assertEqual(
+            [(row["row"], row["error_type"]) for row in result["log"]["rejected_rows"]],
+            [
+                (3, "invalid_structure"),
+                (5, "duplicated_nodes"),
+                (6, "disconnected_nodes"),
+                (7, "excluded_nodes"),
+            ],
+        )
+
+    def test_invalid_optional_date_is_cleared_without_skipping_row(self):
+        session = RecordingSession()
+
+        result = insert_data_entries(
+            session,
+            1,
+            pd.DataFrame(
+                {
+                    "hierarchical_structure": ["/1"],
+                    "birth_date": ["not-a-date"],
+                }
+            ),
+        )
+
+        self.assertEqual(result["inserted_count"], 1)
+        self.assertEqual(result["skipped_count"], 0)
+        self.assertIsNone(session.entries[0].birth_date)
+        self.assertEqual(result["log"]["summary"]["total_errors"], 1)
 
 
 class DatabaseUploadTests(unittest.TestCase):
@@ -214,6 +298,79 @@ class DatabaseUploadTests(unittest.TestCase):
         new_folders = self.fetch_folders(new_database)
         self.assertEqual(new_folders[0]["name"], "New folder")
         self.assertEqual(len(new_folders[0]["tables"]), 1)
+
+    def test_upload_keeps_valid_rows_and_returns_skipped_rows_log(self):
+        database_path = self.create_database("mixed", "mixed.db")
+        folder_id = self.create_folder(database_path, "Mixed rows")
+        csv_data = (
+            "hierarchical_structure,name,birth_date\n"
+            "/1,Root,2000-01-01\n"
+            ",Missing structure,\n"
+            "1/2,Invalid structure,\n"
+            "/1/1,Child,not-a-date\n"
+            "/1/8/1,Missing parent,\n"
+        ).encode("utf-8")
+
+        response = self.client.post(
+            "/upload",
+            data={
+                "file": (io.BytesIO(csv_data), "mixed.csv"),
+                "folder_id": str(folder_id),
+                "upload_date": "2026-08-26",
+                "db_path": database_path,
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 200, response.get_json())
+        payload = response.get_json()
+        self.assertEqual(payload["import_summary"], {"inserted_count": 2, "skipped_count": 3})
+        self.assertEqual(
+            [(row["row"], row["error_type"]) for row in payload["log"]["rejected_rows"]],
+            [
+                (3, "missing_structure"),
+                (4, "invalid_structure"),
+                (6, "disconnected_nodes"),
+            ],
+        )
+
+        org_response = self.client.get(
+            "/org_data",
+            query_string={"table_id": payload["table_id"], "db_path": database_path},
+        )
+        self.assertEqual(org_response.status_code, 200, org_response.get_json())
+        self.assertNotIn("log", org_response.get_json())
+        self.assertEqual(org_response.get_json()["org_chart"]["hierarchical_structure"], "/1")
+        self.assertEqual(
+            org_response.get_json()["org_chart"]["children"][0]["hierarchical_structure"],
+            "/1/1",
+        )
+
+    def test_upload_with_no_valid_rows_fails_with_downloadable_log(self):
+        database_path = self.create_database("invalid", "invalid.db")
+        folder_id = self.create_folder(database_path, "Invalid rows")
+        csv_data = (
+            "hierarchical_structure,name\n"
+            ",Missing structure\n"
+            "1/2,Invalid structure\n"
+        ).encode("utf-8")
+
+        response = self.client.post(
+            "/upload",
+            data={
+                "file": (io.BytesIO(csv_data), "invalid.csv"),
+                "folder_id": str(folder_id),
+                "upload_date": "2026-08-26",
+                "db_path": database_path,
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400, response.get_json())
+        payload = response.get_json()
+        self.assertIn("log", payload)
+        self.assertEqual(payload["log"]["summary"]["total_rows_skipped"], 2)
+        self.assertEqual(self.fetch_folders(database_path)[0]["tables"], [])
 
 
 class ComparisonTests(unittest.TestCase):

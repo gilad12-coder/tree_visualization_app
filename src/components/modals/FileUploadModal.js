@@ -41,6 +41,19 @@ const downloadAsset = (href, filename) => {
   link.click();
   document.body.removeChild(link);
 };
+const downloadParsingLog = (log, tableId) => {
+  const blob = new Blob([JSON.stringify(log, null, 2)], { type: "application/json" });
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = tableId
+    ? `parsing_log_table_${tableId}.json`
+    : "parsing_log_upload.json";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(href);
+};
 
 const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderId, folderStructure = [] }) => {
   const { t } = useTranslation();
@@ -174,11 +187,21 @@ const FileUploadModal = ({ isOpen, onClose, onUpload, dbPath, preselectedFolderI
           headers: { "Content-Type": "multipart/form-data" },
         });
 
+        if (response.data.log) {
+          downloadParsingLog(response.data.log, response.data.table_id);
+        }
         onUpload(response.data);
         onClose();
-        toast.success(t('fileUpload.uploadSuccess'));
+        if (response.data.log) {
+          toast.warning(t('chartOperations.parsingIssuesDownloaded'));
+        } else {
+          toast.success(t('fileUpload.uploadSuccess'));
+        }
       } catch (error) {
         console.error("Failed to upload file:", error);
+        if (error.response?.data?.log) {
+          downloadParsingLog(error.response.data.log);
+        }
         toast.error(
           error.response?.data?.error || t('fileUpload.failedToUpload')
         );
