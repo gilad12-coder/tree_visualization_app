@@ -112,7 +112,9 @@ const NodeInformation = ({ node, onBack, theme = DEFAULT_THEME }) => {
     {
       icon: <BadgeInfo className="text-gray-600" size={16} />,
       label: t('nodeInfo.personId'),
-      value: node.person_id || t('nodeInfo.notSpecified')
+      value: node.person_id && node.person_id !== 'nan'
+        ? node.person_id
+        : t('nodeInfo.notSpecified')
     },
     {
       icon: <Award className="text-gray-600" size={16} />,

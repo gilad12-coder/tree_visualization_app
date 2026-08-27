@@ -50,7 +50,7 @@ const NodeEditorModal = ({
         role: nodeData.role || '',
         department: nodeData.department || '',
         rank: nodeData.rank || '',
-        person_id: nodeData.person_id || '',
+        person_id: nodeData.person_id === 'nan' ? '' : nodeData.person_id || '',
         birth_date: nodeData.birth_date || '',
         personal_information: nodeData.personal_information || '',
         organization_id: nodeData.organization_id || '',

@@ -34,6 +34,7 @@ const EnhancedNodeCard = ({
   const [activeScreen, setActiveScreen] = useState('main');
   const roleLanguage = getLanguage(node?.role || '');
   const departmentLanguage = getLanguage(node?.department || '');
+  const hasPersonId = Boolean(node?.person_id && node.person_id !== 'nan');
   
   // Force a re-render when mounted to ensure content appears
   const [forceRender, setForceRender] = useState(0);
@@ -130,14 +131,16 @@ const EnhancedNodeCard = ({
                       {isRTL ? <ArrowLeft size={18} /> : <ArrowRight size={18} />}
                     </button>
 
-                    <button
-                      onClick={handleOpenUpdateScreen}
-                      className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-white font-medium"
-                      style={{ backgroundColor: THEME.buttonColor }}
-                    >
-                      <span>{t('nodeCard.updateInformation')}</span>
-                      <Edit size={18} />
-                    </button>
+                    {hasPersonId && (
+                      <button
+                        onClick={handleOpenUpdateScreen}
+                        className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-white font-medium"
+                        style={{ backgroundColor: THEME.buttonColor }}
+                      >
+                        <span>{t('nodeCard.updateInformation')}</span>
+                        <Edit size={18} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

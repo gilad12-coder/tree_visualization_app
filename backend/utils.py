@@ -289,6 +289,14 @@ def parse_optional_date(value):
     return parsed_date.date() if pd.notna(parsed_date) else None
 
 
+def normalize_optional_text(value):
+    if pd.isna(value):
+        return None
+
+    normalized_value = str(value).strip()
+    return normalized_value or None
+
+
 def insert_data_entries(session, table_id, df):
     if table_id is None:
         raise ValueError("table_id cannot be None")
@@ -299,14 +307,21 @@ def insert_data_entries(session, table_id, df):
     df.columns = df.columns.str.lower()
 
     # Ensure required columns are present (case-insensitive)
-    required_columns = ['hierarchical_structure', 'name', 'role']
+    required_columns = ['hierarchical_structure']
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         raise ValueError(f"Required column(s) {', '.join(missing_columns)} are missing from the DataFrame")
 
+    for col in required_columns:
+        missing_value_rows = df.index[df[col].map(normalize_optional_text).isna()]
+        if not missing_value_rows.empty:
+            row_numbers = ', '.join(str(index + 2) for index in missing_value_rows)
+            raise ValueError(f"Required value(s) for {col} are missing in row(s): {row_numbers}")
+
     # Convert birth_date to datetime if the column exists
     for col in df.columns:
-        df[col] = df[col].astype(str)
+        if col != 'birth_date':
+            df[col] = df[col].map(normalize_optional_text)
 
     if 'birth_date' in df.columns:
         df['birth_date'] = df['birth_date'].map(parse_optional_date)
@@ -347,7 +362,7 @@ def insert_data_entries(session, table_id, df):
 
         # Sync personal info for duplicate person_ids (first occurrence is source of truth)
         person_id = data_entry_dict.get('person_id')
-        if person_id and pd.notna(person_id) and person_id != 'nan':
+        if person_id:
             if person_id not in person_id_first_occurrence:
                 # Store first occurrence's personal info
                 person_id_first_occurrence[person_id] = {

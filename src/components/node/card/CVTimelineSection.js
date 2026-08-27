@@ -62,6 +62,7 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
   const [cv, setCV] = useState([]);
   const [error, setError] = useState(null);
   const [dataStatus, setDataStatus] = useState('idle');
+  const hasPersonId = Boolean(node.person_id && node.person_id !== 'nan');
 
   const contentRef = useRef(null);
 
@@ -112,15 +113,17 @@ const CVTimelineSection = ({ node, folderId, tableId, onBack, theme = DEFAULT_TH
 
   const renderQueryTypeSelection = () => (
     <div className="space-y-3 pt-2">
-      <button
-        onClick={() => fetchCV('person_id')}
-        className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-      >
-        <span className="flex items-center gap-2">
-          <User size={18} />
-          {t('cvTimeline.queryPersonalInfo')}
-        </span>
-      </button>
+      {hasPersonId && (
+        <button
+          onClick={() => fetchCV('person_id')}
+          className="w-full flex justify-between items-center px-4 py-2.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+        >
+          <span className="flex items-center gap-2">
+            <User size={18} />
+            {t('cvTimeline.queryPersonalInfo')}
+          </span>
+        </button>
+      )}
 
       <button
         onClick={() => fetchCV('hierarchical')}

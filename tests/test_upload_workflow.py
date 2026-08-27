@@ -9,8 +9,8 @@ from datetime import date
 
 import pandas as pd
 
-from backend.app import app
-from backend.models import dispose_db
+from backend.app import app, compare_org_data
+from backend.models import DataEntry, dispose_db
 from backend.utils import insert_data_entries
 
 logging.disable(logging.CRITICAL)
@@ -26,13 +26,14 @@ class RecordingSession:
         self.entries.append(entry)
 
 
-class DateImportTests(unittest.TestCase):
-    """Cover birth-date inputs that previously broke Pandas conversion."""
+class DataImportTests(unittest.TestCase):
+    """Cover required columns and optional values during data import."""
 
     def test_mixed_timezone_offsets_preserve_calendar_dates(self):
         session = RecordingSession()
         frame = pd.DataFrame(
             {
+                "person_id": ["1", "2"],
                 "hierarchical_structure": ["/CEO", "/CEO/CTO"],
                 "name": ["Dana", "Yossi"],
                 "role": ["CEO", "CTO"],
@@ -54,6 +55,7 @@ class DateImportTests(unittest.TestCase):
         session = RecordingSession()
         frame = pd.DataFrame(
             {
+                "person_id": ["1"],
                 "hierarchical_structure": ["/CEO"],
                 "name": ["Dana"],
                 "role": ["CEO"],
@@ -63,6 +65,74 @@ class DateImportTests(unittest.TestCase):
         insert_data_entries(session, 1, frame)
 
         self.assertIsNone(session.entries[0].birth_date)
+
+    def test_missing_optional_name_column_is_accepted(self):
+        session = RecordingSession()
+        frame = pd.DataFrame(
+            {
+                "person_id": ["1"],
+                "hierarchical_structure": ["/CEO"],
+                "role": ["CEO"],
+            }
+        )
+
+        insert_data_entries(session, 1, frame)
+
+        self.assertIsNone(session.entries[0].name)
+
+    def test_blank_optional_identity_fields_are_stored_as_none(self):
+        session = RecordingSession()
+        frame = pd.DataFrame(
+            {
+                "person_id": [None, "   "],
+                "hierarchical_structure": ["/CEO", "/CEO/CTO"],
+                "name": [None, "   "],
+                "role": [None, "   "],
+            }
+        )
+
+        insert_data_entries(session, 1, frame)
+
+        self.assertEqual([entry.person_id for entry in session.entries], [None, None])
+        self.assertEqual([entry.name for entry in session.entries], [None, None])
+        self.assertEqual([entry.role for entry in session.entries], [None, None])
+
+    def test_missing_optional_role_column_is_accepted(self):
+        session = RecordingSession()
+        frame = pd.DataFrame(
+            {
+                "person_id": ["1"],
+                "hierarchical_structure": ["/CEO"],
+            }
+        )
+
+        insert_data_entries(session, 1, frame)
+
+        self.assertIsNone(session.entries[0].role)
+
+    def test_missing_optional_person_id_column_is_accepted(self):
+        session = RecordingSession()
+        frame = pd.DataFrame({"hierarchical_structure": ["/CEO"]})
+
+        insert_data_entries(session, 1, frame)
+
+        self.assertIsNone(session.entries[0].person_id)
+
+    def test_hierarchical_structure_column_is_required(self):
+        with self.assertRaisesRegex(ValueError, "hierarchical_structure"):
+            insert_data_entries(
+                RecordingSession(),
+                1,
+                pd.DataFrame({"person_id": ["1"]}),
+            )
+
+    def test_hierarchical_structure_value_is_required(self):
+        with self.assertRaisesRegex(ValueError, "hierarchical_structure"):
+            insert_data_entries(
+                RecordingSession(),
+                1,
+                pd.DataFrame({"hierarchical_structure": ["   "]}),
+            )
 
 
 class DatabaseUploadTests(unittest.TestCase):
@@ -114,9 +184,9 @@ class DatabaseUploadTests(unittest.TestCase):
         self.assertEqual(self.fetch_folders(old_database)[0]["name"], "Old folder")
 
         csv_data = (
-            "person_id,name,role,hierarchical_structure,birth_date\n"
-            "1,Dana,CEO,/CEO,2000-01-01T00:00:00+02:00\n"
-            "2,Yossi,CTO,/CEO/CTO,2000-01-02T00:00:00+03:00\n"
+            "hierarchical_structure,birth_date\n"
+            "/CEO,2000-01-01T00:00:00+02:00\n"
+            "/CEO/CTO,2000-01-02T00:00:00+03:00\n"
         ).encode("utf-8")
         response = self.client.post(
             "/upload",
@@ -130,10 +200,43 @@ class DatabaseUploadTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200, response.get_json())
+        table_id = response.get_json()["table_id"]
+        org_response = self.client.get("/org_data", query_string={"table_id": table_id})
+        self.assertEqual(org_response.status_code, 200, org_response.get_json())
+        org_chart = org_response.get_json()["org_chart"]
+        self.assertIsNone(org_chart["name"])
+        self.assertIsNone(org_chart["role"])
+        self.assertIsNone(org_chart["person_id"])
+        self.assertIsNone(org_chart["children"][0]["name"])
+        self.assertIsNone(org_chart["children"][0]["role"])
+        self.assertIsNone(org_chart["children"][0]["person_id"])
         self.assertEqual(self.fetch_folders(old_database)[0]["tables"], [])
         new_folders = self.fetch_folders(new_database)
         self.assertEqual(new_folders[0]["name"], "New folder")
         self.assertEqual(len(new_folders[0]["tables"]), 1)
+
+
+class ComparisonTests(unittest.TestCase):
+    """Keep vacant positions distinct when comparing tables."""
+
+    def test_vacant_positions_fall_back_to_hierarchical_identity(self):
+        previous = [
+            DataEntry(hierarchical_structure="/1", person_id=None),
+            DataEntry(hierarchical_structure="/1/1", person_id="nan"),
+        ]
+        current = [
+            DataEntry(hierarchical_structure="/1", person_id=None),
+            DataEntry(hierarchical_structure="/1/1", person_id="nan"),
+            DataEntry(hierarchical_structure="/1/2", person_id=None),
+        ]
+
+        changes = compare_org_data(previous, current)
+
+        self.assertEqual(
+            [entry["hierarchical_structure"] for entry in changes["added"]],
+            ["/1/2"],
+        )
+        self.assertEqual(changes["removed"], [])
 
 
 if __name__ == "__main__":

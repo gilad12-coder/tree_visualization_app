@@ -526,7 +526,7 @@ const OrgChart = ({ dbPath, initialTableId, initialFolderId, onReturnToLanding }
     const personIdCounts = {};
     const countPersonIds = (node) => {
       if (!node) return;
-      if (node.person_id) {
+      if (node.person_id && node.person_id !== 'nan') {
         personIdCounts[node.person_id] = (personIdCounts[node.person_id] || 0) + 1;
       }
       if (node.children && Array.isArray(node.children)) {

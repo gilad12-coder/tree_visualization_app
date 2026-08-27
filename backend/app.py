@@ -1074,34 +1074,44 @@ def compare_org_data(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str
         "reporting_line_changes": {}
     }
     
-    data1_dict = {entry.person_id: entry for entry in data1}
-    data2_dict = {entry.person_id: entry for entry in data2}
+    def entry_identity(entry: DataEntry) -> str:
+        if entry.person_id and entry.person_id != "nan":
+            return f"person:{entry.person_id}"
+        return f"structure:{entry.hierarchical_structure}"
+
+    data1_dict = {entry_identity(entry): entry for entry in data1}
+    data2_dict = {entry_identity(entry): entry for entry in data2}
     
-    for person_id, entry2 in data2_dict.items():
-        if person_id not in data1_dict:
+    for identity, entry2 in data2_dict.items():
+        change_key = (
+            entry2.person_id
+            if entry2.person_id and entry2.person_id != "nan"
+            else entry2.hierarchical_structure
+        )
+        if identity not in data1_dict:
             changes["added"].append(entry_to_dict(entry2))
         else:
-            entry1 = data1_dict[person_id]
+            entry1 = data1_dict[identity]
             if entry1.department != entry2.department:
-                changes["department_changes"][person_id] = {
+                changes["department_changes"][change_key] = {
                     "name": entry2.name,
                     "old": entry1.department,
                     "new": entry2.department
                 }
             if entry1.role != entry2.role:
-                changes["role_changes"][person_id] = {
+                changes["role_changes"][change_key] = {
                     "name": entry2.name,
                     "old": entry1.role,
                     "new": entry2.role
                 }
             if entry1.rank != entry2.rank:
-                changes["rank_changes"][person_id] = {
+                changes["rank_changes"][change_key] = {
                     "name": entry2.name,
                     "old": entry1.rank,
                     "new": entry2.rank
                 }
             if entry1.hierarchical_structure != entry2.hierarchical_structure:
-                changes["reporting_line_changes"][person_id] = {
+                changes["reporting_line_changes"][change_key] = {
                     "name": entry2.name,
                     "old": entry1.hierarchical_structure,
                     "new": entry2.hierarchical_structure
@@ -1113,7 +1123,7 @@ def compare_org_data(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str
                 entry1.hierarchical_structure != entry2.hierarchical_structure
             ]):
                 changes["changed"].append({
-                    "person_id": person_id,
+                    "person_id": entry2.person_id,
                     "name": entry2.name,
                     "changes": {
                         "department": (entry1.department, entry2.department),
@@ -1123,8 +1133,8 @@ def compare_org_data(data1: List[DataEntry], data2: List[DataEntry]) -> Dict[str
                     }
                 })
     
-    for person_id, entry1 in data1_dict.items():
-        if person_id not in data2_dict:
+    for identity, entry1 in data1_dict.items():
+        if identity not in data2_dict:
             changes["removed"].append(entry_to_dict(entry1))
     
     return changes
